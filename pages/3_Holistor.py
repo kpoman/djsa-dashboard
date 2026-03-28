@@ -81,11 +81,13 @@ def _load_data():
     df_mov['nmonto_usd'] = df_mov.apply(_dolarizar, axis=1)
     df_mov['cuenta_padre'] = df_mov['cuenta'].apply(_get_cuenta_padre)
 
+    df_mov['anio'] = df_mov['fecha'].dt.year
     df_yearly = (
         df_mov
-        .groupby([df_mov.fecha.dt.year, df_mov.cuenta, df_mov.cuenta_padre, df_mov.ctipoas])
-        .sum(numeric_only=True)
-        .reset_index()[['fecha', 'cuenta', 'cuenta_padre', 'nmonto_usd', 'ctipoas']]
+        .groupby(['anio', 'cuenta', 'cuenta_padre', 'ctipoas'])['nmonto_usd']
+        .sum()
+        .reset_index()
+        .rename(columns={'anio': 'fecha'})
     )
     df_yearly = df_yearly.astype({'cuenta': 'object', 'fecha': 'int64'})
 
@@ -227,20 +229,11 @@ try:
         if sel_tipo:
             df_hist = df_hist[df_hist['ctipoas'].isin(sel_tipo)]
 
-        df_grp = (
-            df_hist.groupby([df_hist.fecha.dt.year, df_hist.fecha.dt.month, 'ctipoas'])
-            .sum(numeric_only=True)
-            .reset_index()
-        )
-        df_grp.rename(columns={'fecha_x': 'Ano', 'fecha_y': 'Mes'}, inplace=True)
-        if 'fecha' in df_grp.columns:
-            df_grp.columns = ['Ano' if i == 0 else 'Mes' if i == 1 else c
-                              for i, c in enumerate(df_grp.columns)]
-        # reasignar columnas correctamente
+        df_hist['Ano'] = df_hist['fecha'].dt.year
+        df_hist['Mes'] = df_hist['fecha'].dt.month
         df_grp2 = (
-            df_hist.groupby([df_hist.fecha.dt.year.rename('Ano'),
-                             df_hist.fecha.dt.month.rename('Mes'), 'ctipoas'])
-            .sum(numeric_only=True)
+            df_hist.groupby(['Ano', 'Mes', 'ctipoas'])['nmonto_usd']
+            .sum()
             .reset_index()
         )
         df_grp2['Date'] = pd.to_datetime({'year': df_grp2['Ano'], 'month': df_grp2['Mes'], 'day': 1})
