@@ -127,45 +127,65 @@ def _build_sunburst(df_yearly, cuentas_dic, fechas=None, cuenta_base=None, tipoa
     df = df_yearly.copy()
     if fechas:
         df = df[df['fecha'].isin(fechas)]
+    if tipoas:
+        df = df[df['ctipoas'].isin(tipoas)]
     if cuenta_base:
         base = cuenta_base.rstrip('0')
         df = df[df['cuenta'].str.startswith(base)]
-    if tipoas:
-        df = df[df['ctipoas'].isin(tipoas)]
 
-    df = df.groupby(['fecha', 'cuenta', 'cuenta_padre']).sum(numeric_only=True).reset_index()
+    # Agregar por cuenta (colapsar años y tipos)
+    df_agg = (df.groupby(['cuenta', 'cuenta_padre'])['nmonto_usd']
+               .sum()
+               .reset_index())
+    df_agg = df_agg[df_agg['nmonto_usd'].notna()].copy()
 
-    cuentas = df['cuenta'].tolist()
-    padres = df['cuenta_padre'].tolist()
-    montos = df['nmonto_usd'].tolist()
+    if df_agg.empty:
+        return {'ids': [], 'names': [], 'parents': [], 'values': []}
 
-    # Agregar nodos intermedios faltantes
-    extra = []
-    for c in cuentas:
-        for p in _get_all_parents(c, cuenta_base or ''):
-            if p not in cuentas and p not in [e[0] for e in extra]:
-                extra.append((p, _get_cuenta_padre(p), 0))
-    for c, p, m in extra:
-        cuentas.insert(0, c)
-        padres.insert(0, p)
-        montos.insert(0, m)
+    all_ids = set(df_agg['cuenta'].tolist())
 
-    # Nodo raíz
-    if cuenta_base:
-        padre_raiz = _get_cuenta_padre(cuenta_base)
-        cuentas.insert(0, cuenta_base)
-        padres.insert(0, padre_raiz)
-        montos.insert(0, 0)
-        cuentas.insert(0, padre_raiz)
-        padres.insert(0, '')
-        montos.insert(0, 0)
+    # Agregar nodos intermedios faltantes recorriendo la jerarquía
+    rows_to_add = []
+    for cuenta in list(all_ids):
+        current = cuenta
+        while True:
+            padre = _get_cuenta_padre(current)
+            if padre == current or padre == '000000000000':
+                break
+            if padre not in all_ids:
+                all_ids.add(padre)
+                rows_to_add.append({
+                    'cuenta': padre,
+                    'cuenta_padre': _get_cuenta_padre(padre),
+                    'nmonto_usd': 0,
+                })
+            current = padre
+
+    if rows_to_add:
+        df_agg = pd.concat([df_agg, pd.DataFrame(rows_to_add)], ignore_index=True)
+        df_agg = df_agg.groupby(['cuenta', 'cuenta_padre'])['nmonto_usd'].sum().reset_index()
+
+    # El nodo raíz debe tener parent vacío para que Plotly lo renderice
+    if cuenta_base and cuenta_base in df_agg['cuenta'].values:
+        df_agg.loc[df_agg['cuenta'] == cuenta_base, 'cuenta_padre'] = ''
+    else:
+        # Nodos cuyo padre no está en la lista → son raíces
+        known = set(df_agg['cuenta'])
+        df_agg.loc[~df_agg['cuenta_padre'].isin(known), 'cuenta_padre'] = ''
 
     def _label(c):
         key = c[::-1].zfill(12)[::-1]
         return cuentas_dic.get(key, c)
 
-    labels = [_label(c) for c in cuentas]
-    return {'ids': cuentas, 'names': labels, 'parents': padres, 'values': montos}
+    # Plotly sunburst necesita valores positivos
+    df_agg['valor'] = df_agg['nmonto_usd'].abs()
+
+    return {
+        'ids': df_agg['cuenta'].tolist(),
+        'names': [_label(c) for c in df_agg['cuenta']],
+        'parents': df_agg['cuenta_padre'].tolist(),
+        'values': df_agg['valor'].tolist(),
+    }
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
@@ -213,6 +233,7 @@ try:
             values='values',
             title='Distribución de cuentas (USD)',
             height=700,
+            branchvalues='total',
         )
         fig_sb.update_traces(textinfo='label+percent parent')
         st.plotly_chart(fig_sb, use_container_width=True)
