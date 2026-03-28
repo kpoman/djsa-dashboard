@@ -1,0 +1,1245 @@
+,cuenta,c_nombre,nivel,nsumasal
+0,100000000000,ACTIVO                             ,1,442502067.42
+1,110000000000,Activo Corriente                   ,2,362977794.0
+2,111000000000,Disponibilidades                   ,3,63204703.72
+3,111010000000,Caja                               ,4,31117.38
+4,111020000000,Fondo fijo                         ,4,25072.5
+5,111030000000,Moneda Extranjera                  ,4,0.0
+6,111040000000,Bancos                             ,4,-2145264.11
+7,111040100000,Banco Pcia                         ,5,0.0
+8,111040101000,Banco Pcia Cta Cte                 ,6,0.0
+9,111040102000,Banco Pcia Caja de Ahorro          ,6,0.0
+10,111040103000,Banco Pcia Cta Cte - Patacones A   ,6,0.0
+11,111040104000,Banco Pcia Cta Cte - Patacones B   ,6,0.0
+12,111040200000,Banco Nación                       ,5,0.0
+13,111040201000,Banco Nación Cta Cte               ,6,0.0
+14,111040202000,Banco Nación Caja de Ahorro        ,6,0.0
+15,111040300000,Banco Galicia                      ,5,-2145264.11
+16,111040301000,Banco Galicia Cta Cte              ,6,-2145264.11
+17,111040302000,Banco Galicia Caja de Ahorro       ,6,0.0
+18,111040303000,Banco Galicia Cte. Cte. Esp. U$S   ,6,0.0
+19,111040400000,Banco Lloyds                       ,5,0.0
+20,111040401000,Banco Lloyds Cta Cte               ,6,0.0
+21,111050000000,Valores a Depositar                ,4,11293777.95
+22,111060000000,Plazo Fijo                         ,4,54000000.0
+23,111070000000,Intereses y Cer Devengados         ,4,0.0
+24,112000000000,Inversiones                        ,3,30658637.53
+25,112010000000,Bonex                              ,4,0.0
+26,112020000000,Titulos                            ,4,0.0
+27,112030000000,Otras Colocaciones Financieras     ,4,0.0
+28,112040000000,Suscripción FIMA                   ,4,30658637.53
+29,112050000000,Bonar X                            ,4,0.0
+30,113000000000,Créditos                           ,3,22760976.27
+31,113010000000,Comerciales                        ,4,10340740.03
+32,113010100000,Acopiadores                        ,5,-3766453.87
+33,113010101000,Agroganadera Saladillo SACIAFI     ,6,0.0
+34,113010102000,Cóndores SA                        ,6,0.0
+35,113010103000,Cía de Alimentos Fargo SA          ,6,0.0
+36,113010104000,Pucará SA                          ,6,0.0
+37,113010105000,Molinos Rio de La Plata            ,6,0.0
+38,113010106000,Multigranos Cereales SA            ,6,0.0
+39,113010107000,Cooperativa Agrop.de Bolivar Ltda  ,6,0.0
+40,113010108000,Cargill SACI                       ,6,0.0
+41,113010109000,Enrique Zeni y Cia SACIAFeI        ,6,0.0
+42,113010110000,Julian Ojinaga SRL                 ,6,0.0
+43,113010111000,Rosaser SA                         ,6,0.0
+44,113010112000,COMPAÑIA ARG-DE GRANOS SA          ,6,0.0
+45,113010113000,Catalpa Agropecuaria S.R.L.        ,6,0.0
+46,113010114000,Tomas Hnos y Cia Sa                ,6,-3766453.87
+47,113010115000,López y Ramos SRL                  ,6,0.0
+48,113010200000,Consignatarios                     ,5,281955.06
+49,113010201000,Lauquen Agropecuaria SA            ,6,0.0
+50,113010202000,Casa Maineri SA                    ,6,0.0
+51,113010203000,J.y M.de la Serna SRL              ,6,143510.61
+52,113010204000,"Saenz Valiente, Bullrich y Cía SA  ",6,0.0
+53,113010205000,José Diaz Herrera SA               ,6,0.0
+54,113010206000,Suc.Brivio y Cía SRL               ,6,0.0
+55,113010207000,Ganadera Nueva Escocia SA          ,6,0.0
+56,113010208000,Carindú SA                         ,6,0.0
+57,113010209000,Egal Export SA                     ,6,0.0
+58,113010210000,Heguy Hnos y Cía SAC y A           ,6,0.0
+59,113010211000,Urturi Hnos SRL                    ,6,0.0
+60,113010212000,Benito y Pujol y Cía SA            ,6,0.0
+61,113010213000,Finexcor SA                        ,6,0.0
+62,113010214000,Cía Rioplatense de Carnes y Ganado ,6,0.0
+63,113010215000,Latigo SA                          ,6,0.0
+64,113010216000,Frigorífico Gargiulo SA            ,6,0.0
+65,113010217000,Roberto J. Iturbe                  ,6,0.0
+66,113010218000,Alzaga Unzué y Cía S.A.            ,6,0.0
+67,113010219000,Ferias del Centro S.R.L.           ,6,138444.45
+68,113010220000,SR Frigorífico S.R.L.              ,6,0.0
+69,113010221000,Ganadera San Roque SA              ,6,0.0
+70,113010222000,Lartirigoyen y Cía SA              ,6,0.0
+71,113010223000,Consimeat SA                       ,6,0.0
+72,113010224000,Lawacaloc SA                       ,6,0.0
+73,113010225000,Ganadera Salliquelo SA             ,6,0.0
+74,113010226000,Frigal SA                          ,6,0.0
+75,113010227000,COOP.TRA.FRI.YA. LTDA.             ,6,0.0
+76,113010228000,AGROP.LAS HERAS SA                 ,6,0.0
+77,113010229000,FACICAR SA                         ,6,0.0
+78,113010230000,Frigorifico Bolívar SA             ,6,0.0
+79,113010300000,Ds x Vta de Leche                  ,5,13825238.84
+80,113010301000,La Serenísima-Mastellone Hnos SA   ,6,0.0
+81,113010302000,Lacteos Conosur S.A.               ,6,0.0
+82,113010303000,Lacteos Barraza SA                 ,6,13825238.84
+83,113010400000,Otros Deudores x Vtas              ,5,0.0
+84,113010401000,Deudores por Ventas                ,6,0.0
+85,113010402000,Deudores Varios                    ,6,0.0
+86,113020000000,Deudores en Mora                   ,4,0.0
+87,113030000000,Deudores en Gestión Judicial       ,4,0.0
+88,113040000000,Anticipos                          ,4,0.0
+89,113040100000,Anticipos proveedores              ,5,0.0
+90,113040200000,Anticipos personal                 ,5,0.0
+91,113050000000,Fiscales                           ,4,11330224.08
+92,113050100000,Anticipos                          ,5,18158.81
+93,113050101000,Anticipo Ganancias                 ,6,0.0
+94,113050102000,Anticipo Gan.Min.Pres.             ,6,0.0
+95,113050103000,IVA Crédito Fiscal                 ,6,0.0
+96,113050104000,IVA Devengado                      ,6,18158.81
+97,113050200000,Retenciones                        ,5,345877.72
+98,113050201000,Retenc.Ganancias                   ,6,345877.72
+99,113050202000,Retenc.IVA                         ,6,0.0
+100,113050203000,Retenc.Ing.Brutos                  ,6,0.0
+101,113050300000,Pagos a Cuenta                     ,5,0.0
+102,113050301000,Pago a cta Ganancias               ,6,0.0
+103,113050302000,Pago a cta IVA                     ,6,0.0
+104,113050303000,Pago a cta ITF                     ,6,0.0
+105,113050304000,Pago a cta ITC                     ,6,0.0
+106,113050400000,Percepciones                       ,5,376.91
+107,113050401000,Percep.Ganancias                   ,6,0.0
+108,113050402000,Percep.IVA                         ,6,-113.33
+109,113050403000,Percep.Ing.Brutos                  ,6,490.24
+110,113050404000,Percep.Endeudamiento Empresario    ,6,0.0
+111,113050500000,Saldo a Favor                      ,5,10965810.64
+112,113050501000,Saldo a Favor Gcias                ,6,0.0
+113,113050502000,Saldo a Favor IVA                  ,6,9196711.47
+114,113050503000,Saldo a Favor Ing.B.               ,6,1766127.74
+115,113050504000,Credito Impuesto a la Gan.Min.Presu,6,0.0
+116,113050505000,Saldo a Favor G.M.P.               ,6,2971.43
+117,113050506000,Saldo a Fav.IVA Libre Disp.        ,6,0.0
+118,113050507000,Saldo Iva- Credito a Compensar     ,6,0.0
+119,113060000000,Societarios                        ,4,1090012.16
+120,113060100000,Accionistas o Socios               ,5,1090012.16
+121,113060101000,Stegmann Federico                  ,6,1090012.16
+122,113060102000,Stegmann Patricio                  ,6,0.0
+123,113060103000,Stegmann Sofia                     ,6,0.0
+124,113060104000,Stegmann Claudio                   ,6,0.0
+125,113060105000,Stegmann Luis                      ,6,0.0
+126,113060200000,Directores o Administradores       ,5,0.0
+127,113060201000,xxxxxxxxxx                         ,6,0.0
+128,113060300000,Asesores                           ,5,0.0
+129,113060301000,xxxxxxxxxx                         ,6,0.0
+130,113060400000,                                   ,5,0.0
+131,113070000000,Otros Créditos                     ,4,0.0
+132,113070100000,Alquileres o Arrendamientos        ,5,0.0
+133,113070200000,Seguros pagados x adelantado       ,5,0.0
+134,113080000000,Canje Semilla de Soja              ,4,0.0
+135,114000000000,Bienes de Cambio                   ,3,246353476.48
+136,114010000000,Agricultura                        ,4,63780156.86
+137,114010100000,Trigo                              ,5,9021900.0
+138,114010101000,Sementera Trigo                    ,6,0.0
+139,114010102000,Cereal en exist.-Trigo             ,6,9021900.0
+140,114010103000,Semilla Trigo                      ,6,0.0
+141,114010200000,Maíz                               ,5,7661593.48
+142,114010201000,Sementera Maíz                     ,6,7661593.48
+143,114010202000,Cereal en exist.-Maíz              ,6,0.0
+144,114010203000,Semilla Maíz                       ,6,0.0
+145,114010300000,Girasol                            ,5,5707448.58
+146,114010301000,Sementera Girasol                  ,6,5707448.58
+147,114010302000,Oleaginosos en exist.-Girasol      ,6,0.0
+148,114010303000,Semilla Girasol                    ,6,0.0
+149,114010400000,Soja                               ,5,4097336.36
+150,114010401000,Sementera Soja                     ,6,4097336.36
+151,114010402000,Oleaginosos en exist.-Soja         ,6,0.0
+152,114010403000,Semilla Soja                       ,6,0.0
+153,114010500000,Avena                              ,5,0.0
+154,114010501000,Sementera Avena                    ,6,0.0
+155,114010502000,Cereal en exist.-Avena             ,6,0.0
+156,114010503000,Semilla Avena                      ,6,0.0
+157,114010600000,Sorgo                              ,5,873732.0
+158,114010601000,Sementera Sorgo                    ,6,873732.0
+159,114010602000,Semilla Sorgo                      ,6,0.0
+160,114010700000,Semillas de Pasturas               ,5,0.0
+161,114010800000,"Agroquimicos, Fertil., Herbicidas  ",5,0.0
+162,114010900000,Cebada                             ,5,36418146.44
+163,114010901000,Sementera cebada                   ,6,0.0
+164,114010902000,Cereal en existencia- Cebada       ,6,36418146.44
+165,114010903000,Semilla Cebada                     ,6,0.0
+166,114011000000,Almacen de Fertilizantes           ,5,0.0
+167,114020000000,Ganaderia                          ,4,182573319.62
+168,114020100000,Hacienda Vacuna                    ,5,172828800.0
+169,114020101000,Cria                               ,6,75439700.0
+170,114020101010,Terneros-Cría                      ,7,15439500.0
+171,114020101020,Terneras-Cría                      ,7,12370400.0
+172,114020101030,Novillos + 2-Cría                  ,7,0.0
+173,114020101040,Novillos 1 a 2-Cría                ,7,0.0
+174,114020101050,Vaq. + 2-Cría                      ,7,0.0
+175,114020101060,Vaq. 1 a 2-Cría                    ,7,2519400.0
+176,114020101070,Vacas-Cría                         ,7,45110400.0
+177,114020101080,Toros                              ,7,0.0
+178,114020101090,Toritos                            ,7,0.0
+179,114020101100,Vacas - Capitalizacion             ,7,0.0
+180,114020101110,Terneros - Capitalizacion          ,7,0.0
+181,114020102000,Invernada                          ,6,0.0
+182,114020102010,Terneros-Invernada                 ,7,0.0
+183,114020102020,Terneras-Invernada                 ,7,0.0
+184,114020102030,Novillos + 2-Invernada             ,7,0.0
+185,114020102040,Novillos 1 a 2-Invernada           ,7,0.0
+186,114020102050,Vaq. + 2-Invernada                 ,7,0.0
+187,114020102060,Vaq. 1 a 2-Invernada               ,7,0.0
+188,114020102070,Vacas - Invernada                  ,7,0.0
+189,114020102080,TOROS - Invernada                  ,7,0.0
+190,114020103000,Hacienda Tambo-Hol.Arg.            ,6,97389100.0
+191,114020103010,Terneros HA hasta 180 Kg.(guachera-,7,442400.0
+192,114020103020,Terneras HA hasta 180 Kg.(guachera-,7,9477000.0
+193,114020103030,Novillos HA de + de 180 Kg.        ,7,813200.0
+194,114020103040,Novillos HA de + de 180 Kg.Capitali,7,0.0
+195,114020103050,Vaq. +2-H.A.                       ,7,0.0
+196,114020103060,Vaq. 1 a 2-H.A.                    ,7,26999100.0
+197,114020103070,Vacas-H.A.                         ,7,59657400.0
+198,114020103080,Toros-H.A.                         ,7,0.0
+199,114020104000,Feed Lot                           ,6,0.0
+200,114020104010,Terneras - Feed Lot                ,7,0.0
+201,114020104020,Terneros - Feed Lot                ,7,0.0
+202,114020104030,Vaquillonas - Feed Lot             ,7,0.0
+203,114020104040,Novillos - Feed Lot                ,7,0.0
+204,114020104050,Vacas - Feed Lot                   ,7,0.0
+205,114020200000,Tambo                              ,5,9744519.62
+206,114020201000,Balanceados                        ,6,8463181.57
+207,114020202000,Granos                             ,6,0.0
+208,114020202010,"Algodón, Soja                      ",7,0.0
+209,114020202020,"Maíz, Sorgo                        ",7,0.0
+210,114020202030,"Trigo, Avena, Malta                ",7,0.0
+211,114020203000,Pellets                            ,6,0.0
+212,114020203010,Pellets de Girasol                 ,7,0.0
+213,114020203020,Pellets de Soja                    ,7,0.0
+214,114020203030,Pellets de Trigo                   ,7,0.0
+215,114020203040,Pellets de Afrechillo              ,7,0.0
+216,114020204000,"Fardos, Rollos                     ",6,1044750.0
+217,114020205000,Silos                              ,6,0.0
+218,114020205010,Silo de Maíz                       ,7,0.0
+219,114020205020,Silo de Sorgo                      ,7,0.0
+220,114020205030,Silo de Pasturas                   ,7,0.0
+221,114020205040,Silo de Cebada                     ,7,0.0
+222,114020206000,Gas Oil en Existencia              ,6,236588.05
+223,114020207000,Stock Galpon                       ,6,0.0
+224,114020208000,                                   ,6,0.0
+225,114020209000,Leche en Existencia                ,6,0.0
+226,114020290000,                                   ,6,0.0
+227,114020300000,Stock Productos Veterinarios       ,5,0.0
+228,114020400000,Hacienda Lanar                     ,5,0.0
+229,114020500000,Hacienda Equina                    ,5,0.0
+230,114030000000,Apicultura                         ,4,0.0
+231,114030100000,Existencia Inicial                 ,5,0.0
+232,114030101000,Miel - E.I.                        ,6,0.0
+233,114030200000,Compras                            ,5,0.0
+234,114030300000,Existencia Final                   ,5,0.0
+235,114030301000,Miel - E.F.                        ,6,0.0
+236,115000000000,Otros Activos                      ,3,0.0
+237,120000000000,Activo No Corriente                ,2,79524273.42
+238,121000000000,Créditos                           ,3,0.0
+239,121010000000,Deudores en Gestión Judicial       ,4,0.0
+240,121020000000,Créditos sin Garantía              ,4,0.0
+241,122000000000,Inversiones                        ,3,0.0
+242,122010000000,Títulos                            ,4,0.0
+243,122020000000,Acciones                           ,4,0.0
+244,122020100000,Acciones con cotización            ,5,0.0
+245,122020200000,Acciones sin cotización            ,5,0.0
+246,122030000000,Colocaciones                       ,4,0.0
+247,123000000000,Bienes de Uso                      ,3,79524273.42
+248,123010000000,De la Explotación                  ,4,79524273.42
+249,123010100000,Inmuebles                          ,5,55153760.67
+250,123010101000,Rurales                            ,6,45462888.91
+251,123010101010,Tierra                             ,7,45012950.39
+252,123010101020,Edificios                          ,7,581800.0
+253,123010101030,Amort.Acum.Inm.Rurales             ,7,-131861.48
+254,123010102000,Urbanos                            ,6,9690871.76
+255,123010102010,Terreno                            ,7,0.0
+256,123010102020,Construcciones Urbanas             ,7,11914732.8
+257,123010102030,Amort.Acum.Inm.Urbanos             ,7,-2223861.04
+258,123010200000,Rodados                            ,5,1791653.85
+259,123010201000,Camionetas                         ,6,8163694.55
+260,123010202000,"Autos, Motos.                      ",6,7816082.05
+261,123010203000,Camión                             ,6,0.0
+262,123010204000,Amort.Acum.Rodados                 ,6,-14188122.75
+263,123010300000,Maquinarias y Tractores            ,5,7991490.13
+264,123010301000,Maquinarias y Tractores V.O.       ,6,44156745.69
+265,123010302000,Amort.Acum.Maquinarias y Tract.    ,6,-36165255.56
+266,123010400000,Muebles y Utiles                   ,5,30238.27
+267,123010401000,Muebles y Utiles V.O.              ,6,3587813.4
+268,123010402000,Amort.Acum.M.y Ut.                 ,6,-3557575.13
+269,123010500000,Instalaciones                      ,5,2835827.37
+270,123010501000,Instalaciones V.O.                 ,6,7975165.1
+271,123010502000,Amort.Acum.Instalaciones           ,6,-5139337.73
+272,123010600000,Herramientas                       ,5,0.0
+273,123010601000,Herramientas V.O.                  ,6,5638623.41
+274,123010602000,Amort.Acum.Herramientas            ,6,-5638623.41
+275,123010700000,Reproductores                      ,5,2526182.95
+276,123010701000,Reproductores V.O.                 ,6,8776852.41
+277,123010702000,Amort.Acum.Reproductores           ,6,-6250669.46
+278,123010800000,Pasturas                           ,5,0.0
+279,123010801000,Pasturas V.O.                      ,6,24050658.55
+280,123010802000,Amort.Acum.Pasturas                ,6,-24050658.55
+281,123010900000,Plantación y Forestación           ,5,176460.54
+282,123010901000,Plantación y Forestación - V.O.    ,6,417176.48
+283,123010902000,Amor.Acum.Plantac.y Forestac.      ,6,-240715.94
+284,123011000000,"Tranqueras, Alamb., y Corrales     ",5,1785093.97
+285,123011001000,"Tranqueras, Alamb.y Corrales - V.O.",6,5018118.15
+286,123011002000,"Amort.Acum.Tranq.,Alamb.,y Corrales",6,-3233024.18
+287,123011100000,Silos                              ,5,954409.16
+288,123011101000,Silos - V.O.                       ,6,4810324.81
+289,123011102000,Amort.Acum.Silos                   ,6,-3855915.65
+290,123011200000,"Comederos, Bebebederos y Aguadas   ",5,150893.58
+291,123011201000,"Comederos,Bebed.y Aguad.-V.O.      ",6,4919563.01
+292,123011202000,"Amort.Acum.Comed.,Bebed.,y Ag.     ",6,-4768669.43
+293,123011300000,Implementos Apícolas               ,5,0.0
+294,123011301000,Implementos Apícolas - V.O.        ,6,0.0
+295,123011302000,Amort.Acum.Implementos Apícolas    ,6,0.0
+296,123011400000,Máquinarias Tambo                  ,5,4678915.82
+297,123011401000,Maquinarias Tambo - V.O.           ,6,17078981.29
+298,123011402000,Amort.Acum. Maquinarias Tambo      ,6,-12400065.47
+299,123011500000,Construcc.y Mejora Tambo           ,5,1449347.11
+300,123011501000,Contrucc.y Mejora Tambo - V.O.     ,6,7391587.9
+301,123011502000,Amort.Acum.Const.y Mejora Tambo    ,6,-5942240.79
+302,123011600000,Motores y Bombas                   ,5,0.0
+303,123011601000,Motores y Bombas - V.O.            ,6,121935.31
+304,123011602000,Amort.Acum.Motores y Bombas        ,6,-121935.31
+305,124000000000,Cuentas Transitorias               ,3,0.0
+306,124010000000,Partidas en Suspenso               ,4,0.0
+307,124020000000,Canje                              ,4,0.0
+308,200000000000,PASIVO                             ,1,-96318550.78
+309,210000000000,Pasivo Corriente                   ,2,-96318550.78
+310,211000000000,Deudas                             ,3,-96318550.78
+311,211010000000,Comerciales                        ,4,-78034502.97
+312,211010100000,Proveedores                        ,5,-22739084.5
+313,211010200000,Otros Proveedores                  ,5,-55023578.45
+314,211010201000,ASP Agroserv.Pampeanos SA          ,6,-8765011.73
+315,211010202000,Abella Tambos SA                   ,6,0.0
+316,211010203000,Agrovet Integral SRL               ,6,-162987.66
+317,211010204000,Alfano Antonio y CIA SC            ,6,0.0
+318,211010205000,Aquaro Oscar J.                    ,6,0.0
+319,211010206000,Arosteguy Ricardo                  ,6,0.0
+320,211010207000,Asoc.Don Mario SA                  ,6,0.0
+321,211010208000,Catalpa Agrop.                     ,6,-1882519.65
+322,211010209000,Coop.Electrica de Bolivar Ltda     ,6,0.0
+323,211010210000,Coop.Agrop.de Bolivar              ,6,-93183.56
+324,211010211000,Coop.Agrop.de Tandil               ,6,0.0
+325,211010212000,Federac.Patronal Seg.              ,6,0.0
+326,211010213000,Fumigaciones y Servicios SRL       ,6,0.0
+327,211010214000,Goyaike SAACI y F                  ,6,0.0
+328,211010215000,James y Son Arg.SA                 ,6,0.0
+329,211010216000,Jauregui y Morales SRL             ,6,-607493.46
+330,211010217000,Jorgensen Esteban                  ,6,0.0
+331,211010218000,La Tacuarita Petropringles SA      ,6,-3469.03
+332,211010219000,Pucara SA                          ,6,0.0
+333,211010220000,Lartirigoyen y Cia SA              ,6,-13324.79
+334,211010221000,Mosaic de Arg. SA                  ,6,0.0
+335,211010222000,Pagola y Alzueta SH                ,6,0.0
+336,211010223000,Vicente Lopez SRL                  ,6,0.0
+337,211010224000,Villa y Moreno SA                  ,6,-50847.64
+338,211010225000,WestfaliaSurge Arg. SRL            ,6,0.0
+339,211010226000,Wright Fernandez Ursini SA         ,6,0.0
+340,211010227000,Baya Casal Enrique SA              ,6,0.0
+341,211010228000,Debernardi Juan                    ,6,-1367838.08
+342,211010229000,Servi-Tambo 9 de Julio SA          ,6,0.0
+343,211010230000,Herrero Jorge Abel                 ,6,-4117876.36
+344,211010231000,Rosaser SA                         ,6,0.0
+345,211010232000,Cereales 9 de Julio SA             ,6,0.0
+346,211010233000,Nutralmix SRL                      ,6,-35775589.44
+347,211010234000,Lorenzo Piñel SRL                  ,6,0.0
+348,211010235000,Teknal SA                          ,6,0.0
+349,211010236000,Torrontegui Walter                 ,6,0.0
+350,211010237000,Houlmann Miguel y Luis SH          ,6,0.0
+351,211010238000,Soler Daniel                       ,6,0.0
+352,211010239000,Lombardo Oscar                     ,6,-449827.54
+353,211010240000,Manghi María                       ,6,-2964.04
+354,211010241000,Artola Susana                      ,6,0.0
+355,211010242000,Cuscó Jorge                        ,6,0.0
+356,211010243000,Sabate Ricardo                     ,6,0.0
+357,211010244000,EDP Agroindustrial SA              ,6,-14013.68
+358,211010245000,Peveri Tomas S.                    ,6,0.0
+359,211010246000,Baptista Javier Antonio            ,6,-444332.1
+360,211010247000,Bellomo Raul Abel                  ,6,0.0
+361,211010248000,Aquaro Agrorepuestos SRL           ,6,-17161.5
+362,211010249000,González Facundo                   ,6,-3336.6
+363,211010250000,West Tambo SRL                     ,6,-230451.2
+364,211010251000,Gutierrez Manuel                   ,6,-937549.87
+365,211010252000,D+D Transporte SA                  ,6,0.0
+366,211010253000,DROVET SA                          ,6,0.0
+367,211010300000,Obligaciones a Pagar               ,5,0.0
+368,211010400000,Honorarios a Pagar                 ,5,0.0
+369,211010500000,Provisión para gastos              ,5,-271840.02
+370,211020000000,Anticipos                          ,4,0.0
+371,211020100000,Financieros                        ,5,0.0
+372,211020101000,Antic.Financ.Bco Nación            ,6,0.0
+373,211020102000,Antic.Financ.Bco Pcia              ,6,0.0
+374,211020200000,Anticipos Comerciales              ,5,0.0
+375,211030000000,Deudas Fiscales                    ,4,-16036038.64
+376,211030100000,IVA Débito Fiscal                  ,5,0.0
+377,211030200000,IVA a Pagar                        ,5,-5984167.89
+378,211030300000,Imp.a las Ganancias                ,5,-5359698.91
+379,211030400000,Imp.Ganac.Min.Pres.                ,5,0.0
+380,211030500000,Imp.s/Ing.Brutos a Pagar           ,5,-71482.93
+381,211030600000,"Bs Pers., Soc.y Participaciones    ",5,0.0
+382,211030700000,Retenciones Ganancias a Depositar  ,5,-199659.67
+383,211030800000,Ret. Ing. Brutos a Depositar       ,5,-126265.46
+384,211030900000,Pasivo por Impuesto Diferido       ,5,-4294763.78
+385,211040000000,Deudas Municipales                 ,4,0.0
+386,211040100000,Tasa Vial a pagar                  ,5,0.0
+387,211040200000,Impuesto Inmob.a Pagar             ,5,0.0
+388,211050000000,Remuneraciones y Carg.Sociales     ,4,-1850283.38
+389,211050100000,Sueldos a Pagar                    ,5,-1160117.0
+390,211050200000,Cargas Sociales a Pagar            ,5,-690166.38
+391,211050300000,Moratorias                         ,5,0.0
+392,211050400000,Plan de Facilidades                ,5,0.0
+393,211050500000,Obras Sociales                     ,5,0.0
+394,211060000000,Societarias                        ,4,0.0
+395,211060100000,Honorarios                         ,5,0.0
+396,211060101000,Hon.Directores o Administradores   ,6,0.0
+397,211060101010,Stegmann Federico-Hon.Directores   ,7,0.0
+398,211060102000,Hon.Asesores                       ,6,0.0
+399,211060102010,xxxxxxxxxx                         ,7,0.0
+400,211060200000,Dividendos                         ,5,0.0
+401,211060201000,Dividendos en Efectivo             ,6,0.0
+402,211060202000,Dividendos en Acciones             ,6,0.0
+403,211060300000,Garantías Director                 ,5,0.0
+404,211060400000,Aportes a Integrar por los Socios  ,5,0.0
+405,211070000000,Bancarias                          ,4,-397725.79
+406,211070100000,Banco Nación                       ,5,0.0
+407,211070101000,Préstamos-Bco Nación               ,6,0.0
+408,211070102000,Agronación                         ,6,0.0
+409,211070103000,Intereses Devengados-Bco Nación    ,6,0.0
+410,211070200000,Banco Provincia                    ,5,0.0
+411,211070201000,Préstamos-Bco Provincia            ,6,0.0
+412,211070202000,Procampo                           ,6,0.0
+413,211070203000,Intereses Devengados-Bco Pcia      ,6,0.0
+414,211070300000,Banco Galicia                      ,5,-397725.79
+415,211070301000,Préstamos-Bco Galicia              ,6,0.0
+416,211070302000,Galicia Rural                      ,6,0.0
+417,211070303000,Intereses Devengados-Bco Galicia   ,6,0.0
+418,211070304000,VISA Commercial                    ,6,-397725.79
+419,220000000000,Pasivo No Corriente                ,2,0.0
+420,221000000000,Deudas                             ,3,0.0
+421,221010000000,Comerciales                        ,4,0.0
+422,221020000000,Financieras                        ,4,0.0
+423,221030000000,Fiscales                           ,4,0.0
+424,221030100000,Moratorias                         ,5,0.0
+425,221030200000,Plan de Facilidades                ,5,0.0
+426,221040000000,Remunerac.y Carg.Sociales          ,4,0.0
+427,221040100000,Moratorias Rem.y Carg.Soc.         ,5,0.0
+428,221040200000,Plan de Facilidades Rem.y Carg.Soc.,5,0.0
+429,221050000000,Societarias                        ,4,0.0
+430,222000000000,Previsiones                        ,3,0.0
+431,222010000000,Previsión x Despidos               ,4,0.0
+432,222020000000,Previsión Ds Incobrables           ,4,0.0
+433,222030000000,Indemnizaciones                    ,4,0.0
+434,300000000000,PATRIMONIO NETO                    ,1,-346183516.64
+435,310000000000,Capital Originario                 ,2,-49738404.62
+436,311000000000,Capital Social                     ,3,-80000.0
+437,312000000000,Ajuste de Capital                  ,3,-49658404.62
+438,313000000000,Saldo Ley 19742 No Cap.            ,3,0.0
+439,314000000000,Saldo Ley 19742 Cap.               ,3,0.0
+440,320000000000,Anticipos Futuras Emisiones        ,2,0.0
+441,330000000000,Reservas                           ,2,-7167645.03
+442,331000000000,Reserva legal                      ,3,-7167645.03
+443,340000000000,Resultados                         ,2,-289277466.99
+444,341000000000,Resultados No Asignados            ,3,-289277466.99
+445,342000000000,Ajuste Resultado Ejerc.Ant.        ,3,0.0
+446,400000000000,CUADRO DE RESULTADOS BOLIVAR       ,1,0.0
+447,410000000000,Ingresos BOLIVAR                   ,2,0.0
+448,411000000000,Agricultura                        ,3,0.0
+449,411010000000,Venta de Cereales y Oleaginosos    ,4,0.0
+450,411010100000,Venta de Trigo                     ,5,0.0
+451,411010200000,Venta de Maíz                      ,5,0.0
+452,411010300000,Venta de Girasol                   ,5,0.0
+453,411010400000,Venta de Soja                      ,5,0.0
+454,411010500000,Venta de Cebada                    ,5,0.0
+455,411020000000,Cesión de Cereales y Oleaginosos   ,4,0.0
+456,411020100000,Cesión de Trigo                    ,5,0.0
+457,411020200000,Cesión de Maíz                     ,5,0.0
+458,411020300000,Cesión de Girasol                  ,5,0.0
+459,411020400000,Cesión de Soja                     ,5,0.0
+460,411020500000,Cesión de Sorgo                    ,5,0.0
+461,411020600000,Cesión de Avena                    ,5,0.0
+462,412000000000,Ganaderia                          ,3,0.0
+463,412010000000,Hacienda Vacuna                    ,4,0.0
+464,412010100000,Hac.Vac.Cría                       ,5,0.0
+465,412010101000,Venta de Hacienda Vacuna Cria      ,6,0.0
+466,412010101010,Terneros-Cria                      ,7,0.0
+467,412010101020,Terneras-Cria                      ,7,0.0
+468,412010101030,Vaquillonas 1a2-Cria               ,7,0.0
+469,412010101040,Vaquillonas +2-Cria                ,7,0.0
+470,412010101050,Vacas-Cria                         ,7,0.0
+471,412010101060,Toros-Cria                         ,7,0.0
+472,412010107000,Cesión de Hacienda Vacuna Cria     ,6,0.0
+473,412010107010,Cesión de Terneros                 ,7,0.0
+474,412010107020,Cesión de Terneras                 ,7,0.0
+475,412010200000,Venta Hac.Vac.Invernada            ,5,0.0
+476,412010201000,Novillos +2 -Invernada             ,6,0.0
+477,412010202000,Novillos 1a2 -Invernada            ,6,0.0
+478,412010203000,Vaquillonas +2 -Invernada          ,6,0.0
+479,412010204000,Vaquillonas 1a2 -Invernada         ,6,0.0
+480,412010300000,Hacienda Vacuna Capitalización     ,5,0.0
+481,412010301000,Novillos-Capitalización            ,6,0.0
+482,412010302000,Vacas Capitalizacion               ,6,0.0
+483,412010400000,Consumo                            ,5,0.0
+484,412010500000,Producción de hacienda vacuna      ,5,0.0
+485,412010600000,Resultado por tenencia Bolivar     ,5,0.0
+486,412010700000,Venta Hacienda Vacuna Feed Lot     ,5,0.0
+487,412010701000,Terneras - Feed Lot                ,6,0.0
+488,412010702000,Vaquillonas - Feed Lot             ,6,0.0
+489,412010703000,Novillos - Feed Lot                ,6,0.0
+490,412010704000,Vacas - Feed Lot                   ,6,0.0
+491,412010705000,Novillitos - Feed Lot              ,6,0.0
+492,412010706000,Ternero - Feed Lot                 ,6,0.0
+493,412020000000,Tambo                              ,4,0.0
+494,412020100000,Ventas Tambo                       ,5,0.0
+495,412020101000,Ventas de Leche                    ,6,0.0
+496,412020102000,Venta Derivados de Leche           ,6,0.0
+497,412020103000,Venta de Terneros-Tambo            ,6,0.0
+498,412020104000,Venta de Terneras-Tambo            ,6,0.0
+499,412020105000,Venta de Vaquillonas-Tambo         ,6,0.0
+500,412020106000,Venta de Vacas-Tambo               ,6,0.0
+501,412020107000,Venta de Novillos-Tambo            ,6,0.0
+502,412020200000,Cesión Tambo                       ,5,0.0
+503,412020201000,Cesión de leche a crianza artificia,6,0.0
+504,412020202000,Cesión de terneras a recría        ,6,0.0
+505,412020203000,Cesión terneras de tambo a crianza ,6,0.0
+506,412020204000,Cesión de vacas para engorde       ,6,0.0
+507,412020205000,Cesión de terneros para engorde    ,6,0.0
+508,412020206000,Cesión Vaquillonas de recría a tamb,6,0.0
+509,412020300000,Producción de Leche                ,5,0.0
+510,412020400000,RXT - Hacienda Vacuna Tambo        ,5,0.0
+511,412020500000,Rdo por Producción - Hac. Vac. Tamb,5,0.0
+512,413000000000,Ventas Varias                      ,3,0.0
+513,413010000000,Venta de Cueros                    ,4,0.0
+514,413020000000,Venta de Forrajes                  ,4,0.0
+515,414000000000,Contratos Agrarios                 ,3,0.0
+516,414010000000,Ingresos x Capitalización          ,4,0.0
+517,414020000000,Ingresos x arrendamiento           ,4,0.0
+518,414030000000,Rdo Contrato Canje Soja            ,4,0.0
+519,415000000000,Ingresos Empresa Maquinaria        ,3,0.0
+520,415010000000,Trabajos Propios-Labores           ,4,0.0
+521,416000000000,Producción Agricola                ,3,0.0
+522,416010000000,Producción Trigo                   ,4,0.0
+523,416020000000,Producción Maiz                    ,4,0.0
+524,416030000000,Producción Girasol                 ,4,0.0
+525,416040000000,Producción Soja                    ,4,0.0
+526,416050000000,Producción Cebada                  ,4,0.0
+527,420000000000,Otros Ingresos                     ,2,0.0
+528,421000000000,Ot.Ing.Financieros                 ,3,0.0
+529,421010000000,Intereses Ganados                  ,4,0.0
+530,421020000000,Descuentos Obtenidos               ,4,0.0
+531,421030000000,Otros Ingresos                     ,4,0.0
+532,421040000000,Dif. Val. Bonos y Fondos           ,4,0.0
+533,421050000000,Dif. de Cotización                 ,4,0.0
+534,422000000000,Renta de Títulos                   ,3,0.0
+535,423000000000,Recuperos                          ,3,0.0
+536,423010000000,Recupero de Gastos                 ,4,0.0
+537,423020000000,Pago a Cuenta Ley Fomento Pymes    ,4,0.0
+538,424000000000,Venta de Bienes de Uso             ,3,0.0
+539,425000000000,Diferencia Valuación Hacienda      ,3,0.0
+540,425010000000,Diferencia Valuación Hacienda Cria ,4,0.0
+541,425020000000,Diferencia Valuación Hacienda Inver,4,0.0
+542,425030000000,Diferencia Valuación Hacienda Holan,4,0.0
+543,425040000000,Diferencia Valuación Hac. capitaliz,4,0.0
+544,426000000000,Cosecha                            ,3,0.0
+545,427000000000,Resultado por Tenencia             ,3,0.0
+546,428000000000,Subsidios Obtenidos                ,3,0.0
+547,429000000000,Reintegros ONCAA                   ,3,0.0
+548,430000000000,EGRESOS BOLIVAR                    ,2,0.0
+549,431000000000,Gastos de Producción y Comercializa,3,0.0
+550,431010000000,AGRICOLAS                          ,4,0.0
+551,431010100000,Trigo                              ,5,0.0
+552,431010101000,Semilla-Trigo                      ,6,0.0
+553,431010102000,Labores Propias-Trigo              ,6,0.0
+554,431010103000,Labores Contratista-Trigo          ,6,0.0
+555,431010104000,Fertilizantes-Trigo                ,6,0.0
+556,431010105000,"Herbicidas,Insecticidas,Fung.-Trigo",6,0.0
+557,431010106000,Cosecha Contratista-Trigo          ,6,0.0
+558,431010107000,Gastos de Comercialización-Trigo   ,6,0.0
+559,431010108000,Otros Gastos-Trigo                 ,6,0.0
+560,431010109000,CMV Trigo                          ,6,0.0
+561,431010110000,Costo de Producción Trigo          ,6,0.0
+562,431010200000,Maíz Grano                         ,5,0.0
+563,431010201000,Semilla-Maíz Grano                 ,6,0.0
+564,431010202000,Labores Propias-Maíz Grano         ,6,0.0
+565,431010203000,Labores Contratista-Maíz Grano     ,6,0.0
+566,431010204000,Fertilizantes-Maíz Grano           ,6,0.0
+567,431010205000,"Herbic.,Insectic,-Maíz Grano       ",6,0.0
+568,431010206000,Cosecha Contratista-Maíz Grano     ,6,0.0
+569,431010207000,Gastos de Comerc.-Maíz Grano       ,6,0.0
+570,431010208000,Otros Gastos-Maíz Grano            ,6,0.0
+571,431010209000,CMV Maiz Grano                     ,6,0.0
+572,431010210000,Costo de Producción Maiz Grano     ,6,0.0
+573,431010300000,Girasol                            ,5,0.0
+574,431010301000,Semilla-Girasol                    ,6,0.0
+575,431010302000,Labores Propias-Girasol            ,6,0.0
+576,431010303000,Labores Contratistas-Girasol       ,6,0.0
+577,431010304000,Fertilizantes-Girasol              ,6,0.0
+578,431010305000,"Herbicidas,Insecticidas,Fung.-Giras",6,0.0
+579,431010306000,Cosecha Contratista-Girasol        ,6,0.0
+580,431010307000,Gastos de Comercialización-Girasol ,6,0.0
+581,431010308000,Otros Gastos-Girasol               ,6,0.0
+582,431010309000,CMV Girasol                        ,6,0.0
+583,431010310000,Costo de Producción Girasol        ,6,0.0
+584,431010400000,Soja de 1º                         ,5,0.0
+585,431010401000,Semilla-Soja de 1º                 ,6,0.0
+586,431010402000,Labores Propias-Soja de 1º         ,6,0.0
+587,431010403000,Labores Contratistas-Soja de 1º    ,6,0.0
+588,431010404000,Fertilizantes-Soja de 1º           ,6,0.0
+589,431010405000,"Herbicidas,Insec.,Fung.-Soja de 1º ",6,0.0
+590,431010406000,Cosecha Contratista-Soja de 1º     ,6,0.0
+591,431010407000,Gastos de Comerc.-Soja de 1º       ,6,0.0
+592,431010408000,Otros Gastos-Soja de 1º            ,6,0.0
+593,431010409000,CMV Soja de 1º                     ,6,0.0
+594,431010410000,Costo de Prod. Soja                ,6,0.0
+595,431010500000,Maiz Silo 2°                       ,5,0.0
+596,431010501000,Semilla-Maiz Silo 2°               ,6,0.0
+597,431010502000,Labores Propias-Maiz Silo 2°       ,6,0.0
+598,431010503000,Labores Contratistas-Maiz Silo 2°  ,6,0.0
+599,431010504000,Fertilizantes-Maiz Silo 2°         ,6,0.0
+600,431010505000,"Herb.,Insec,Fung.-Maiz Silo 2°     ",6,0.0
+601,431010506000,Cosecha Contratista-Maiz Silo 2°   ,6,0.0
+602,431010507000,Gastos Comerc.-Maiz Silo 2°        ,6,0.0
+603,431010508000,Otros Gastos-Maiz Silo 2°          ,6,0.0
+604,431010509000,CMV Maiz Silo 2°                   ,6,0.0
+605,431010600000,Sorgo                              ,5,0.0
+606,431010601000,Semilla-Sorgo                      ,6,0.0
+607,431010602000,Labores Propias-Sorgo              ,6,0.0
+608,431010603000,Labores Contratistas-Sorgo         ,6,0.0
+609,431010604000,Fertilizantes-Sorgo                ,6,0.0
+610,431010605000,"Herbicidas,Insecticidas,Fung.-Sorgo",6,0.0
+611,431010606000,Cosecha Contratista-Sorgo          ,6,0.0
+612,431010607000,Gastos de Comercialización         ,6,0.0
+613,431010608000,Otros Gastos-Sorgo                 ,6,0.0
+614,431010609000,CMV Sorgo                          ,6,0.0
+615,431010700000,Cebada Grano                       ,5,0.0
+616,431010701000,Semilla-Cebada Grano               ,6,0.0
+617,431010702000,Lab.Propias-Cebada Grano           ,6,0.0
+618,431010703000,Lab.Contratista-Cebada Grano       ,6,0.0
+619,431010704000,Fertilizante-Cebada Grano          ,6,0.0
+620,431010705000,Herb. Insectic.-Cebada Grano       ,6,0.0
+621,431010706000,Cosecha Contratista-Cebada Grano   ,6,0.0
+622,431010707000,Gastos Comerc.-Cebada Grano        ,6,0.0
+623,431010708000,Otros Gtos-Cebada Grano            ,6,0.0
+624,431010709000,CMV Cebada Grano                   ,6,0.0
+625,431010710000,Costo de Producción - Cebada       ,6,0.0
+626,431010800000,Maiz Silo                          ,5,0.0
+627,431010801000,Semilla-Maíz Silo                  ,6,0.0
+628,431010802000,Labores Propias-Maíz Silo          ,6,0.0
+629,431010803000,Labores Contratista-Maíz Silo      ,6,0.0
+630,431010804000,Fertilizantes-Maíz Silo            ,6,0.0
+631,431010805000,"Herbic.,Insectic,Fung.-Maíz Silo   ",6,0.0
+632,431010806000,Cosecha Contratista-Maíz Silo      ,6,0.0
+633,431010807000,Bolsas-Maíz Silo                   ,6,0.0
+634,431010808000,Otros Gastos-Maíz Silo             ,6,0.0
+635,431010900000,Soja de 2º                         ,5,0.0
+636,431010901000,Semilla-Soja de 2º                 ,6,0.0
+637,431010902000,Labores Propias-Soja de 2º         ,6,0.0
+638,431010903000,Labores Contratistas-Soja de 2º    ,6,0.0
+639,431010904000,Fertilizantes-Soja de 2º           ,6,0.0
+640,431010905000,"Herbicidas, Insec.,Fung.-Soja de 2º",6,0.0
+641,431010906000,Cosecha Contratista-Soja de 2º     ,6,0.0
+642,431010907000,Gastos de Comerc.-Soja de 2º       ,6,0.0
+643,431010908000,Otros Gastos-Soja de 2º            ,6,0.0
+644,431010909000,CMV Soja de 2º                     ,6,0.0
+645,431010910000,Costo de Producc.Soja de 2º        ,6,0.0
+646,431011000000,Cebado Silo                        ,5,0.0
+647,431011001000,Semilla-Cebada silo                ,6,0.0
+648,431011002000,Lab.Propias-Cebada Silo            ,6,0.0
+649,431011003000,Lab.Contratista-Cebada Silo        ,6,0.0
+650,431011004000,Fertilizante-Cebada Silo           ,6,0.0
+651,431011005000,Herb. Insectic.-Cebada Silo        ,6,0.0
+652,431011006000,Cosecha Contratista-Cebada Silo    ,6,0.0
+653,431011007000,Gastos Comerc.-Cebada Silo         ,6,0.0
+654,431011008000,Otros Gtos-Cebada silo             ,6,0.0
+655,431011009000,Costo de Producción - Cebada       ,6,0.0
+656,431020000000,Ganaderos                          ,4,0.0
+657,431020100000,Hacienda Vacuna                    ,5,0.0
+658,431020101000,HACIENDA VACUNA CRIA               ,6,0.0
+659,431020101010,Productos Veterinarios-Cría        ,7,0.0
+660,431020101020,Honorarios Veterinarios-Cría       ,7,0.0
+661,431020101030,Pasturas-Cría                      ,7,0.0
+662,431020101031,Semilla Pastura-Cria               ,8,0.0
+663,431020101032,Lab.Prop.Pasturas-Cria             ,8,0.0
+664,431020101033,Lab.Contrat.Pasturas-Cria          ,8,0.0
+665,431020101034,Fertilizante Pasturas-Cria         ,8,0.0
+666,431020101035,"Herb.,Insect.Pasturas-Cria         ",8,0.0
+667,431020101040,Verdeos Inv.-Cria                  ,7,0.0
+668,431020101041,Semilla V.I.-Cria                  ,8,0.0
+669,431020101042,Lab.Prop.V.I.-Cria                 ,8,0.0
+670,431020101043,Lab.Contrat.V.I.-Cria              ,8,0.0
+671,431020101044,Fertiliz.V.I.-Cria                 ,8,0.0
+672,431020101045,Herb.Insec.V.I.-Cria               ,8,0.0
+673,431020101050,Gastos de Mantenimiento-H.V.Cría   ,7,0.0
+674,431020101051,"Molinos,Tanques,bebederos-H.V.Cria ",8,0.0
+675,431020101052,Mangas y corrales-H.V.Cría         ,8,0.0
+676,431020101053,Tranqueras y alambrados-H.V.Cría   ,8,0.0
+677,431020101054,"Mant.calles, canales e inst.-H.V.Cr",8,0.0
+678,431020101060,Personal-Cria                      ,7,0.0
+679,431020101070,"Suplementación,rollos,granos-Cria  ",7,0.0
+680,431020101080,Labores-Cria                       ,7,0.0
+681,431020101090,Verdeos Verano-Cria                ,7,0.0
+682,431020101091,Semilla V.V.-Cria                  ,8,0.0
+683,431020101092,Lab.Prop.V.V.-Cria                 ,8,0.0
+684,431020101093,Lab.Contrat.V.V.-Cria              ,8,0.0
+685,431020101094,Fertilizante V.V.-Cria             ,8,0.0
+686,431020101095,Herb.Insec.V.V.-Cria               ,8,0.0
+687,431020101100,Gastos Inseminación-Cría           ,7,0.0
+688,431020101110,Otros Gastos-Cria                  ,7,0.0
+689,431020101120,Compra de Hacienda Vac.-Cria       ,7,0.0
+690,431020101130,Gastos Comercialización-Cría       ,7,0.0
+691,431020102000,HACIENDA VACUNA INVERNADA          ,6,0.0
+692,431020102010,Productos Veterinarios-Invernada   ,7,0.0
+693,431020102020,Pasturas-Invernada                 ,7,0.0
+694,431020102021,Semilla Pastura-Inv.               ,8,0.0
+695,431020102022,Lab.Prop.Past.-Inv.                ,8,0.0
+696,431020102023,Lab.Cont.past.-Inv.                ,8,0.0
+697,431020102024,Fertilizante Past.-Inv.            ,8,0.0
+698,431020102025,Herb.Insect.Past.-Inv.             ,8,0.0
+699,431020102030,Personal-Invernada                 ,7,0.0
+700,431020102040,"Suplementac,rollos,granos,balanc.-I",7,0.0
+701,431020102050,Gastos de Mantenimiento-Invernada  ,7,0.0
+702,431020102051,Reparac.molinos y aguadas-H.V.Inver,8,0.0
+703,431020102052,Mangas y Corrales-H.V.Invernada    ,8,0.0
+704,431020102053,Tranqueras y alambrados-H.V.Inverna,8,0.0
+705,431020102054,"Mant.calles, canales e inst.-H.V.In",8,0.0
+706,431020102060,Verdeos Invierno-Invernada         ,7,0.0
+707,431020102061,Semilla V.I.-Inv.                  ,8,0.0
+708,431020102062,Lap.Prop.V.I.-Inv.                 ,8,0.0
+709,431020102063,Lab.Cont.V.I.-Inv.                 ,8,0.0
+710,431020102064,Fertilizante V.I.-Inv.             ,8,0.0
+711,431020102065,Herb.Insec.V.I.-Inv.               ,8,0.0
+712,431020102070,Verdeos Verano-Invernada           ,7,0.0
+713,431020102071,Semilla V.V.-Inv.                  ,8,0.0
+714,431020102072,Lab.Prop.V.V.-Inv.                 ,8,0.0
+715,431020102073,Lab.Cont.V.V.-Inv.                 ,8,0.0
+716,431020102074,Fertilizante V.V.-Inv.             ,8,0.0
+717,431020102075,Herb.Insect.V.V.-Inv.              ,8,0.0
+718,431020102080,Otros Gastos-Invernada             ,7,0.0
+719,431020102090,Gastos de Comercialización-Invernad,7,0.0
+720,431020103000,HACIENDA VACUNA FEED LOT           ,6,0.0
+721,431020103010,Productos Veterinarios-Feed Lot    ,7,0.0
+722,431020103020,Honorarios Veterinarios-Feed Lot   ,7,0.0
+723,431020103030,Gastos de Mantenimiento-Feed Lot   ,7,0.0
+724,431020103031,"Molinos,Tanques,bebederos-Feed Lot ",8,0.0
+725,431020103032,Mangas y corrales-Feed Lot         ,8,0.0
+726,431020103033,Tranqueras y alambrados-Feed Lot   ,8,0.0
+727,431020103034,"Mant.calles, canales e inst.-Feed L",8,0.0
+728,431020103040,Personal-Feed Lot                  ,7,0.0
+729,431020103050,"Balanceado,Rollos-Feed Lot         ",7,0.0
+730,431020103060,Maiz Grano-Fedd Lot                ,7,0.0
+731,431020103070,Silo Maiz-Feed Lot                 ,7,0.0
+732,431020103080,Otros Gastos-Feed Lot              ,7,0.0
+733,431020103090,Gastos Comercializacion-Feed Lot   ,7,0.0
+734,431020104000,Costo de Venta HV Bolivar          ,6,0.0
+735,431020105000,Costo de Prod. Ganadera - Bolivar  ,6,0.0
+736,431030000000,TAMBO                              ,4,0.0
+737,431030100000,VACA TOTAL - Tambo                 ,5,0.0
+738,431030101000,Personal-Tambo                     ,6,0.0
+739,431030102000,Tambero                            ,6,0.0
+740,431030103000,Personal adicional y bonificac.-tam,6,0.0
+741,431030104000,Asesor Veterinario-Tambo           ,6,0.0
+742,431030105000,Productos Veterinarios-Tambo       ,6,0.0
+743,431030105010,Mastitis-Vaca Tambo                ,7,0.0
+744,431030105011,Pomos-Mastitis                     ,8,0.0
+745,431030105012,Selladores-Mastitis                ,8,0.0
+746,431030105013,Antibióticos-Mastitis              ,8,0.0
+747,431030105014,Otros productos -Mastitis          ,8,0.0
+748,431030105020,Pietin-Vaca Tambo                  ,7,0.0
+749,431030105021,"Tratamientos, Antibió.-Pietin      ",8,0.0
+750,431030105022,Formol y Sulfato-Pietin            ,8,0.0
+751,431030105030,Enfermedades Generales             ,7,0.0
+752,431030105040,Atencion Parto                     ,7,0.0
+753,431030106000,Inseminación -Tambo                ,6,0.0
+754,431030106010,Semen Importado-Vaca Tambo         ,7,0.0
+755,431030106020,Honorarios Inseminac.-Vaca Tambo   ,7,0.0
+756,431030106030,"Sider,Prostaglandina-Vaca Tambo    ",7,0.0
+757,431030106040,Otros gastos insiminac.-Tambo      ,7,0.0
+758,431030106050,Semen Sexado                       ,7,0.0
+759,431030106060,Hon.Insem.Sexado                   ,7,0.0
+760,431030106070,"Cidr, prostagland....Sexado        ",7,0.0
+761,431030106080,Otros Gtos Inseminac.Sexado        ,7,0.0
+762,431030107000,Gastos de Comerc.-Tambo            ,6,0.0
+763,431030107010,Fletes-Tambo                       ,7,0.0
+764,431030107020,Otros Gtos Comerc.-Tambo           ,7,0.0
+765,431030108000,"Alambrados eléctricos,boyeros-Tambo",6,0.0
+766,431030109000,Pasturas y Verdeos -Tambo          ,6,0.0
+767,431030109010,Pasturas-Tambo                     ,7,0.0
+768,431030109011,Semilla Pastura - Tambo            ,8,0.0
+769,431030109012,Herb.Insec.Pastura-Tambo           ,8,0.0
+770,431030109013,Fertilizante Pastura-Tambo         ,8,0.0
+771,431030109014,Labores Pasturas-Tambo             ,8,0.0
+772,431030109015,Otros Gtos Pasturas-Tambo          ,8,0.0
+773,431030109020,Verdeos Invierno- Tambo            ,7,0.0
+774,431030109021,Semilla V.I.-Tambo                 ,8,0.0
+775,431030109022,Herb.Insect.V.I.-Tambo             ,8,0.0
+776,431030109023,Fertilizante V.I.-Tambo            ,8,0.0
+777,431030109024,Labores V.I.-Tambo                 ,8,0.0
+778,431030109025,Otros Gtos.V.I.-Tambo              ,8,0.0
+779,431030109030,Verdeos Verano-Tambo               ,7,0.0
+780,431030109031,Semilla V.V.-Tambo                 ,8,0.0
+781,431030109032,Herb.Insect.V.V.-Tambo             ,8,0.0
+782,431030109033,Fertilizante V.V.-Tambo            ,8,0.0
+783,431030109034,Labores V.V.-Tambo                 ,8,0.0
+784,431030109035,Otros Gtos.V.V.-Tambo              ,8,0.0
+785,431030109040,Conservación de Pasturas Tambo     ,7,0.0
+786,431030109041,Herb.Insect.Conserv.Pastura Tambo  ,8,0.0
+787,431030109042,Fertiliz.Conserv.Pastura Tambo     ,8,0.0
+788,431030109043,Labores Conserv.Past.Tambo         ,8,0.0
+789,431030109050,XXX                                ,7,0.0
+790,431030109060,XXX                                ,7,0.0
+791,431030110000,Control Lechero                    ,6,0.0
+792,431030111000,Consumibles del Tambo              ,6,0.0
+793,431030111010,Articulos de Limpieza              ,7,0.0
+794,431030112000,Energía Eléctrica-Tambo            ,6,0.0
+795,431030113000,Gas-Tambo                          ,6,0.0
+796,431030114000,Gas-oil-Tambo                      ,6,0.0
+797,431030115000,"Mant.calles, canales e instal.-Tamb",6,0.0
+798,431030116000,"Reparac.,Manten.Máquinas y Equipos-",6,0.0
+799,431030117000,Distribución de Suplementos-Tambo  ,6,0.0
+800,431030118000,Reparac.molinos y aguadas-Tambo    ,6,0.0
+801,431030119000,Leche cedida a la guachera         ,6,0.0
+802,431030120000,Terneras cedidos-Tambo             ,6,0.0
+803,431030121000,Cascara de Soja-Tambo              ,6,0.0
+804,431030122000,Otros gastos-Tambo                 ,6,0.0
+805,431030123000,Pellets Girasol-Tambo              ,6,0.0
+806,431030124000,Pellets Soja-Tambo                 ,6,0.0
+807,431030125000,"Pellets Afrechillo, Trigo-Tambo    ",6,0.0
+808,431030126000,Maíz-Tambo                         ,6,0.0
+809,431030127000,Algodón-Tambo                      ,6,0.0
+810,431030128000,Cebada-Tambo                       ,6,0.0
+811,431030129000,Malta -Tambo                       ,6,0.0
+812,431030130000,Alimento Balanceado-Tambo          ,6,0.0
+813,431030131000,Conchilla-Tambo                    ,6,0.0
+814,431030132000,Núcleo-Tambo                       ,6,0.0
+815,431030133000,"Sales, Gluten Feed-Tambo           ",6,0.0
+816,431030134000,Silo Maíz-Tambo                    ,6,0.0
+817,431030135000,Silo Sorgo-Tambo                   ,6,0.0
+818,431030136000,Silo Pastura-Tambo                 ,6,0.0
+819,431030137000,Rollos-Tambo                       ,6,0.0
+820,431030138000,Costo de Venta - Leche             ,6,0.0
+821,431030139000,Costo de Producción  Tambo- Bolivar,6,0.0
+822,431030140000,Costo de Vta- Hac. Vac. Tambo      ,6,0.0
+823,431030200000,CRIANZA-(GUACHERA) - Tambo         ,5,0.0
+824,431030201000,Asesoramiento Técnico-guachera     ,6,0.0
+825,431030202000,Personal-guachera                  ,6,0.0
+826,431030203000,Productos veterinarios-guachera    ,6,0.0
+827,431030204000,"Balanceados,henos,granos-guachera  ",6,0.0
+828,431030205000,Sustituto Lácteo-guachera          ,6,0.0
+829,431030206000,Leche cedida por el tambo-gachera  ,6,0.0
+830,431030207000,Terneros cedidos por el tambo      ,6,0.0
+831,431030208000,Terneras cedidas por el tambo      ,6,0.0
+832,431030209000,Otros gastos-guachera              ,6,0.0
+833,431030300000,RECRIA-Tambo                       ,5,0.0
+834,431030301000,Asesoramiento Veterinario-recria   ,6,0.0
+835,431030302000,Personal de recria                 ,6,0.0
+836,431030303000,Productos Veterinarios-recria      ,6,0.0
+837,431030304000,Inseminación Vaquillona-recria     ,6,0.0
+838,431030305000,"Balanceado,heno,granos,silo-Recria ",6,0.0
+839,431030306000,Otros gastos recria                ,6,0.0
+840,431030307000,Terneras cedidas por crianza (guach,6,0.0
+841,431030308000,Compra de hacienda-recia           ,6,0.0
+842,431030309000,Pasturas y Verdeos Recria          ,6,0.0
+843,431030309010,Pastura Recria                     ,7,0.0
+844,431030309011,Semilla Pastura-Recria             ,8,0.0
+845,431030309012,Herb.Insec.Pastura-Recria          ,8,0.0
+846,431030309013,Fertilizantre Pastura-Recria       ,8,0.0
+847,431030309014,Labores Pastura Recria             ,8,0.0
+848,431030309015,Otros Gtos Pastura-Recria          ,8,0.0
+849,431030309020,Verdeos Invierno Recria            ,7,0.0
+850,431030309021,Semilla V.I.-Recria                ,8,0.0
+851,431030309022,Herb.Insect.V.I.-Recria            ,8,0.0
+852,431030309023,Fertilizante V.I.-Recria           ,8,0.0
+853,431030309024,Labores V.I.-Recria                ,8,0.0
+854,431030309025,Otros Gtos V.I.-Recria             ,8,0.0
+855,431030309030,Verdeos Verano-Recria              ,7,0.0
+856,431030309031,Semilla V.V.-Recria                ,8,0.0
+857,431030309032,Herb.Insect.V.V.-Recria            ,8,0.0
+858,431030309033,Fertilizante V.V.-Recria           ,8,0.0
+859,431030309034,Labores V.V.-Recria                ,8,0.0
+860,431030309035,Otros Gtos V.V.-Recria             ,8,0.0
+861,431040000000,EMPRESA MAQUINARIA                 ,4,0.0
+862,431040100000,Personal-Empresa Maquinaria        ,5,0.0
+863,431040200000,Reparaciones-Emp.Maquinaria        ,5,0.0
+864,431040300000,Repuestos y Accesoris-Emp.Maquinari,5,0.0
+865,431040400000,Combustibles y Lubricantes-Emp.Maqu,5,0.0
+866,431040500000,Otros Gastos-Emp.Maquinaria        ,5,0.0
+867,431040600000,RETROEXCAVADORA                    ,5,0.0
+868,431040601000,Personal-Retro                     ,6,0.0
+869,431040602000,Reparaciones-Retro                 ,6,0.0
+870,431040603000,Repuestos y acces.-Retro           ,6,0.0
+871,431040604000,Combustibles y Acces.-Retro        ,6,0.0
+872,431040605000,Otros Gastos-Retro                 ,6,0.0
+873,431040700000,TRACTORES                          ,5,0.0
+874,431040701000,JOHN DEERE 3550                    ,6,0.0
+875,431040701010,Personal-JD 3550                   ,7,0.0
+876,431040701020,Reparaciones-JD 3550               ,7,0.0
+877,431040701030,Rep.y Acces.-JD 3550               ,7,0.0
+878,431040701040,Otros Gastos-JD 3550               ,7,0.0
+879,431040702000,DEUTZ                              ,6,0.0
+880,431040702010,Personal-Deutz                     ,7,0.0
+881,431040702020,Reparaciones-Deutz                 ,7,0.0
+882,431040702030,Repuestos y acces.-Deutz           ,7,0.0
+883,431040702040,Otros Gastos-Deutz                 ,7,0.0
+884,431040703000,JOHN DEERE 6130                    ,6,0.0
+885,431040703010,Personal-JD 6130                   ,7,0.0
+886,431040703020,Reparaciones-JD 6130               ,7,0.0
+887,431040703030,Rep.y Acces.-JD 6130               ,7,0.0
+888,431040703040,Otros Gastos-JD 6130               ,7,0.0
+889,431040800000,SEMBRADORA BERTINI                 ,5,0.0
+890,431040801000,Reparaciones-Bertini               ,6,0.0
+891,431040802000,Repuestos y Acces.-Bertini         ,6,0.0
+892,431040803000,Comb.y Lub.-Bertini                ,6,0.0
+893,431040804000,Otros Gastos-Bertini               ,6,0.0
+894,432000000000,GASTOS DE ESTRUCTURA               ,3,0.0
+895,432010000000,Automotores rep.y acces.-Estruc.   ,4,0.0
+896,432020000000,Automotores Reparac.-Estruc.       ,4,0.0
+897,432030000000,Combustibles y Serv.Públicos       ,4,0.0
+898,432030100000,Nafta-Estructura                   ,5,0.0
+899,432030200000,Gas-Oil-Estructura                 ,5,0.0
+900,432030300000,Gas-Estructura                     ,5,0.0
+901,432030400000,Energía Eléctrica-Estructura       ,5,0.0
+902,432040000000,Lubricantes Automot.-Estructura    ,4,0.0
+903,432050000000,Mantenimiento Casco y Puesto-Estruc,4,0.0
+904,432060000000,Personal de Estructura             ,4,0.0
+905,432070000000,Alquileres Pagados-Estructura      ,4,0.0
+906,432080000000,Asesoramiento técnico-Estructura   ,4,0.0
+907,432090000000,Teléfonos-Estructura               ,4,0.0
+908,432100000000,Otros Gastos-Estructura            ,4,0.0
+909,432110000000,Manutención-Estructura             ,4,0.0
+910,432110100000,Manutención Estancia               ,5,0.0
+911,432110200000,Manutencion                        ,5,0.0
+912,432110300000,Manutención Puesto                 ,5,0.0
+913,434000000000,GASTOS FINANCIEROS                 ,3,0.0
+914,434010000000,Gastos Bancarios Cta Cte           ,4,0.0
+915,434010100000,Mantenimiento de Cta Cte           ,5,0.0
+916,434010200000,Comisiones-Cta Cte                 ,5,0.0
+917,434010300000,Intereses Descubierto-Cta Cte      ,5,0.0
+918,434010400000,Int.Cheq.Negociados-Cta Cte        ,5,0.0
+919,434010500000,Otros gtos Cta Cte                 ,5,0.0
+920,434020000000,Gtos Bcarios Tarjetas de Crédito   ,4,0.0
+921,434030000000,Gtos Bcarios Préstamos             ,4,0.0
+922,434030100000,Comisiones-Préstamos               ,5,0.0
+923,434030200000,Intereses-Préstamos                ,5,0.0
+924,434030300000,Otros Gtos-Préstamos               ,5,0.0
+925,434030400000,Impuesto al Endeudamiento-Préstamo ,5,0.0
+926,434040000000,Gtos Otros Préstamos               ,4,0.0
+927,434050000000,Gastos Financiac.-Proveedores      ,4,0.0
+928,434060000000,Resultado por Tenencia             ,4,0.0
+929,434070000000,RECPAM                             ,4,0.0
+930,435000000000,GASTOS DE ADMINISTRACION           ,3,0.0
+931,435010000000,"Alquileres,Comodatos,Arrendamientos",4,0.0
+932,435020000000,Librería e Imprenta                ,4,0.0
+933,435030000000,Suscripciones                      ,4,0.0
+934,435040000000,Asesoramiento contable y administra,4,0.0
+935,435050000000,Seguros-Administ.                  ,4,0.0
+936,435060000000,Peajes                             ,4,0.0
+937,435070000000,Otros Gastos-Administ.             ,4,0.0
+938,435080000000,Gastos de Oficina                  ,4,0.0
+939,435090000000,Honorarios de Administración       ,4,0.0
+940,435100000000,Personal de Administración         ,4,0.0
+941,435110000000,Teléfonos de Administración        ,4,0.0
+942,435110100000,Celular Federico Stegmann          ,5,0.0
+943,435120000000,Gastos Vehículos-Administración    ,4,0.0
+944,435120100000,Service-Vehíc.administ.            ,5,0.0
+945,435120200000,Reparaciones-Vehíc.administ.       ,5,0.0
+946,435120300000,Repuestos-Vehíc.administ.          ,5,0.0
+947,435120400000,Combustibles y Lubr.Vehíc.-adminis ,5,0.0
+948,435120500000,Seguros Vehíc.-administ.           ,5,0.0
+949,435120600000,Peajes y estacionam.-Vehic.de adm. ,5,0.0
+950,435130000000,Viáticos de administración         ,4,0.0
+951,435140000000,Cargas Sociales-Adm.               ,4,0.0
+952,436000000000,GASTOS POR SERVICIOS PUBLICOS      ,3,0.0
+953,437000000000,IMPUESTOS Y TASAS                  ,3,0.0
+954,437010000000,Impuestos                          ,4,0.0
+955,437010100000,Imp.de Sellos                      ,5,0.0
+956,437010200000,Imp.a las Ganancias                ,5,0.0
+957,437010300000,Imp.a las Gan.Min.Pres.            ,5,0.0
+958,437010400000,Imp.a los Ing.Brutos               ,5,0.0
+959,437010500000,Imp.Inmobiliario                   ,5,0.0
+960,437010600000,Imp.a los Automotores(Patente)     ,5,0.0
+961,437010700000,Impuesto Transacc.Financ.          ,5,0.0
+962,437010800000,Impuesto Transferencia Comb.       ,5,0.0
+963,437020000000,Tasas-Tributarias                  ,4,0.0
+964,437020100000,Tasa Vial Bolívar                  ,5,0.0
+965,437020200000,Tasa de Alumb.B.y Limp.            ,5,0.0
+966,437020300000,Otras Tasas                        ,5,0.0
+967,437030000000,Multas-Tributarias                 ,4,0.0
+968,437040000000,Intereses-Tributarios              ,4,0.0
+969,438000000000,AMORTIZACIONES                     ,3,0.0
+970,438010000000,Desgaste                           ,4,0.0
+971,438010100000,Construcciones                     ,5,0.0
+972,438010200000,Rodados                            ,5,0.0
+973,438010300000,Máquinas y Tractores               ,5,0.0
+974,438010400000,Muebles y Utiles                   ,5,0.0
+975,438010500000,Instalaciones                      ,5,0.0
+976,438010600000,Herramientas                       ,5,0.0
+977,438010700000,Plantaciones y Forestac.           ,5,0.0
+978,438010800000,"Tranqueras,Alamb.y corrales        ",5,0.0
+979,438010900000,Silos                              ,5,0.0
+980,438011000000,"Comederos,bebederos,y aguadas      ",5,0.0
+981,438011100000,Implementos Apícolas               ,5,0.0
+982,438011200000,Maquinaria Tambo                   ,5,0.0
+983,438011300000,Construcción y mejora tambo        ,5,0.0
+984,438020000000,Agotamiento                        ,4,0.0
+985,438020100000,Reproductores                      ,5,0.0
+986,438020200000,Pasturas                           ,5,0.0
+987,439000000000,Gastos No Computables              ,3,0.0
+988,440000000000,Resultado Extraordinario           ,2,0.0
+989,441000000000,Resultados por Siniestros Acaecidos,3,0.0
+990,442000000000,Deudores Incobrables               ,3,0.0
+991,443000000000,Donaciones Recibidas               ,3,0.0
+992,444000000000,Resultado por Vta Bien de Uso      ,3,0.0
+993,500000000000,CUADRO DE RESULTADOS PRINGLES      ,1,0.0
+994,510000000000,Ingresos PRINGLES                  ,2,0.0
+995,511000000000,Agricultura                        ,3,0.0
+996,511010000000,Trigo                              ,4,0.0
+997,511010100000,Venta Cereal-Trigo Pringles        ,5,0.0
+998,511020000000,Maíz                               ,4,0.0
+999,511020100000,Venta Cereal-Maíz Pringles         ,5,0.0
+1000,511030000000,Girasol                            ,4,0.0
+1001,511030100000,Venta Oleag.-Girasol Pringles      ,5,0.0
+1002,511040000000,Avena                              ,4,0.0
+1003,511040100000,Venta Cereal-Avena Pringles        ,5,0.0
+1004,511050000000,Soja                               ,4,0.0
+1005,511050100000,Venta Oleag.-Soja Pringles         ,5,0.0
+1006,511060000000,Cebada                             ,4,0.0
+1007,511060100000,Venta Cereal-Cebada pringles       ,5,0.0
+1008,512000000000,Ganaderia                          ,3,0.0
+1009,512010000000,Hacienda Vacuna                    ,4,0.0
+1010,512010100000,Hacienda Vacuna Cría Pilla         ,5,0.0
+1011,512010101000,Vaq.1-2 años - Cria                ,6,0.0
+1012,512010102000,Terneras Cria - Pringles           ,6,0.0
+1013,512010103000,Terneros Cria - Pringles           ,6,0.0
+1014,512010104000,Vaca Cria - Pringles               ,6,0.0
+1015,512010200000,Hacienda Vacuna Invernada Pilla    ,5,0.0
+1016,512010201000,Novillos 1 a 2 años-Invernada      ,6,0.0
+1017,512010202000,Novillos + 2 años-Invernada        ,6,0.0
+1018,512010203000,Vaq. 1 a 2 años-Invernada          ,6,0.0
+1019,512010204000,Novillos Capitalización-Pringles   ,6,0.0
+1020,512010300000,Produc. Hacienda Vacuna - Pringles ,5,0.0
+1021,512010400000,Resultado por Tenencia Pringles    ,5,0.0
+1022,513000000000,Ventas Varias                      ,3,0.0
+1023,513010000000,Ventas de Miel                     ,4,0.0
+1024,514000000000,Ingresos Empresa Maquinaria        ,3,0.0
+1025,515000000000,Producción Agrícola                ,3,0.0
+1026,515010000000,Producción Trigo- Pringles         ,4,0.0
+1027,515020000000,Producción Maiz - Pringles         ,4,0.0
+1028,515030000000,Producción Girasol - Pringles      ,4,0.0
+1029,515040000000,Producción  Soja - Pringles        ,4,0.0
+1030,515050000000,Producción Trigo - Arrend.         ,4,0.0
+1031,515060000000,Producción Cebada - Pringles       ,4,0.0
+1032,520000000000,Otros Ingresos                     ,2,0.0
+1033,521000000000,Descuentos Obtenidos               ,3,0.0
+1034,522000000000,Diferencia Valuación Hacienda      ,3,0.0
+1035,522010000000,Diferencia Valuación Hacienda Cria ,4,0.0
+1036,522020000000,Diferencia Valuación Hacienda Inver,4,0.0
+1037,522030000000,Diferencia Valuación Hac. Capitaliz,4,0.0
+1038,523000000000,Cosecha                            ,3,0.0
+1039,524000000000,Resultado por Tenencia             ,3,0.0
+1040,525000000000,Recuperos                          ,3,0.0
+1041,525010000000,Recupero de Gastos                 ,4,0.0
+1042,530000000000,EGRESOS PRINGLES                   ,2,0.0
+1043,531000000000,Gastos de Produccion y Comercializa,3,0.0
+1044,531010000000,Agricolas                          ,4,0.0
+1045,531010100000,Trigo Pilla                        ,5,0.0
+1046,531010101000,Semilla-Trigo                      ,6,0.0
+1047,531010102000,Labores Propias-Trigo              ,6,0.0
+1048,531010103000,Labores Contratistas-Trigo         ,6,0.0
+1049,531010104000,Fertilizantes-Trigo                ,6,0.0
+1050,531010105000,"Herbicidas,Insecticidas,Fung.-Trigo",6,0.0
+1051,531010106000,Cosecha Contratista-Trigo          ,6,0.0
+1052,531010107000,Gastos de Comercilización-Trigo    ,6,0.0
+1053,531010108000,Otros Gastos-Trigo                 ,6,0.0
+1054,531010109000,CMV Trigo                          ,6,0.0
+1055,531010110000,Costo Prod. Trigo- Pringles        ,6,0.0
+1056,531010200000,Maiz Pilla                         ,5,0.0
+1057,531010201000,Semilla-Maiz                       ,6,0.0
+1058,531010202000,Labores Propias-Maiz               ,6,0.0
+1059,531010203000,Labores Contratistas-Maiz          ,6,0.0
+1060,531010204000,Fertilizantes-Maiz                 ,6,0.0
+1061,531010205000,"Herbicidas,Insecticidas,Fung.-Maiz ",6,0.0
+1062,531010206000,Cosecha Contratista-Maiz           ,6,0.0
+1063,531010207000,Gastos de Comercialización-Maiz    ,6,0.0
+1064,531010208000,Otros Gastos-Maiz                  ,6,0.0
+1065,531010209000,CMV Maiz                           ,6,0.0
+1066,531010210000,Costo Prod. Maiz - Pringles        ,6,0.0
+1067,531010300000,Girasol Pilla                      ,5,0.0
+1068,531010301000,Semilla-Girasol                    ,6,0.0
+1069,531010302000,Labores Propias-Girasol            ,6,0.0
+1070,531010303000,Labores Contratistas-Girasol       ,6,0.0
+1071,531010304000,Fertilizantes-Girasol              ,6,0.0
+1072,531010305000,"Herbicidas,Insecticidas,Fung.-Giras",6,0.0
+1073,531010306000,Cosecha Contratista-Girasol        ,6,0.0
+1074,531010307000,Gastos de Comercialización-Girasol ,6,0.0
+1075,531010308000,Otros Gastos-Girasol               ,6,0.0
+1076,531010309000,CMV Girasol                        ,6,0.0
+1077,531010310000,Costo Prod. Girasol - Pringles     ,6,0.0
+1078,531010400000,Soja Pilla                         ,5,0.0
+1079,531010401000,Semilla-Soja                       ,6,0.0
+1080,531010402000,Labores Propias-Soja               ,6,0.0
+1081,531010403000,Labores Contratistas-Soja          ,6,0.0
+1082,531010404000,Fertilizantes-Soja                 ,6,0.0
+1083,531010405000,"Herbicidas,Insecticidas,Fung.-Soja ",6,0.0
+1084,531010406000,Cosecha Contratista-Soja           ,6,0.0
+1085,531010407000,Gastos de Comercialización-Soja    ,6,0.0
+1086,531010408000,Otros Gastos-Soja                  ,6,0.0
+1087,531010409000,CMV Soja                           ,6,0.0
+1088,531010410000,Costo Prod. Soja - Pringles        ,6,0.0
+1089,531010500000,Avena                              ,5,0.0
+1090,531010501000,Semilla-Avena                      ,6,0.0
+1091,531010502000,Labores Propias-Avena              ,6,0.0
+1092,531010503000,Labores Contratistas-Avena         ,6,0.0
+1093,531010504000,Fertilizantes-Avena                ,6,0.0
+1094,531010505000,"Herbicidas,Insecticidas,Fung.-Avena",6,0.0
+1095,531010506000,Cosecha Contratista-Avena          ,6,0.0
+1096,531010507000,Gastos de Comercialización-Avena   ,6,0.0
+1097,531010508000,Otros Gastos-Avena                 ,6,0.0
+1098,531010509000,CMV Avena                          ,6,0.0
+1099,531010600000,Trigo - Cpo Arrend.                ,5,0.0
+1100,531010601000,Semilla - Trigo Cpo.Arrend.        ,6,0.0
+1101,531010602000,Labores Propias - Trigo Cpo Arrend ,6,0.0
+1102,531010603000,Labores Contratista-Trigo Cpo Arren,6,0.0
+1103,531010604000,Fertilizante-Trigo Cpo Arrend.     ,6,0.0
+1104,531010605000,"Herb.,Insect.Fung.-Trigo Cpo Arrend",6,0.0
+1105,531010606000,Cosecha Contratista-Trigo Cpo Arren,6,0.0
+1106,531010607000,Gastos de Comerc.-Trigo Cpo.Arrend.,6,0.0
+1107,531010608000,Otros Gastos-Trigo Cpo Arrend.     ,6,0.0
+1108,531010609000,CMV - Trigo Cpo Arrend.            ,6,0.0
+1109,531010610000,Costo Prod.-Trigo cpo Arrend.      ,6,0.0
+1110,531010700000,Girasol - Cpo Arrend.              ,5,0.0
+1111,531010701000,Semilla - Girasol Cpo Arrend.      ,6,0.0
+1112,531010702000,Labores Propias-Girasol Cpo Arrend ,6,0.0
+1113,531010703000,Labores Contratista-Girasol Cpo Arr,6,0.0
+1114,531010704000,Fertilizante - Girasol Cpo Arrend. ,6,0.0
+1115,531010705000,Herb.Insec.Fung.-Girasol Cpo Arrend,6,0.0
+1116,531010706000,Cosecha Contratista-Girasol Cpo Arr,6,0.0
+1117,531010707000,Gastos Comerc.-Girasol Cpo Arrend  ,6,0.0
+1118,531010708000,Otros Gastos-Girasol Cpo Arrend    ,6,0.0
+1119,531010709000,CMV - Girasol Cpo Arrend           ,6,0.0
+1120,531010710000,Costo Producc.-Girasol Cpo Arrend  ,6,0.0
+1121,531010800000,Soja - Cpo Arrend.                 ,5,0.0
+1122,531010801000,Semilla - Soja Cpo arrend.         ,6,0.0
+1123,531010802000,Labores Propias - Soja Cpo arrend. ,6,0.0
+1124,531010803000,Labores Contrat.-Soja Cpo Arrend.  ,6,0.0
+1125,531010804000,Fertilizante - Soja Cpo Arrend.    ,6,0.0
+1126,531010805000,Herb.Insec.Fung.-Soja Cpo Arrend.  ,6,0.0
+1127,531010806000,Cosecha Contrat.-Soja Cpo arrend.  ,6,0.0
+1128,531010807000,Gtos Comerc.-Soja Cpo arrend.      ,6,0.0
+1129,531010808000,Otros Gtos-Soja Cpo Arrend.        ,6,0.0
+1130,531010809000,CMV - Soja Cpo. Arrend.            ,6,0.0
+1131,531010810000,Costo Producc.- Soja Cpo. Arrend.  ,6,0.0
+1132,531010900000,Cebada                             ,5,0.0
+1133,531010901000,Semilla - Cebada                   ,6,0.0
+1134,531010902000,Labores Propias - Cebada           ,6,0.0
+1135,531010903000,Labores Contrat. - Cebada          ,6,0.0
+1136,531010904000,Fertilizante - Cebada              ,6,0.0
+1137,531010905000,Herb.Insec.Fung.-Cebada            ,6,0.0
+1138,531010906000,Cosecha Contrat-Cebada             ,6,0.0
+1139,531010907000,Gtos Comerc.-Cebada                ,6,0.0
+1140,531010908000,Otros Gtos.-Cebada                 ,6,0.0
+1141,531010909000,CMV - Cebada Cpo. Arrend.          ,6,0.0
+1142,531010910000,Costo Producc. - Cebada Cpo. Arrend,6,0.0
+1143,531020000000,Ganaderos                          ,4,0.0
+1144,531020100000,Hacienda Vacuna                    ,5,0.0
+1145,531020101000,Hacienda Vacuna Cría Pilla         ,6,0.0
+1146,531020101010,Personal Cria Pilla                ,7,0.0
+1147,531020101020,Honorarios Veterinario Cria Pilla  ,7,0.0
+1148,531020101030,Productos Vet.Cria Pilla           ,7,0.0
+1149,531020101040,Gtos Mantenimiento Cria Pilla      ,7,0.0
+1150,531020101050,Verdeos Invierno Cria Pilla        ,7,0.0
+1151,531020101060,Verdeos Verano Cria Pilla          ,7,0.0
+1152,531020101070,Labores Cria Pilla                 ,7,0.0
+1153,531020101080,Suplementación Cria Pilla          ,7,0.0
+1154,531020101090,Otros Gtos Cria Pilla              ,7,0.0
+1155,531020101100,"Molinos,Tanques,bebederos-H.V.Cria ",7,0.0
+1156,531020101110,Tranqueras y alambrados-H.V.Cría   ,7,0.0
+1157,531020102000,Hacienda Vacuna Invernada Pilla    ,6,0.0
+1158,531020102010,Productos Veterinarios-Invernada   ,7,0.0
+1159,531020102020,Honorarios Veterinarios-Invernada  ,7,0.0
+1160,531020102030,Conservación de Pasturas-Invernada ,7,0.0
+1161,531020102040,Siembra Pasturas y Verdeos-Invernad,7,0.0
+1162,531020102050,Gastos de Mantenimiento-Invernada  ,7,0.0
+1163,531020102051,"Molinos,Tanques,Bebederos-Invernada",8,0.0
+1164,531020102052,Mangas y Corrales-Invernada        ,8,0.0
+1165,531020102053,Tranqueras y Alambrados-Invernada  ,8,0.0
+1166,531020102060,Personal-Invernada                 ,7,0.0
+1167,531020102070,"Suplementación,Rollos,granos-Invern",7,0.0
+1168,531020102080,Labores-Invernada                  ,7,0.0
+1169,531020102090,Verdeos Invierno y Verano-Invernada,7,0.0
+1170,531020102100,Hacienda Cedida por otra activ.-Inv,7,0.0
+1171,531020102110,Gastos de Comercialización-Invernad,7,0.0
+1172,531020102120,Otros Gastos-Invernada             ,7,0.0
+1173,531020103000,Hacienda Vacuna Capitalizada-Pringl,6,0.0
+1174,531020104000,Costo de venta HV- Pringles        ,6,0.0
+1175,531030000000,EMPRESA MAQUINARIA PILLA           ,4,0.0
+1176,531030100000,Personal-Empresa Maquinaria        ,5,0.0
+1177,531030200000,Reparaciones-Empresa Maquinaria    ,5,0.0
+1178,531030300000,Repuestos y Acces.-Empresa Maquinar,5,0.0
+1179,531030400000,Combustibles y Lub.-Empresa Maquina,5,0.0
+1180,531030500000,Otros Gastos-Empresa Maquinaria    ,5,0.0
+1181,532000000000,GASTOS DE ESTRUCTURA PILLA         ,3,0.0
+1182,532010000000,Automotores repuestos y acces.-Estr,4,0.0
+1183,532020000000,Automotores reparaciones-Estruc.   ,4,0.0
+1184,532030000000,Combustibles                       ,4,0.0
+1185,532030100000,Nafta-Estructura                   ,5,0.0
+1186,532030200000,Gas-Oil-Estructura                 ,5,0.0
+1187,532030300000,Gas-Estructura                     ,5,0.0
+1188,532030400000,Energía Eléctrica-Estructura       ,5,0.0
+1189,532040000000,Lubricantes Automotores-Estructura ,4,0.0
+1190,532050000000,Mantenimiento Casco y Puesto-Estruc,4,0.0
+1191,532060000000,Personal de Estructura             ,4,0.0
+1192,532070000000,Manten-Calles e instalaciones      ,4,0.0
+1193,532080000000,Asesoramiento Técnico-Estructura   ,4,0.0
+1194,532090000000,Teléfonos-Estructura               ,4,0.0
+1195,532100000000,Otros Gastos-Estructura            ,4,0.0
+1196,532110000000,Manutención-Estructura             ,4,0.0
+1197,533000000000,Gastos por Retribuciones           ,3,0.0
+1198,534000000000,GASTOS FINANCIEROS PILLA           ,3,0.0
+1199,534010000000,Gastos Financiac. Proveedores      ,4,0.0
+1200,535000000000,GASTOS DE ADMINISTRACION PILLA     ,3,0.0
+1201,535010000000,"Alquileres,Arrendamientos-Adm.     ",4,0.0
+1202,535020000000,Libreria e Imprenta-Adm.           ,4,0.0
+1203,535030000000,Suscripciones-Adm.                 ,4,0.0
+1204,535040000000,Asesoramiento Contable y Administra,4,0.0
+1205,535050000000,Seguros                            ,4,0.0
+1206,535060000000,Peajes                             ,4,0.0
+1207,535070000000,Otros Gastos-Adm.                  ,4,0.0
+1208,535080000000,Gastos de Oficina                  ,4,0.0
+1209,535090000000,Honorarios de Administrac.         ,4,0.0
+1210,535100000000,Personal de Administración         ,4,0.0
+1211,535110000000,Teléfono-Administración            ,4,0.0
+1212,535120000000,Gastos Vehículos-Administac.       ,4,0.0
+1213,535120100000,Service Vehículos-Adm.             ,5,0.0
+1214,535120200000,Reparaciones Vehículos-Adm.        ,5,0.0
+1215,535120300000,Repuestos Vehículos-Adm.           ,5,0.0
+1216,535120400000,Combustibles y Lub.Vehículos-Adm.  ,5,0.0
+1217,535120500000,Seguros Vehículos-Adm.             ,5,0.0
+1218,535130000000,Viaticos Administ.-Pilla           ,4,0.0
+1219,536000000000,Insumos de Apicultura              ,3,0.0
+1220,537000000000,IMPUESTOS Y TASAS PILLA            ,3,0.0
+1221,537010000000,Impuestos                          ,4,0.0
+1222,537010100000,Impuesto Sellos                    ,5,0.0
+1223,537010200000,Impuesto a las Ganancias           ,5,0.0
+1224,537010300000,Impuesto a la Gananc.Minima Presunt,5,0.0
+1225,537010400000,Impuesto a los Ing.rutos           ,5,0.0
+1226,537010500000,Impuesto Inmobiliario              ,5,0.0
+1227,537010600000,Impuesto a los Automotores (Patente,5,0.0
+1228,537020000000,Tasas Tributarias                  ,4,0.0
+1229,537020100000,Tasa Vial Pringles                 ,5,0.0
+1230,537020200000,"Tasa Alumbrado,Barr.y Limp.        ",5,0.0
+1231,537020300000,Otras tasas                        ,5,0.0
+1232,537030000000,Multas Tributarias                 ,4,0.0
+1233,537040000000,Intereses Tributarios              ,4,0.0
+1234,538000000000,Gastos por Depreciaciones          ,3,0.0
+1235,539000000000,Gastos no Computables              ,3,0.0
+1236,600000000000,Imp. Gcias Bolivar-Pringles        ,1,0.0
+1237,211010254000,ERNESTO Y HORACIO SCHANG SRL       ,6,-79684.05
+1238,512010105000,TOROSCRIA-PRINGLES                 ,6,0.0
+1239,532120000000,Gastos Varios-Estructura           ,4,0.0
+1240,211010255000,R.R AGRONOMIA SRL                  ,6,-4116.47
+1241,531020101120,Gtos-Comerc-Cria-Pilla             ,7,0.0
+1242,537010700000,Impuesto Transacc.Financ.          ,5,0.0
+1243,537010800000,Impuesto Transferencia Comb.       ,5,0.0

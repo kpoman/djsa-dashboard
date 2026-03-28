@@ -1,9 +1,6 @@
-matplotlib==3.10.6
-matplotlib-inline
-numpy==2.3.4
-numpydoc
-openpyxl
-pandas==2.3.3
-plotly
-statsmodels
-streamlit
+streamlit>=1.35.0
+pandas>=2.0.0
+numpy>=1.26.0
+plotly>=5.20.0
+openpyxl>=3.1.0
+requests>=2.31.0
