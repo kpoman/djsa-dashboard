@@ -142,7 +142,7 @@ def _get_dairycomp():
     import os
     base = os.path.join(os.path.dirname(__file__), '..', 'data')
     df_ev = pd.read_csv(
-        os.path.join(base, 'eventos_202602.csv'),
+        os.path.join(base, 'eventos-202604.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['Fecha'], date_format='%d/%m/%y', dayfirst=True,
     )
@@ -158,7 +158,7 @@ def _get_dairycomp():
         lambda x: 'salud' if x in salud else ('repro' if x in repro else 'noclasif')
     )
     df_ctrl = pd.read_csv(
-        os.path.join(base, 'controles_202602.csv'),
+        os.path.join(base, 'control-202604.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['FechaCtr', 'FPART', 'FSECA'],
         date_format='%d/%m/%y', dayfirst=True,
@@ -320,8 +320,8 @@ with tab_dairycomp:
         grouped_y = grouped.groupby(['Ano', 'Tipo', 'Evento']).sum().reset_index()
         grouped_m = grouped.groupby(['Mes', 'Tipo', 'Evento']).mean().reset_index()
 
-        sub_salud, sub_repro, sub_ctrl = st.tabs([
-            "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero"
+        sub_salud, sub_repro, sub_ctrl, sub_animal = st.tabs([
+            "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero", "Historial Animal"
         ])
 
         with sub_salud:
@@ -390,6 +390,164 @@ with tab_dairycomp:
                                 color='fechatosca',
                                 labels={'DE': 'Días en leche', 'LECH': 'Producción'})
             st.plotly_chart(fig_l1, use_container_width=True)
+
+        with sub_animal:
+            # ── Clasificación de eventos ────────────────────────────────────
+            _REPRO  = {'INSEMIN', 'PROSTA', 'PARTO', 'PREÑADA', 'VACIA', 'SECA',
+                       'CELO', 'RECHAZO', 'ABORTO', 'GNRH', 'DIB', 'ALTAMAS',
+                       'SIGUEP', 'DESVASA', 'RECK', 'CET'}
+            _SALUD  = {'MAST', 'RENGA', 'MUERTA', 'RETPLAC', 'ENFERMA', 'CAIDA',
+                       'ANESTRO', 'HIPOCAL', 'UBRE', 'DIARREA', 'UTERO', 'METRIT',
+                       'QUISTE', 'ENDOMET', 'TRATADA'}
+            _COLOR  = {
+                'repro':    '#2196F3',
+                'salud':    '#F44336',
+                'manejo':   '#FF9800',
+                'otro':     '#9E9E9E',
+            }
+            _SIMBOLO = {
+                'PARTO':    'star',
+                'INSEMIN':  'triangle-up',
+                'PREÑADA':  'diamond',
+                'VACIA':    'x',
+                'SECA':     'square',
+                'ABORTO':   'triangle-down',
+                'MAST':     'circle',
+                'MUERTA':   'cross',
+                'VENDIDA':  'pentagon',
+            }
+
+            def _clasificar(ev):
+                if ev in _REPRO:   return 'repro'
+                if ev in _SALUD:   return 'salud'
+                return 'manejo'
+
+            # ── Selector de animal ──────────────────────────────────────────
+            todos_ids = sorted(df_ev['ID'].dropna().unique())
+            col_srch, col_info = st.columns([2, 3])
+            with col_srch:
+                animal_id = st.selectbox(
+                    "Seleccioná un animal (ID)",
+                    options=todos_ids,
+                    format_func=lambda x: f"#{int(x)}",
+                    key="animal_id",
+                )
+
+            if animal_id:
+                ev_animal  = df_ev[df_ev['ID'] == animal_id].copy()
+                ctr_animal = df_ctrl[df_ctrl['ID'] == animal_id].copy()
+
+                ev_animal['Categoria'] = ev_animal['Evento'].apply(_clasificar)
+                n_partos = (ev_animal['Evento'] == 'PARTO').sum()
+                ultimo_ev = ev_animal['Fecha'].max()
+                estado = 'ACTIVA'
+                if (ev_animal['Evento'] == 'MUERTA').any():
+                    estado = 'MUERTA'
+                elif (ev_animal['Evento'] == 'VENDIDA').any():
+                    estado = 'VENDIDA'
+
+                with col_info:
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("ID", f"#{int(animal_id)}")
+                    c2.metric("Partos", n_partos)
+                    c3.metric("Estado", estado)
+                    c4.metric("Último evento", ultimo_ev.strftime('%d/%m/%Y') if pd.notna(ultimo_ev) else '—')
+
+                # ── Figura principal ────────────────────────────────────────
+                fig_a = go.Figure()
+
+                # Curva de producción por lactancia
+                if not ctr_animal.empty:
+                    for lact in sorted(ctr_animal['LACT'].unique()):
+                        df_l = ctr_animal[ctr_animal['LACT'] == lact].sort_values('FechaCtr')
+                        fig_a.add_trace(go.Scatter(
+                            x=df_l['FechaCtr'],
+                            y=df_l['LECH'],
+                            mode='lines+markers',
+                            name=f'Producción L{int(lact)}',
+                            yaxis='y1',
+                            line=dict(width=2),
+                            marker=dict(size=6),
+                            hovertemplate=(
+                                '<b>Control L%d</b><br>' % lact +
+                                'Fecha: %{x|%d/%m/%Y}<br>' +
+                                'Producción: %{y} L<br>' +
+                                'DE: ' + df_l['DE'].astype(str).str.strip() + 'd<extra></extra>'
+                            ),
+                        ))
+
+                # Eventos como scatter en eje secundario
+                for cat, grp in ev_animal.groupby('Categoria'):
+                    for evento, subgrp in grp.groupby('Evento'):
+                        subgrp = subgrp.sort_values('Fecha')
+                        notas = subgrp['Nota'].fillna('').str.strip().tolist() if 'Nota' in subgrp.columns else [''] * len(subgrp)
+                        fig_a.add_trace(go.Scatter(
+                            x=subgrp['Fecha'],
+                            y=[cat] * len(subgrp),
+                            mode='markers',
+                            name=evento,
+                            yaxis='y2',
+                            marker=dict(
+                                symbol=_SIMBOLO.get(evento, 'circle'),
+                                size=10,
+                                color=_COLOR[cat],
+                                line=dict(width=1, color='white'),
+                            ),
+                            customdata=notas,
+                            hovertemplate=(
+                                f'<b>{evento}</b><br>' +
+                                'Fecha: %{x|%d/%m/%Y}<br>' +
+                                'Nota: %{customdata}<extra></extra>'
+                            ),
+                        ))
+
+                fig_a.update_layout(
+                    title=f'Historial animal #{int(animal_id)}',
+                    height=550,
+                    yaxis=dict(title='Producción (L)', side='left'),
+                    yaxis2=dict(
+                        title='Categoría evento',
+                        overlaying='y',
+                        side='right',
+                        showgrid=False,
+                        tickvals=['repro', 'salud', 'manejo'],
+                        ticktext=['Repro', 'Salud', 'Manejo'],
+                    ),
+                    legend=dict(x=1.08, y=1, font=dict(size=10)),
+                    hovermode='x unified',
+                    margin=dict(r=220),
+                )
+
+                # Líneas verticales en cada parto
+                for _, row in ev_animal[ev_animal['Evento'] == 'PARTO'].iterrows():
+                    fig_a.add_vline(
+                        x=row['Fecha'].timestamp() * 1000,
+                        line_dash='dot',
+                        line_color='green',
+                        opacity=0.5,
+                        annotation_text='PARTO',
+                        annotation_position='top',
+                        annotation_font_size=9,
+                    )
+
+                st.plotly_chart(fig_a, use_container_width=True)
+
+                # Tablas de detalle
+                col_ev, col_ctr = st.columns(2)
+                with col_ev:
+                    with st.expander(f"Eventos ({len(ev_animal)})"):
+                        cols_show = [c for c in ['Fecha', 'Evento', 'DEL', 'Nota', 'Categoria'] if c in ev_animal.columns]
+                        st.dataframe(
+                            ev_animal[cols_show].sort_values('Fecha', ascending=False),
+                            use_container_width=True, hide_index=True,
+                        )
+                with col_ctr:
+                    with st.expander(f"Controles lecheros ({len(ctr_animal)})"):
+                        cols_ctr = [c for c in ['FechaCtr', 'LACT', 'DE', 'LECH', 'PCT', 'LCG', '305E'] if c in ctr_animal.columns]
+                        st.dataframe(
+                            ctr_animal[cols_ctr].sort_values('FechaCtr', ascending=False),
+                            use_container_width=True, hide_index=True,
+                        )
 
     except Exception as e:
         st.error(f"Error cargando DairyComp: {e}")
