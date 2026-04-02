@@ -31,7 +31,8 @@ _PROD = {
     '2022': "678\t22,39\n621\t21,74\n641\t22,69\n660\t21,60\n635\t25,09\n636\t27,00\n623\t29,61\n643\t30,08\n666\t31,24\n672\t31,34\n702\t30,99\n698\t29,63",
     '2023': "642\t29,70\n602\t25,17\n616\t26,88\n609\t27,25\n650\t28,06\n671\t29,00\n687\t32,23\n713\t34,17\n718\t33,78\n717\t34,54\n746\t31,71\n725\t30,43",
     '2024': "629\t29,71\n632\t26,12\n626\t26,58\n626\t28,09\n666\t27,47\n690\t29,12\n723\t29,96\n742\t29,94\n777\t31,18\n789\t31,37\n795\t31,63\n780\t31,22",
-    '2025': "692\t30,94\n609\t29,54\n659\t28,97\n659\t31,86\n678\t31,79",
+    '2025': "692\t30,94\n609\t29,54\n659\t28,97\n659\t31,86\n678\t31,79\n718\t32,73\n737\t32,61\n767\t34,08\n803\t34,48\n794\t32,73\n838\t31,25\n842\t29,77",
+    '2026': "729\t29,63\n638\t28,57\n616\t28,03",
 }
 
 
@@ -216,6 +217,67 @@ with tab_prod:
             height=500,
         )
         st.plotly_chart(fig_h, use_container_width=True)
+
+        st.divider()
+        st.subheader("Descomposición estacional")
+
+        _var_options = {'LTVO': 'LTVO', 'VO': 'VO', 'Producción total (L/día)': 'Prod'}
+        col_v, col_m, col_rng = st.columns([2, 2, 3])
+        with col_v:
+            var_label = st.selectbox("Variable", list(_var_options.keys()), key="decomp_var")
+        with col_m:
+            model_type = st.selectbox("Modelo", ["additive", "multiplicative"],
+                                      format_func=lambda x: "Aditivo" if x == "additive" else "Multiplicativo",
+                                      key="decomp_model")
+        with col_rng:
+            min_date = df_hist['Date'].min().date()
+            max_date = df_hist['Date'].max().date()
+            date_range = st.slider(
+                "Período",
+                min_value=min_date,
+                max_value=max_date,
+                value=(min_date, max_date),
+                format="MMM YYYY",
+                key="decomp_range",
+            )
+
+        col_name = _var_options[var_label]
+        df_dec = (
+            df_hist[(df_hist['Date'].dt.date >= date_range[0]) &
+                    (df_hist['Date'].dt.date <= date_range[1])]
+            .set_index('Date')[[col_name]]
+            .asfreq('MS')
+        )
+
+        n_obs = len(df_dec)
+        if n_obs < 24:
+            st.warning("Se necesitan al menos 24 meses para descomponer la serie. Ampliá el rango de fechas.")
+        else:
+            from statsmodels.tsa.seasonal import seasonal_decompose
+
+            result = seasonal_decompose(df_dec[col_name], model=model_type, period=12)
+
+            components = [
+                ("Observado", result.observed),
+                ("Tendencia", result.trend),
+                ("Estacionalidad", result.seasonal),
+                ("Residuo", result.resid),
+            ]
+
+            for title, series in components:
+                fig_comp = go.Figure()
+                fig_comp.add_trace(go.Scatter(
+                    x=series.index, y=series.values,
+                    mode='lines',
+                    line=dict(width=2),
+                ))
+                fig_comp.update_layout(
+                    title=title,
+                    height=220,
+                    margin=dict(t=40, b=30, l=50, r=20),
+                    yaxis_title=var_label,
+                )
+                st.plotly_chart(fig_comp, use_container_width=True)
 
 
 # ── Tab Datos CREA ──────────────────────────────────────────────────────────
