@@ -191,16 +191,25 @@ with tab_prod:
                            labels={'date': 'Fecha', 'ltvo_roll': 'LTVO'})
             fig1.update_yaxes(range=[20, 35])
             st.plotly_chart(fig1, use_container_width=True)
+            df_ltvo_dl = df_total[['date', 'diaria_ltvo']].rename(columns={'date': 'Fecha', 'diaria_ltvo': 'LTVO'})
+            st.download_button("Descargar LTVO total (CSV)", df_ltvo_dl.to_csv(index=False).encode('utf-8'),
+                               file_name='ltvo_total.csv', mime='text/csv', key='dl_ltvo')
 
             st.subheader("LTVO por rodeo (media móvil 7d)")
             fig2 = px.line(df_rodeos, x='date', y='roll_ltvo', color='cat',
                            labels={'date': 'Fecha', 'roll_ltvo': 'LTVO', 'cat': 'Rodeo'})
             st.plotly_chart(fig2, use_container_width=True)
+            df_rodeo_dl = df_rodeos[['date', 'cat', 'diaria_ltvo']].rename(columns={'date': 'Fecha', 'cat': 'Rodeo', 'diaria_ltvo': 'LTVO'})
+            st.download_button("Descargar LTVO por rodeo (CSV)", df_rodeo_dl.to_csv(index=False).encode('utf-8'),
+                               file_name='ltvo_por_rodeo.csv', mime='text/csv', key='dl_rodeo')
 
             st.subheader("Producción diaria total (media móvil 7d)")
             fig3 = px.line(df_total, x='date', y='roll',
                            labels={'date': 'Fecha', 'roll': 'Litros diarios'})
             st.plotly_chart(fig3, use_container_width=True)
+            df_prod_dl = df_total[['date', 'diaria_total']].rename(columns={'date': 'Fecha', 'diaria_total': 'Produccion_total'})
+            st.download_button("Descargar producción diaria (CSV)", df_prod_dl.to_csv(index=False).encode('utf-8'),
+                               file_name='produccion_diaria.csv', mime='text/csv', key='dl_prod')
 
     with sub_hist:
         df_hist = _get_datos_prod()
@@ -383,13 +392,140 @@ with tab_dairycomp:
             )
             st.plotly_chart(fig_hist_ctrl, use_container_width=True)
 
-            df_lact1 = df_ctrl[(df_ctrl['LACT'] == 1) & (df_ctrl['FechaCtr'] > '2020-09-01')].copy()
-            df_lact1['fechatosca'] = df_lact1['FechaCtr'].dt.strftime('%Y%m%d')
-            fig_l1 = px.scatter(df_lact1, x='DE', y='LECH',
-                                title='Prod Leche Vaquillonas (L1, post Sep-2020)',
-                                color='fechatosca',
-                                labels={'DE': 'Días en leche', 'LECH': 'Producción'})
-            st.plotly_chart(fig_l1, use_container_width=True)
+            # ── Curva de lactancia Wood: y = a * t^b * exp(-c*t) ─────────
+            st.divider()
+            st.subheader("Curva de lactancia (modelo de Wood)")
+
+            from scipy.optimize import curve_fit
+
+            def wood_model(t, a, b, c):
+                return a * np.power(t, b) * np.exp(-c * t)
+
+            col_lact, col_fecha_range = st.columns([1, 2])
+            with col_lact:
+                lacts_disponibles = sorted(df_ctrl['LACT'].dropna().unique())
+                lact_sel = st.selectbox(
+                    "Lactancia", lacts_disponibles,
+                    format_func=lambda x: f"L{int(x)}",
+                    key="wood_lact",
+                )
+            with col_fecha_range:
+                fechas_ctrl = df_ctrl['FechaCtr'].dropna().sort_values().unique()
+                fecha_min = pd.Timestamp(fechas_ctrl.min()).date()
+                fecha_max = pd.Timestamp(fechas_ctrl.max()).date()
+                rango_fecha = st.slider(
+                    "Rango de fechas de control",
+                    min_value=fecha_min, max_value=fecha_max,
+                    value=(fecha_min, fecha_max),
+                    format="DD/MM/YY", key="wood_fecha_range",
+                )
+
+            df_wood = df_ctrl[
+                (df_ctrl['LACT'] == lact_sel) &
+                (df_ctrl['FechaCtr'].dt.date >= rango_fecha[0]) &
+                (df_ctrl['FechaCtr'].dt.date <= rango_fecha[1]) &
+                (df_ctrl['DE'] > 0) & (df_ctrl['DE'] <= 500) &
+                (df_ctrl['LECH'] > 0) & (df_ctrl['LECH'] <= 70)
+            ].copy()
+            # Filtro IQR por grupo de DE para limpiar outliers
+            q1 = df_wood.groupby(pd.cut(df_wood['DE'], bins=20))['LECH'].transform('quantile', 0.05)
+            q3 = df_wood.groupby(pd.cut(df_wood['DE'], bins=20))['LECH'].transform('quantile', 0.95)
+            df_wood = df_wood[(df_wood['LECH'] >= q1) & (df_wood['LECH'] <= q3)]
+            df_wood['fechatosca'] = df_wood['FechaCtr'].dt.strftime('%Y%m%d')
+
+            fechas_unicas = sorted(df_wood['fechatosca'].unique())
+            min_puntos = st.slider("Mínimo de animales por control para ajustar curva",
+                                   min_value=3, max_value=30, value=8, key="wood_min_pts")
+
+            import plotly.express as _px
+            _colors = _px.colors.qualitative.Plotly + _px.colors.qualitative.D3
+            color_map = {f: _colors[i % len(_colors)] for i, f in enumerate(fechas_unicas)}
+
+            fig_wood = go.Figure()
+            params_table = []
+            t_fit = np.linspace(5, min(500, df_wood['DE'].max() + 30), 300)
+
+            for fecha in fechas_unicas:
+                sub = df_wood[df_wood['fechatosca'] == fecha]
+                t_data = sub['DE'].values.astype(float)
+                y_data = sub['LECH'].values.astype(float)
+                color = color_map[fecha]
+
+                # Scatter de puntos
+                fig_wood.add_trace(go.Scatter(
+                    x=t_data, y=y_data,
+                    mode='markers', name=fecha,
+                    legendgroup=fecha,
+                    marker=dict(color=color, size=5, opacity=0.45),
+                    hovertemplate='DE: %{x}<br>Prod: %{y} L<extra></extra>',
+                ))
+
+                if len(t_data) < min_puntos:
+                    continue
+
+                try:
+                    popt, _ = curve_fit(
+                        wood_model, t_data, y_data,
+                        p0=[15, 0.2, 0.003],
+                        bounds=([0.1, 0.001, 0.0001], [200, 3.0, 0.1]),
+                        maxfev=10000,
+                    )
+                    a, b, c = popt
+                    y_fit = wood_model(t_fit, a, b, c)
+
+                    de_pico = b / c
+                    pico = a * (b / c) ** b * np.exp(-b)
+                    persistencia = -(b + 1) * np.log(c)
+
+                    fig_wood.add_trace(go.Scatter(
+                        x=t_fit, y=y_fit,
+                        mode='lines', name=f'{fecha} (Wood)',
+                        legendgroup=fecha,
+                        showlegend=False,
+                        line=dict(color=color, width=2.5),
+                        hovertemplate=(
+                            f'<b>{fecha}</b><br>'
+                            f'Pico: {pico:.1f}L @ DE {de_pico:.0f}<br>'
+                            f'Persistencia: {persistencia:.2f}'
+                            '<extra></extra>'
+                        ),
+                    ))
+
+                    params_table.append({
+                        'Control': fecha,
+                        'n vacas': len(sub),
+                        'a': round(a, 3),
+                        'b': round(b, 4),
+                        'c': round(c, 5),
+                        'Pico (L)': round(pico, 1),
+                        'DE al pico': round(de_pico, 0),
+                        'Persistencia': round(persistencia, 2),
+                    })
+                except Exception:
+                    pass
+
+            fig_wood.update_layout(
+                title=f'Producción L{int(lact_sel)} + curvas Wood',
+                xaxis_title='Días en leche',
+                yaxis_title='Producción (L)',
+                height=600,
+                legend=dict(title='Control', x=1.02, y=1),
+            )
+            st.plotly_chart(fig_wood, use_container_width=True)
+
+            if params_table:
+                st.markdown("**Parámetros del modelo de Wood** — `y = a · t^b · exp(-c·t)`")
+                st.dataframe(
+                    pd.DataFrame(params_table),
+                    use_container_width=True, hide_index=True,
+                )
+                st.caption(
+                    "**Pico**: producción máxima estimada. "
+                    "**DE al pico**: día de lactancia al pico. "
+                    "**Persistencia**: -(b+1)·ln(c) — mayor valor = menor caída post-pico."
+                )
+            else:
+                st.info("No se pudo ajustar ninguna curva. Probá bajando el mínimo de animales o ampliando el rango de fechas.")
 
         with sub_animal:
             # ── Clasificación de eventos ────────────────────────────────────
