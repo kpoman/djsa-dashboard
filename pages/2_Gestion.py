@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Gestión — DJSA", page_icon="🌾", layout="wide")
+st.set_page_config(page_title="Gestión — DJSA", page_icon="📊", layout="wide")
 
 URL_GESTION = (
     "https://docs.google.com/spreadsheets/d/e/"
@@ -21,67 +22,194 @@ def _clean_currency(x):
 def _get_gestion():
     df = pd.read_csv(URL_GESTION)
     df['Date'] = df['Campaña'].apply(lambda x: pd.to_datetime('20' + str(x)[-2:] + '-07-01'))
-    for col in ['Gasto U$D', 'Ingreso U$D', 'MB U$D', 'MB/ha U$D', 'Valor/tn', 'Gasto U$D/ha']:
+    currency_cols = ['Gasto U$D', 'Ingreso U$D', 'MB U$D', 'MB/ha U$D',
+                     'Valor/tn', 'Gasto U$D/ha', 'Ingreso U$D/ha',
+                     'Gasto AR$', 'Ingreso AR$', 'MB AR$']
+    for col in currency_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col].apply(_clean_currency), errors='coerce')
     return df
 
 
-st.title("🌾 Gestión de Cultivos")
-st.markdown("Márgenes brutos por campaña, rubro y actividad.")
+# ── UI ───────────────────────────────────────────────────────────────────────
+st.title("📊 Gestión")
+st.markdown("Márgenes brutos por campaña, establecimiento, rubro y actividad.")
 
 try:
     df = _get_gestion()
 
-    # ── Filtros ──────────────────────────────────────────────────────────────
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    # ── Filtros principales ──────────────────────────────────────────────────
+    col_est, col_rub, col_act, col_camp = st.columns(4)
+    with col_est:
+        establecimientos = sorted(df['Establecimiento'].dropna().unique())
+        sel_est = st.multiselect("Establecimiento", establecimientos, default=establecimientos)
+    with col_rub:
+        rubros = sorted(df['Rubro'].dropna().unique())
+        sel_rubro = st.multiselect("Rubro", rubros, default=rubros)
+    with col_act:
+        # Actividades filtradas por rubros seleccionados
+        acts_disp = sorted(df[df['Rubro'].isin(sel_rubro)]['Actividad'].dropna().unique()) if sel_rubro else sorted(df['Actividad'].dropna().unique())
+        sel_act = st.multiselect("Actividad", acts_disp, default=acts_disp)
+    with col_camp:
         campanas = sorted(df['Campaña'].unique())
         sel_camp = st.multiselect("Campaña(s)", campanas, default=campanas)
-    with col2:
-        rubros = sorted(df['Rubro'].dropna().unique()) if 'Rubro' in df.columns else []
-        sel_rubro = st.multiselect("Rubro(s)", rubros, default=rubros)
-    with col3:
-        metrica = st.selectbox("Métrica", ['MB U$D', 'Ingreso U$D', 'Gasto U$D', 'MB/ha U$D'])
 
+    # Aplicar filtros
     df_f = df.copy()
+    if sel_est:
+        df_f = df_f[df_f['Establecimiento'].isin(sel_est)]
+    if sel_rubro:
+        df_f = df_f[df_f['Rubro'].isin(sel_rubro)]
+    if sel_act:
+        df_f = df_f[df_f['Actividad'].isin(sel_act)]
     if sel_camp:
         df_f = df_f[df_f['Campaña'].isin(sel_camp)]
-    if sel_rubro and 'Rubro' in df_f.columns:
-        df_f = df_f[df_f['Rubro'].isin(sel_rubro)]
 
-    # ── Gráfico por campaña + rubro ──────────────────────────────────────────
-    st.markdown("---")
-    if 'Rubro' in df_f.columns:
-        df_pivot = df_f.groupby(['Date', 'Rubro'])[metrica].sum().reset_index()
-        fig = px.bar(
-            df_pivot, x='Date', y=metrica, color='Rubro',
-            title=f'{metrica} por Campaña y Rubro',
-            labels={'Date': 'Campaña', metrica: metrica},
+    if df_f.empty:
+        st.warning("No hay datos con los filtros seleccionados.")
+        st.stop()
+
+    # ── Selector de métrica ──────────────────────────────────────────────────
+    metricas_usd = ['MB U$D', 'Ingreso U$D', 'Gasto U$D', 'MB/ha U$D',
+                    'Ingreso U$D/ha', 'Gasto U$D/ha', 'Valor/tn']
+    metricas_disp = [m for m in metricas_usd if m in df_f.columns and df_f[m].notna().any()]
+
+    metrica = st.selectbox("Métrica", metricas_disp, key="metrica_gestion")
+
+    # ── KPIs resumidos ───────────────────────────────────────────────────────
+    ultima_camp = df_f['Campaña'].max()
+    df_ult = df_f[df_f['Campaña'] == ultima_camp]
+    penult = sorted(df_f['Campaña'].unique())[-2] if len(df_f['Campaña'].unique()) >= 2 else None
+    df_pen = df_f[df_f['Campaña'] == penult] if penult else pd.DataFrame()
+
+    k1, k2, k3, k4 = st.columns(4)
+    total_ult = df_ult[metrica].sum()
+    total_pen = df_pen[metrica].sum() if not df_pen.empty else 0
+    delta = total_ult - total_pen if total_pen != 0 else None
+
+    k1.metric(f"{metrica} ({ultima_camp})", f"${total_ult:,.0f}",
+              delta=f"${delta:,.0f}" if delta is not None else None)
+    k2.metric("Establecimientos", len(df_f['Establecimiento'].unique()))
+    k3.metric("Actividades", len(df_f['Actividad'].unique()))
+    k4.metric("Campañas", len(df_f['Campaña'].unique()))
+
+    st.divider()
+
+    # ── Tabs de visualización ────────────────────────────────────────────────
+    tab_evol, tab_comp, tab_sede, tab_detalle = st.tabs([
+        "Evolución", "Comparación", "Por Establecimiento", "Datos"
+    ])
+
+    # ── Tab Evolución ────────────────────────────────────────────────────────
+    with tab_evol:
+        col_color = st.radio("Agrupar por", ['Rubro', 'Actividad', 'Establecimiento'],
+                             horizontal=True, key="evol_color")
+
+        df_evo = df_f.groupby(['Date', 'Campaña', col_color])[metrica].sum().reset_index()
+
+        fig_evo = px.bar(
+            df_evo, x='Campaña', y=metrica, color=col_color,
+            title=f'Evolución {metrica}',
             barmode='group',
         )
-        st.plotly_chart(fig, use_container_width=True)
+        fig_evo.update_layout(height=500, xaxis_tickangle=-45)
+        st.plotly_chart(fig_evo, use_container_width=True)
 
-    # ── Tabla pivot manual ───────────────────────────────────────────────────
-    st.subheader("Tabla resumen por campaña")
-    group_cols = [c for c in ['Rubro', 'Actividad'] if c in df_f.columns]
-    if group_cols:
-        df_tabla = df_f.groupby(group_cols + ['Campaña'])[metrica].sum().reset_index()
-        df_wide = df_tabla.pivot_table(index=group_cols, columns='Campaña', values=metrica, aggfunc='sum')
-        df_wide['TOTAL'] = df_wide.sum(axis=1)
-        df_wide = df_wide.sort_values('TOTAL', ascending=False)
-        st.dataframe(df_wide.style.format('${:,.0f}'), use_container_width=True)
+        # Línea de evolución acumulada
+        df_acum = df_f.groupby(['Date', 'Campaña'])[metrica].sum().reset_index()
+        fig_linea = px.line(
+            df_acum, x='Campaña', y=metrica,
+            title=f'Evolución total {metrica}',
+            markers=True,
+        )
+        fig_linea.update_layout(height=400)
+        st.plotly_chart(fig_linea, use_container_width=True)
 
-    # ── Evolución por rubro ──────────────────────────────────────────────────
-    if 'Rubro' in df_f.columns:
-        st.subheader("Evolución de MB U$D por rubro")
-        df_evo = df_f.groupby(['Date', 'Rubro'])['MB U$D'].sum().reset_index()
-        fig2 = px.line(df_evo, x='Date', y='MB U$D', color='Rubro',
-                       markers=True, labels={'Date': 'Campaña'})
-        st.plotly_chart(fig2, use_container_width=True)
+    # ── Tab Comparación ──────────────────────────────────────────────────────
+    with tab_comp:
+        st.subheader(f"Composición de {metrica}")
 
-    with st.expander("Datos brutos"):
+        col_tipo, col_camp_sel = st.columns(2)
+        with col_tipo:
+            tipo_comp = st.radio("Desglose por", ['Actividad', 'Rubro'], horizontal=True, key="comp_tipo")
+        with col_camp_sel:
+            camp_comp = st.selectbox("Campaña", sorted(df_f['Campaña'].unique(), reverse=True), key="comp_camp")
+
+        df_comp = df_f[df_f['Campaña'] == camp_comp]
+
+        col_pie, col_bar = st.columns(2)
+        with col_pie:
+            df_pie = df_comp.groupby(tipo_comp)[metrica].sum().reset_index()
+            df_pie = df_pie[df_pie[metrica] != 0]
+            fig_pie = px.pie(df_pie, values=metrica, names=tipo_comp,
+                             title=f'{metrica} — {camp_comp}')
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        with col_bar:
+            df_bar = df_comp.groupby([tipo_comp])[metrica].sum().reset_index().sort_values(metrica, ascending=True)
+            fig_hbar = px.bar(df_bar, x=metrica, y=tipo_comp, orientation='h',
+                              title=f'{metrica} por {tipo_comp} — {camp_comp}',
+                              color=tipo_comp)
+            fig_hbar.update_layout(showlegend=False, height=400)
+            st.plotly_chart(fig_hbar, use_container_width=True)
+
+        # Treemap
+        group_cols = ['Establecimiento', 'Rubro', 'Actividad']
+        df_tree = df_comp.groupby(group_cols)[metrica].sum().reset_index()
+        df_tree = df_tree[df_tree[metrica] > 0]
+        if not df_tree.empty:
+            fig_tree = px.treemap(
+                df_tree, path=['Establecimiento', 'Rubro', 'Actividad'],
+                values=metrica,
+                title=f'Treemap {metrica} — {camp_comp}',
+                color='Rubro',
+            )
+            fig_tree.update_layout(height=500)
+            st.plotly_chart(fig_tree, use_container_width=True)
+
+    # ── Tab Por Establecimiento ──────────────────────────────────────────────
+    with tab_sede:
+        st.subheader("Comparación entre establecimientos")
+
+        df_sede = df_f.groupby(['Campaña', 'Establecimiento'])[metrica].sum().reset_index()
+        fig_sede = px.bar(
+            df_sede, x='Campaña', y=metrica, color='Establecimiento',
+            barmode='group',
+            title=f'{metrica} por establecimiento',
+        )
+        fig_sede.update_layout(height=450, xaxis_tickangle=-45)
+        st.plotly_chart(fig_sede, use_container_width=True)
+
+        # Por rubro dentro de cada sede
+        for est in sorted(df_f['Establecimiento'].unique()):
+            df_est = df_f[df_f['Establecimiento'] == est]
+            df_est_g = df_est.groupby(['Campaña', 'Rubro'])[metrica].sum().reset_index()
+            fig_est = px.bar(
+                df_est_g, x='Campaña', y=metrica, color='Rubro',
+                title=f'{est} — {metrica} por rubro',
+                barmode='stack',
+            )
+            fig_est.update_layout(height=400, xaxis_tickangle=-45)
+            st.plotly_chart(fig_est, use_container_width=True)
+
+    # ── Tab Datos ────────────────────────────────────────────────────────────
+    with tab_detalle:
+        st.subheader("Tabla resumen por campaña")
+        group_cols = [c for c in ['Establecimiento', 'Rubro', 'Actividad'] if c in df_f.columns]
+        if group_cols:
+            df_tabla = df_f.groupby(group_cols + ['Campaña'])[metrica].sum().reset_index()
+            df_wide = df_tabla.pivot_table(index=group_cols, columns='Campaña', values=metrica, aggfunc='sum')
+            df_wide['TOTAL'] = df_wide.sum(axis=1)
+            df_wide = df_wide.sort_values('TOTAL', ascending=False)
+            st.dataframe(df_wide.style.format('${:,.0f}'), use_container_width=True)
+
+        st.divider()
+        st.subheader("Datos brutos")
         st.dataframe(df_f, use_container_width=True)
+
+        csv = df_f.to_csv(index=False).encode('utf-8')
+        st.download_button("Descargar datos filtrados (CSV)", csv,
+                           file_name='gestion_filtrado.csv', mime='text/csv')
 
 except Exception as e:
     st.error(f"Error cargando datos de gestión: {e}")
