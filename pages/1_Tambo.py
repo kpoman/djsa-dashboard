@@ -430,9 +430,9 @@ with tab_alim:
             # ── Tab Eficiencia (Litros Libres) ──────────────────────────
             with sub_efic:
                 st.subheader("Litros libres por rodeo")
-                fig_ll = px.bar(
-                    df_vis, x='Fecha', y='Litros_libres', color='Rodeo',
-                    barmode='group',
+                fig_ll = px.area(
+                    df_vis.sort_values(['Fecha', 'Rodeo']),
+                    x='Fecha', y='Litros_libres', color='Rodeo',
                     title='Litros libres (Producción - Costo alimentación en litros)',
                     labels={'Litros_libres': 'Litros libres', 'Fecha': ''},
                 )
