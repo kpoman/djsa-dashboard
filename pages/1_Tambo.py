@@ -429,12 +429,25 @@ with tab_alim:
 
             # ── Tab Eficiencia (Litros Libres) ──────────────────────────
             with sub_efic:
-                st.subheader("Litros libres por rodeo")
+                modo_ll = st.radio(
+                    "Ver litros libres", ["Total del rodeo", "Por animal (÷ vacas)"],
+                    horizontal=True, key="modo_litros_libres"
+                )
+
+                df_ll = df_vis.sort_values(['Fecha', 'Rodeo']).copy()
+                if modo_ll == "Por animal (÷ vacas)":
+                    df_ll['Litros_libres_plot'] = (df_ll['Litros_libres'] / df_ll['Vacas'].replace(0, np.nan)).round(1)
+                    ylabel = 'Litros libres / vaca'
+                    titulo = 'Litros libres por vaca por rodeo'
+                else:
+                    df_ll['Litros_libres_plot'] = df_ll['Litros_libres']
+                    ylabel = 'Litros libres totales'
+                    titulo = 'Litros libres totales por rodeo'
+
                 fig_ll = px.area(
-                    df_vis.sort_values(['Fecha', 'Rodeo']),
-                    x='Fecha', y='Litros_libres', color='Rodeo',
-                    title='Litros libres (Producción - Costo alimentación en litros)',
-                    labels={'Litros_libres': 'Litros libres', 'Fecha': ''},
+                    df_ll, x='Fecha', y='Litros_libres_plot', color='Rodeo',
+                    title=titulo,
+                    labels={'Litros_libres_plot': ylabel, 'Fecha': ''},
                 )
                 fig_ll.update_layout(height=450)
                 st.plotly_chart(fig_ll, use_container_width=True)
