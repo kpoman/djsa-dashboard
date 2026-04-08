@@ -18,6 +18,11 @@ URL_DATOS_CREA = (
     "2PACX-1vTaYOZHAcL06SuvN7VPwASlZ4G5-w6zBn8G4ucjXZCtGvGYgfFBIvBGVUmIyWkfPMN4lTKW9yBOSzSa"
     "/pub?output=xlsx"
 )
+URL_ALIMENTACION = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vSfp0TxyH1dX_7GWU-waeQRqk9cs1ynSsPYq49g4tyIjXTRuQHODOOiLl69b2Zwlx-lB_bGor9Qotp1"
+    "/pub?output=xlsx"
+)
 
 # ── Datos históricos embedidos (datos.py equivalente) ───────────────────────
 _PROD = {
@@ -142,7 +147,7 @@ def _get_dairycomp():
     import os
     base = os.path.join(os.path.dirname(__file__), '..', 'data')
     df_ev = pd.read_csv(
-        os.path.join(base, 'eventos_202602.csv'),
+        os.path.join(base, 'eventos-202604.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['Fecha'], date_format='%d/%m/%y', dayfirst=True,
     )
@@ -158,7 +163,7 @@ def _get_dairycomp():
         lambda x: 'salud' if x in salud else ('repro' if x in repro else 'noclasif')
     )
     df_ctrl = pd.read_csv(
-        os.path.join(base, 'controles_202602.csv'),
+        os.path.join(base, 'control-202604.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['FechaCtr', 'FPART', 'FSECA'],
         date_format='%d/%m/%y', dayfirst=True,
@@ -170,8 +175,8 @@ def _get_dairycomp():
 # ── UI ───────────────────────────────────────────────────────────────────────
 st.title("🐄 Tambo")
 
-tab_prod, tab_crea, tab_dairycomp = st.tabs([
-    "Producción de leche", "Datos CREA", "DairyComp"
+tab_prod, tab_alim, tab_crea, tab_dairycomp = st.tabs([
+    "Producción de leche", "Alimentación", "Datos CREA", "DairyComp"
 ])
 
 # ── Tab Producción de leche ─────────────────────────────────────────────────
@@ -191,16 +196,25 @@ with tab_prod:
                            labels={'date': 'Fecha', 'ltvo_roll': 'LTVO'})
             fig1.update_yaxes(range=[20, 35])
             st.plotly_chart(fig1, use_container_width=True)
+            df_ltvo_dl = df_total[['date', 'diaria_ltvo']].rename(columns={'date': 'Fecha', 'diaria_ltvo': 'LTVO'})
+            st.download_button("Descargar LTVO total (CSV)", df_ltvo_dl.to_csv(index=False).encode('utf-8'),
+                               file_name='ltvo_total.csv', mime='text/csv', key='dl_ltvo')
 
             st.subheader("LTVO por rodeo (media móvil 7d)")
             fig2 = px.line(df_rodeos, x='date', y='roll_ltvo', color='cat',
                            labels={'date': 'Fecha', 'roll_ltvo': 'LTVO', 'cat': 'Rodeo'})
             st.plotly_chart(fig2, use_container_width=True)
+            df_rodeo_dl = df_rodeos[['date', 'cat', 'diaria_ltvo']].rename(columns={'date': 'Fecha', 'cat': 'Rodeo', 'diaria_ltvo': 'LTVO'})
+            st.download_button("Descargar LTVO por rodeo (CSV)", df_rodeo_dl.to_csv(index=False).encode('utf-8'),
+                               file_name='ltvo_por_rodeo.csv', mime='text/csv', key='dl_rodeo')
 
             st.subheader("Producción diaria total (media móvil 7d)")
             fig3 = px.line(df_total, x='date', y='roll',
                            labels={'date': 'Fecha', 'roll': 'Litros diarios'})
             st.plotly_chart(fig3, use_container_width=True)
+            df_prod_dl = df_total[['date', 'diaria_total']].rename(columns={'date': 'Fecha', 'diaria_total': 'Produccion_total'})
+            st.download_button("Descargar producción diaria (CSV)", df_prod_dl.to_csv(index=False).encode('utf-8'),
+                               file_name='produccion_diaria.csv', mime='text/csv', key='dl_prod')
 
     with sub_hist:
         df_hist = _get_datos_prod()
@@ -280,6 +294,297 @@ with tab_prod:
                 st.plotly_chart(fig_comp, use_container_width=True)
 
 
+# ── Tab Alimentación ────────────────────────────────────────────────────────
+with tab_alim:
+    try:
+        @st.cache_data(show_spinner="Cargando tipo de cambio USD/ARS...")
+        def _get_tc():
+            import os
+            path = os.path.join(os.path.dirname(__file__), '..', 'data', 'usdars.csv')
+            df_tc = pd.read_csv(path, encoding='utf-8-sig')
+            df_tc['Fecha'] = pd.to_datetime(df_tc['Fecha'].str.strip().str.strip('"'), format='%d.%m.%Y')
+            # Parsear "Último" que viene como "1.395,24" (punto miles, coma decimal)
+            df_tc['TC'] = (
+                df_tc['Último'].astype(str).str.strip().str.strip('"')
+                .str.replace('.', '', regex=False)
+                .str.replace(',', '.', regex=False)
+                .astype(float)
+            )
+            df_tc = df_tc[['Fecha', 'TC']]
+            df_tc = df_tc.sort_values('Fecha').set_index('Fecha')
+            df_tc = df_tc.resample('D').ffill()
+            return df_tc
+
+        @st.cache_data(ttl=3600, show_spinner="Cargando datos de alimentación...")
+        def _get_alimentacion():
+            sheets = pd.read_excel(URL_ALIMENTACION, sheet_name=None)
+            df_d = sheets['Dietas'].copy()
+            df_p = sheets['Produccion'].copy()
+            df_d['Fecha'] = pd.to_datetime(df_d['Fecha'])
+            df_p['Fecha'] = pd.to_datetime(df_p['Fecha'])
+            rodeo_cols = [c for c in df_d.columns if c not in ['Fecha', 'Nombre', 'Precio ($)', 'Unidad']]
+            return df_d, df_p, rodeo_cols
+
+        df_tc = _get_tc()
+        df_dietas, df_produccion, rodeo_cols_dieta = _get_alimentacion()
+
+        # Agregar TC a dietas y produccion por fecha
+        df_dietas = df_dietas.merge(df_tc, left_on='Fecha', right_index=True, how='left')
+        df_dietas['Precio (U$D)'] = df_dietas['Precio ($)'] / df_dietas['TC']
+        df_produccion = df_produccion.merge(df_tc, left_on='Fecha', right_index=True, how='left')
+        df_produccion['Precio_USD'] = df_produccion['Precio'] / df_produccion['TC']
+
+        # Rodeos que están en ambas tablas
+        rodeos_prod = sorted(df_produccion['Rodeo'].unique())
+        rodeos_comunes = [r for r in rodeo_cols_dieta if r in rodeos_prod]
+        rodeos_solo_prod = [r for r in rodeos_prod if r not in rodeo_cols_dieta]
+
+        fechas_comunes = sorted(set(df_dietas['Fecha'].unique()) & set(df_produccion['Fecha'].unique()))
+
+        # ── Calcular costos por fecha y rodeo (en USD) ────────────────
+        registros = []
+        for fecha in fechas_comunes:
+            d_f = df_dietas[df_dietas['Fecha'] == fecha]
+            p_f = df_produccion[df_produccion['Fecha'] == fecha]
+            precio_leche_usd = p_f['Precio_USD'].iloc[0] if (not p_f.empty and 'Precio_USD' in p_f.columns) else 0
+
+            for rodeo in rodeo_cols_dieta:
+                costo_vaca_dia = 0
+                composicion = {}
+                for _, row in d_f.iterrows():
+                    precio_usd = row.get('Precio (U$D)', None)
+                    kg = row[rodeo]
+                    if pd.notna(precio_usd) and pd.notna(kg) and kg > 0:
+                        costo_item = precio_usd * kg
+                        costo_vaca_dia += costo_item
+                        composicion[row['Nombre']] = {'kg': kg, 'costo': costo_item}
+
+                if costo_vaca_dia == 0:
+                    continue
+
+                p_rod = p_f[p_f['Rodeo'] == rodeo]
+                vacas = p_rod['Vacas'].sum() if not p_rod.empty else 0
+                litros = p_rod['Litros'].sum() if not p_rod.empty else 0
+
+                costo_total = costo_vaca_dia * vacas if vacas > 0 else 0
+                ingreso = litros * precio_leche_usd
+                litros_equiv = costo_total / precio_leche_usd if precio_leche_usd > 0 else 0
+                litros_libres = litros - litros_equiv
+                ltvo = litros / vacas if vacas > 0 else 0
+                costo_por_litro = costo_vaca_dia / ltvo if ltvo > 0 else 0
+
+                registros.append({
+                    'Fecha': fecha,
+                    'Rodeo': rodeo,
+                    'Vacas': vacas,
+                    'Litros': litros,
+                    'LTVO': round(ltvo, 1),
+                    'Precio_leche_USD': round(precio_leche_usd, 3),
+                    'Costo_vaca_dia_USD': round(costo_vaca_dia, 2),
+                    'Costo_total_USD': round(costo_total, 0),
+                    'Ingreso_USD': round(ingreso, 0),
+                    'Litros_equiv_costo': round(litros_equiv, 0),
+                    'Litros_libres': round(litros_libres, 0),
+                    'Pct_litros_libres': round(litros_libres / litros * 100, 1) if litros > 0 else 0,
+                    'Costo_por_litro_USD': round(costo_por_litro, 3),
+                })
+
+                for alim, vals in composicion.items():
+                    registros[-1][f'kg_{alim}'] = vals['kg']
+                    registros[-1][f'USD_{alim}'] = round(vals['costo'], 2)
+
+        df_costos = pd.DataFrame(registros)
+
+        # ── Filtros ─────────────────────────────────────────────────────
+        col_rod, col_fecha = st.columns([2, 3])
+        with col_rod:
+            rodeos_disp = sorted(df_costos['Rodeo'].unique())
+            sel_rodeos = st.multiselect("Rodeo(s)", rodeos_disp, default=rodeos_disp, key="alim_rodeos")
+        with col_fecha:
+            fecha_min = df_costos['Fecha'].min().date()
+            fecha_max = df_costos['Fecha'].max().date()
+            rango = st.slider("Período", min_value=fecha_min, max_value=fecha_max,
+                              value=(fecha_min, fecha_max), format="DD/MM/YY", key="alim_rango")
+
+        df_vis = df_costos[
+            (df_costos['Rodeo'].isin(sel_rodeos)) &
+            (df_costos['Fecha'].dt.date >= rango[0]) &
+            (df_costos['Fecha'].dt.date <= rango[1])
+        ].copy()
+
+        if df_vis.empty:
+            st.warning("No hay datos con los filtros seleccionados.")
+        else:
+            # ── KPIs última fecha ───────────────────────────────────────
+            ult = df_vis[df_vis['Fecha'] == df_vis['Fecha'].max()]
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Costo/vaca/día (media)", f"U$D {ult['Costo_vaca_dia_USD'].mean():,.2f}")
+            k2.metric("Litros libres totales", f"{ult['Litros_libres'].sum():,.0f} L")
+            k3.metric("% Litros libres", f"{ult['Pct_litros_libres'].mean():.0f}%")
+            k4.metric("Costo/litro (media)", f"U$D {ult['Costo_por_litro_USD'].mean():,.3f}")
+
+            sub_efic, sub_comp, sub_evol, sub_datos = st.tabs([
+                "Eficiencia", "Composición dieta", "Evolución costos", "Datos"
+            ])
+
+            # ── Tab Eficiencia (Litros Libres) ──────────────────────────
+            with sub_efic:
+                modo_ll = st.radio(
+                    "Ver litros libres", ["Total del rodeo", "Por animal (÷ vacas)"],
+                    horizontal=True, key="modo_litros_libres"
+                )
+
+                df_ll = df_vis.sort_values(['Fecha', 'Rodeo']).copy()
+                if modo_ll == "Por animal (÷ vacas)":
+                    df_ll['Litros_libres_plot'] = (df_ll['Litros_libres'] / df_ll['Vacas'].replace(0, np.nan)).round(1)
+                    ylabel = 'Litros libres / vaca'
+                    titulo = 'Litros libres por vaca por rodeo'
+                else:
+                    df_ll['Litros_libres_plot'] = df_ll['Litros_libres']
+                    ylabel = 'Litros libres totales'
+                    titulo = 'Litros libres totales por rodeo'
+
+                fig_ll = px.area(
+                    df_ll, x='Fecha', y='Litros_libres_plot', color='Rodeo',
+                    title=titulo,
+                    labels={'Litros_libres_plot': ylabel, 'Fecha': ''},
+                )
+                fig_ll.update_layout(height=450)
+                st.plotly_chart(fig_ll, use_container_width=True)
+
+                st.subheader("% Litros libres sobre producción")
+                fig_pct = px.line(
+                    df_vis, x='Fecha', y='Pct_litros_libres', color='Rodeo',
+                    markers=True,
+                    title='% de litros libres (mayor = más eficiente)',
+                    labels={'Pct_litros_libres': '% Litros libres', 'Fecha': ''},
+                )
+                fig_pct.update_layout(height=400)
+                st.plotly_chart(fig_pct, use_container_width=True)
+
+                st.subheader("Costo por litro de leche producido (U$D)")
+                fig_cpl = px.line(
+                    df_vis, x='Fecha', y='Costo_por_litro_USD', color='Rodeo',
+                    markers=True,
+                    title='Costo alimentación por litro en U$D (menor = más eficiente)',
+                    labels={'Costo_por_litro_USD': 'U$D/litro', 'Fecha': ''},
+                )
+                fig_cpl.update_layout(height=400)
+                st.plotly_chart(fig_cpl, use_container_width=True)
+
+            # ── Tab Composición ─────────────────────────────────────────
+            with sub_comp:
+                alimentos = sorted(df_dietas['Nombre'].dropna().unique())
+                kg_cols = [f'kg_{a}' for a in alimentos if f'kg_{a}' in df_vis.columns]
+                costo_cols = [f'$_{a}' for a in alimentos if f'$_{a}' in df_vis.columns]
+
+                rod_comp = st.selectbox("Rodeo", sel_rodeos, key="comp_rodeo")
+                df_rod = df_vis[df_vis['Rodeo'] == rod_comp]
+
+                st.subheader(f"Composición de la dieta — {rod_comp} (kg/vaca/día)")
+                # Melt kg columns
+                kg_present = [c for c in kg_cols if df_rod[c].notna().any()]
+                if kg_present:
+                    df_kg = df_rod[['Fecha'] + kg_present].melt(id_vars='Fecha', var_name='Alimento', value_name='kg')
+                    df_kg['Alimento'] = df_kg['Alimento'].str.replace('kg_', '')
+                    df_kg = df_kg.dropna(subset=['kg'])
+                    fig_kg = px.area(
+                        df_kg, x='Fecha', y='kg', color='Alimento',
+                        title=f'Dieta {rod_comp} — kg/vaca/día por alimento',
+                        labels={'kg': 'kg/vaca/día', 'Fecha': ''},
+                    )
+                    fig_kg.update_layout(height=450)
+                    st.plotly_chart(fig_kg, use_container_width=True)
+
+                st.subheader(f"Composición del costo — {rod_comp} (U$D/vaca/día)")
+                costo_cols_usd = [f'USD_{a}' for a in alimentos if f'USD_{a}' in df_vis.columns]
+                costo_present = [c for c in costo_cols_usd if df_rod[c].notna().any()]
+                if costo_present:
+                    df_cst = df_rod[['Fecha'] + costo_present].melt(id_vars='Fecha', var_name='Alimento', value_name='Costo')
+                    df_cst['Alimento'] = df_cst['Alimento'].str.replace(r'^USD_', '', regex=True)
+                    df_cst = df_cst.dropna(subset=['Costo'])
+                    fig_cst = px.area(
+                        df_cst, x='Fecha', y='Costo', color='Alimento',
+                        title=f'Costo dieta {rod_comp} — U$D/vaca/día por alimento',
+                        labels={'Costo': 'U$D/vaca/día', 'Fecha': ''},
+                    )
+                    fig_cst.update_layout(height=450)
+                    st.plotly_chart(fig_cst, use_container_width=True)
+
+                # Pie de última fecha
+                ult_rod = df_rod[df_rod['Fecha'] == df_rod['Fecha'].max()]
+                if not ult_rod.empty and costo_present:
+                    vals = {c.replace('USD_', ''): ult_rod.iloc[0][c] for c in costo_present if pd.notna(ult_rod.iloc[0][c]) and ult_rod.iloc[0][c] > 0}
+                    if vals:
+                        fig_pie = px.pie(
+                            names=list(vals.keys()), values=list(vals.values()),
+                            title=f'Composición costo última fecha ({ult_rod.iloc[0]["Fecha"].strftime("%d/%m/%Y")})',
+                        )
+                        st.plotly_chart(fig_pie, use_container_width=True)
+
+            # ── Tab Evolución costos ────────────────────────────────────
+            with sub_evol:
+                st.subheader("Costo total alimentación por rodeo (U$D)")
+                fig_cvd = px.area(
+                    df_vis.sort_values(['Fecha', 'Rodeo']),
+                    x='Fecha', y='Costo_total_USD', color='Rodeo',
+                    title='Costo total alimentación por rodeo (U$D, stacked)',
+                    labels={'Costo_total_USD': 'U$D/día total rodeo', 'Fecha': ''},
+                )
+                fig_cvd.update_layout(height=450)
+                st.plotly_chart(fig_cvd, use_container_width=True)
+
+                st.subheader("Costo por vaca por día (U$D)")
+                fig_cvd2 = px.area(
+                    df_vis.sort_values(['Fecha', 'Rodeo']),
+                    x='Fecha', y='Costo_vaca_dia_USD', color='Rodeo',
+                    title='Costo alimentación por vaca/día (U$D, stacked)',
+                    labels={'Costo_vaca_dia_USD': 'U$D/vaca/día', 'Fecha': ''},
+                )
+                fig_cvd2.update_layout(height=450)
+                st.plotly_chart(fig_cvd2, use_container_width=True)
+
+                st.subheader("Precio de la leche vs Costo alimentación (U$D/litro)")
+                df_total = df_vis.groupby('Fecha').agg(
+                    Costo_medio=('Costo_vaca_dia_USD', 'mean'),
+                    Precio_leche=('Precio_leche_USD', 'first'),
+                    LTVO_medio=('LTVO', 'mean'),
+                ).reset_index()
+                df_total['Costo_por_litro'] = df_total['Costo_medio'] / df_total['LTVO_medio']
+                fig_pvsc = go.Figure()
+                fig_pvsc.add_trace(go.Scatter(x=df_total['Fecha'], y=df_total['Precio_leche'],
+                                              name='Precio leche (U$D/L)', mode='lines+markers'))
+                fig_pvsc.add_trace(go.Scatter(x=df_total['Fecha'], y=df_total['Costo_por_litro'],
+                                              name='Costo alim. (U$D/L)', mode='lines+markers'))
+                fig_pvsc.update_layout(title='Precio leche vs Costo alimentación por litro (U$D)',
+                                       yaxis_title='U$D/litro', height=400)
+                st.plotly_chart(fig_pvsc, use_container_width=True)
+
+                st.subheader("Evolución del precio de alimentos (U$D)")
+                precios_evol = df_dietas[df_dietas['Precio (U$D)'].notna()].copy()
+                fig_pa = px.line(
+                    precios_evol, x='Fecha', y='Precio (U$D)', color='Nombre',
+                    markers=True, title='Precio de alimentos en U$D',
+                    labels={'Precio (U$D)': 'U$D/unidad', 'Fecha': ''},
+                )
+                fig_pa.update_layout(height=450)
+                st.plotly_chart(fig_pa, use_container_width=True)
+
+            # ── Tab Datos ───────────────────────────────────────────────
+            with sub_datos:
+                cols_show = ['Fecha', 'Rodeo', 'Vacas', 'Litros', 'LTVO', 'Precio_leche_USD',
+                             'Costo_vaca_dia_USD', 'Litros_equiv_costo', 'Litros_libres',
+                             'Pct_litros_libres', 'Costo_por_litro_USD']
+                st.dataframe(df_vis[cols_show].sort_values(['Fecha', 'Rodeo'], ascending=[False, True]),
+                             use_container_width=True, hide_index=True)
+                csv = df_vis.to_csv(index=False).encode('utf-8')
+                st.download_button("Descargar datos (CSV)", csv,
+                                   file_name='alimentacion_costos.csv', mime='text/csv')
+
+    except Exception as e:
+        st.error(f"Error cargando datos de alimentación: {e}")
+
+
 # ── Tab Datos CREA ──────────────────────────────────────────────────────────
 with tab_crea:
     try:
@@ -320,8 +625,8 @@ with tab_dairycomp:
         grouped_y = grouped.groupby(['Ano', 'Tipo', 'Evento']).sum().reset_index()
         grouped_m = grouped.groupby(['Mes', 'Tipo', 'Evento']).mean().reset_index()
 
-        sub_salud, sub_repro, sub_ctrl = st.tabs([
-            "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero"
+        sub_salud, sub_repro, sub_ctrl, sub_animal = st.tabs([
+            "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero", "Historial Animal"
         ])
 
         with sub_salud:
@@ -383,13 +688,298 @@ with tab_dairycomp:
             )
             st.plotly_chart(fig_hist_ctrl, use_container_width=True)
 
-            df_lact1 = df_ctrl[(df_ctrl['LACT'] == 1) & (df_ctrl['FechaCtr'] > '2020-09-01')].copy()
-            df_lact1['fechatosca'] = df_lact1['FechaCtr'].dt.strftime('%Y%m%d')
-            fig_l1 = px.scatter(df_lact1, x='DE', y='LECH',
-                                title='Prod Leche Vaquillonas (L1, post Sep-2020)',
-                                color='fechatosca',
-                                labels={'DE': 'Días en leche', 'LECH': 'Producción'})
-            st.plotly_chart(fig_l1, use_container_width=True)
+            # ── Curva de lactancia Wood: y = a * t^b * exp(-c*t) ─────────
+            st.divider()
+            st.subheader("Curva de lactancia (modelo de Wood)")
+
+            from scipy.optimize import curve_fit
+
+            def wood_model(t, a, b, c):
+                return a * np.power(t, b) * np.exp(-c * t)
+
+            col_lact, col_fecha_range = st.columns([1, 2])
+            with col_lact:
+                lacts_disponibles = sorted(df_ctrl['LACT'].dropna().unique())
+                lact_sel = st.selectbox(
+                    "Lactancia", lacts_disponibles,
+                    format_func=lambda x: f"L{int(x)}",
+                    key="wood_lact",
+                )
+            with col_fecha_range:
+                fechas_ctrl = df_ctrl['FechaCtr'].dropna().sort_values().unique()
+                fecha_min = pd.Timestamp(fechas_ctrl.min()).date()
+                fecha_max = pd.Timestamp(fechas_ctrl.max()).date()
+                rango_fecha = st.slider(
+                    "Rango de fechas de control",
+                    min_value=fecha_min, max_value=fecha_max,
+                    value=(fecha_min, fecha_max),
+                    format="DD/MM/YY", key="wood_fecha_range",
+                )
+
+            df_wood = df_ctrl[
+                (df_ctrl['LACT'] == lact_sel) &
+                (df_ctrl['FechaCtr'].dt.date >= rango_fecha[0]) &
+                (df_ctrl['FechaCtr'].dt.date <= rango_fecha[1]) &
+                (df_ctrl['DE'] > 0) & (df_ctrl['DE'] <= 500) &
+                (df_ctrl['LECH'] > 0) & (df_ctrl['LECH'] <= 70)
+            ].copy()
+            # Filtro IQR por grupo de DE para limpiar outliers
+            q1 = df_wood.groupby(pd.cut(df_wood['DE'], bins=20))['LECH'].transform('quantile', 0.05)
+            q3 = df_wood.groupby(pd.cut(df_wood['DE'], bins=20))['LECH'].transform('quantile', 0.95)
+            df_wood = df_wood[(df_wood['LECH'] >= q1) & (df_wood['LECH'] <= q3)]
+            df_wood['fechatosca'] = df_wood['FechaCtr'].dt.strftime('%Y%m%d')
+
+            fechas_unicas = sorted(df_wood['fechatosca'].unique())
+            min_puntos = st.slider("Mínimo de animales por control para ajustar curva",
+                                   min_value=3, max_value=30, value=8, key="wood_min_pts")
+
+            import plotly.express as _px
+            _colors = _px.colors.qualitative.Plotly + _px.colors.qualitative.D3
+            color_map = {f: _colors[i % len(_colors)] for i, f in enumerate(fechas_unicas)}
+
+            fig_wood = go.Figure()
+            params_table = []
+            t_fit = np.linspace(5, min(500, df_wood['DE'].max() + 30), 300)
+
+            for fecha in fechas_unicas:
+                sub = df_wood[df_wood['fechatosca'] == fecha]
+                t_data = sub['DE'].values.astype(float)
+                y_data = sub['LECH'].values.astype(float)
+                color = color_map[fecha]
+
+                # Scatter de puntos
+                fig_wood.add_trace(go.Scatter(
+                    x=t_data, y=y_data,
+                    mode='markers', name=fecha,
+                    legendgroup=fecha,
+                    marker=dict(color=color, size=5, opacity=0.45),
+                    hovertemplate='DE: %{x}<br>Prod: %{y} L<extra></extra>',
+                ))
+
+                if len(t_data) < min_puntos:
+                    continue
+
+                try:
+                    popt, _ = curve_fit(
+                        wood_model, t_data, y_data,
+                        p0=[15, 0.2, 0.003],
+                        bounds=([0.1, 0.001, 0.0001], [200, 3.0, 0.1]),
+                        maxfev=10000,
+                    )
+                    a, b, c = popt
+                    y_fit = wood_model(t_fit, a, b, c)
+
+                    de_pico = b / c
+                    pico = a * (b / c) ** b * np.exp(-b)
+                    persistencia = -(b + 1) * np.log(c)
+
+                    fig_wood.add_trace(go.Scatter(
+                        x=t_fit, y=y_fit,
+                        mode='lines', name=f'{fecha} (Wood)',
+                        legendgroup=fecha,
+                        showlegend=False,
+                        line=dict(color=color, width=2.5),
+                        hovertemplate=(
+                            f'<b>{fecha}</b><br>'
+                            f'Pico: {pico:.1f}L @ DE {de_pico:.0f}<br>'
+                            f'Persistencia: {persistencia:.2f}'
+                            '<extra></extra>'
+                        ),
+                    ))
+
+                    params_table.append({
+                        'Control': fecha,
+                        'n vacas': len(sub),
+                        'a': round(a, 3),
+                        'b': round(b, 4),
+                        'c': round(c, 5),
+                        'Pico (L)': round(pico, 1),
+                        'DE al pico': round(de_pico, 0),
+                        'Persistencia': round(persistencia, 2),
+                    })
+                except Exception:
+                    pass
+
+            fig_wood.update_layout(
+                title=f'Producción L{int(lact_sel)} + curvas Wood',
+                xaxis_title='Días en leche',
+                yaxis_title='Producción (L)',
+                height=600,
+                legend=dict(title='Control', x=1.02, y=1),
+            )
+            st.plotly_chart(fig_wood, use_container_width=True)
+
+            if params_table:
+                st.markdown("**Parámetros del modelo de Wood** — `y = a · t^b · exp(-c·t)`")
+                st.dataframe(
+                    pd.DataFrame(params_table),
+                    use_container_width=True, hide_index=True,
+                )
+                st.caption(
+                    "**Pico**: producción máxima estimada. "
+                    "**DE al pico**: día de lactancia al pico. "
+                    "**Persistencia**: -(b+1)·ln(c) — mayor valor = menor caída post-pico."
+                )
+            else:
+                st.info("No se pudo ajustar ninguna curva. Probá bajando el mínimo de animales o ampliando el rango de fechas.")
+
+        with sub_animal:
+            # ── Clasificación de eventos ────────────────────────────────────
+            _REPRO  = {'INSEMIN', 'PROSTA', 'PARTO', 'PREÑADA', 'VACIA', 'SECA',
+                       'CELO', 'RECHAZO', 'ABORTO', 'GNRH', 'DIB', 'ALTAMAS',
+                       'SIGUEP', 'DESVASA', 'RECK', 'CET'}
+            _SALUD  = {'MAST', 'RENGA', 'MUERTA', 'RETPLAC', 'ENFERMA', 'CAIDA',
+                       'ANESTRO', 'HIPOCAL', 'UBRE', 'DIARREA', 'UTERO', 'METRIT',
+                       'QUISTE', 'ENDOMET', 'TRATADA'}
+            _COLOR  = {
+                'repro':    '#2196F3',
+                'salud':    '#F44336',
+                'manejo':   '#FF9800',
+                'otro':     '#9E9E9E',
+            }
+            _SIMBOLO = {
+                'PARTO':    'star',
+                'INSEMIN':  'triangle-up',
+                'PREÑADA':  'diamond',
+                'VACIA':    'x',
+                'SECA':     'square',
+                'ABORTO':   'triangle-down',
+                'MAST':     'circle',
+                'MUERTA':   'cross',
+                'VENDIDA':  'pentagon',
+            }
+
+            def _clasificar(ev):
+                if ev in _REPRO:   return 'repro'
+                if ev in _SALUD:   return 'salud'
+                return 'manejo'
+
+            # ── Selector de animal ──────────────────────────────────────────
+            todos_ids = sorted(df_ev['ID'].dropna().unique())
+            col_srch, col_info = st.columns([2, 3])
+            with col_srch:
+                animal_id = st.selectbox(
+                    "Seleccioná un animal (ID)",
+                    options=todos_ids,
+                    format_func=lambda x: f"#{int(x)}",
+                    key="animal_id",
+                )
+
+            if animal_id:
+                ev_animal  = df_ev[df_ev['ID'] == animal_id].copy()
+                ctr_animal = df_ctrl[df_ctrl['ID'] == animal_id].copy()
+
+                ev_animal['Categoria'] = ev_animal['Evento'].apply(_clasificar)
+                n_partos = (ev_animal['Evento'] == 'PARTO').sum()
+                ultimo_ev = ev_animal['Fecha'].max()
+                estado = 'ACTIVA'
+                if (ev_animal['Evento'] == 'MUERTA').any():
+                    estado = 'MUERTA'
+                elif (ev_animal['Evento'] == 'VENDIDA').any():
+                    estado = 'VENDIDA'
+
+                with col_info:
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("ID", f"#{int(animal_id)}")
+                    c2.metric("Partos", n_partos)
+                    c3.metric("Estado", estado)
+                    c4.metric("Último evento", ultimo_ev.strftime('%d/%m/%Y') if pd.notna(ultimo_ev) else '—')
+
+                # ── Figura principal ────────────────────────────────────────
+                fig_a = go.Figure()
+
+                # Curva de producción por lactancia
+                if not ctr_animal.empty:
+                    for lact in sorted(ctr_animal['LACT'].unique()):
+                        df_l = ctr_animal[ctr_animal['LACT'] == lact].sort_values('FechaCtr')
+                        fig_a.add_trace(go.Scatter(
+                            x=df_l['FechaCtr'],
+                            y=df_l['LECH'],
+                            mode='lines+markers',
+                            name=f'Producción L{int(lact)}',
+                            yaxis='y1',
+                            line=dict(width=2),
+                            marker=dict(size=6),
+                            hovertemplate=(
+                                '<b>Control L%d</b><br>' % lact +
+                                'Fecha: %{x|%d/%m/%Y}<br>' +
+                                'Producción: %{y} L<br>' +
+                                'DE: ' + df_l['DE'].astype(str).str.strip() + 'd<extra></extra>'
+                            ),
+                        ))
+
+                # Eventos como scatter en eje secundario
+                for cat, grp in ev_animal.groupby('Categoria'):
+                    for evento, subgrp in grp.groupby('Evento'):
+                        subgrp = subgrp.sort_values('Fecha')
+                        notas = subgrp['Nota'].fillna('').str.strip().tolist() if 'Nota' in subgrp.columns else [''] * len(subgrp)
+                        fig_a.add_trace(go.Scatter(
+                            x=subgrp['Fecha'],
+                            y=[cat] * len(subgrp),
+                            mode='markers',
+                            name=evento,
+                            yaxis='y2',
+                            marker=dict(
+                                symbol=_SIMBOLO.get(evento, 'circle'),
+                                size=10,
+                                color=_COLOR[cat],
+                                line=dict(width=1, color='white'),
+                            ),
+                            customdata=notas,
+                            hovertemplate=(
+                                f'<b>{evento}</b><br>' +
+                                'Fecha: %{x|%d/%m/%Y}<br>' +
+                                'Nota: %{customdata}<extra></extra>'
+                            ),
+                        ))
+
+                fig_a.update_layout(
+                    title=f'Historial animal #{int(animal_id)}',
+                    height=550,
+                    yaxis=dict(title='Producción (L)', side='left'),
+                    yaxis2=dict(
+                        title='Categoría evento',
+                        overlaying='y',
+                        side='right',
+                        showgrid=False,
+                        tickvals=['repro', 'salud', 'manejo'],
+                        ticktext=['Repro', 'Salud', 'Manejo'],
+                    ),
+                    legend=dict(x=1.08, y=1, font=dict(size=10)),
+                    hovermode='x unified',
+                    margin=dict(r=220),
+                )
+
+                # Líneas verticales en cada parto
+                for _, row in ev_animal[ev_animal['Evento'] == 'PARTO'].iterrows():
+                    fig_a.add_vline(
+                        x=row['Fecha'].timestamp() * 1000,
+                        line_dash='dot',
+                        line_color='green',
+                        opacity=0.5,
+                        annotation_text='PARTO',
+                        annotation_position='top',
+                        annotation_font_size=9,
+                    )
+
+                st.plotly_chart(fig_a, use_container_width=True)
+
+                # Tablas de detalle
+                col_ev, col_ctr = st.columns(2)
+                with col_ev:
+                    with st.expander(f"Eventos ({len(ev_animal)})"):
+                        cols_show = [c for c in ['Fecha', 'Evento', 'DEL', 'Nota', 'Categoria'] if c in ev_animal.columns]
+                        st.dataframe(
+                            ev_animal[cols_show].sort_values('Fecha', ascending=False),
+                            use_container_width=True, hide_index=True,
+                        )
+                with col_ctr:
+                    with st.expander(f"Controles lecheros ({len(ctr_animal)})"):
+                        cols_ctr = [c for c in ['FechaCtr', 'LACT', 'DE', 'LECH', 'PCT', 'LCG', '305E'] if c in ctr_animal.columns]
+                        st.dataframe(
+                            ctr_animal[cols_ctr].sort_values('FechaCtr', ascending=False),
+                            use_container_width=True, hide_index=True,
+                        )
 
     except Exception as e:
         st.error(f"Error cargando DairyComp: {e}")
