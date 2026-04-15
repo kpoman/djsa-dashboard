@@ -172,6 +172,49 @@ def _get_dairycomp():
     return {'eventos': df_ev, 'controles': df_ctrl}
 
 
+@st.cache_data(show_spinner="Cargando calidad de leche...")
+def _get_calidad_leche():
+    import os
+    path = os.path.join(os.path.dirname(__file__), '..', 'data', 'calidad_leche.csv')
+    df = pd.read_csv(path)
+    df['fecha'] = pd.to_datetime(df['fecha'], dayfirst=True, errors='coerce')
+    df = df.dropna(subset=['fecha'])
+    # Limpiar outliers evidentes
+    df = df[df['grasa_butirosa'].between(1, 7, inclusive='both') | df['grasa_butirosa'].isna()]
+    df = df[df['proteina'].between(2.5, 5.0, inclusive='both') | df['proteina'].isna()]
+    # Convertir a numérico
+    for col in ['grasa_butirosa', 'solid_no_grasos', 'proteina', 'acidez', 'pH',
+                'celulas_somaticas', 'recuento_ufc']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    # Promedio diario (hay ~2 lecturas por día)
+    df_dia = (df.groupby('fecha')
+              .agg(
+                  grasa=('grasa_butirosa', 'mean'),
+                  proteina=('proteina', 'mean'),
+                  sng=('solid_no_grasos', 'mean'),
+                  ph=('pH', 'mean'),
+                  cs=('celulas_somaticas', 'mean'),
+                  ufc=('recuento_ufc', 'mean'),
+              ).reset_index())
+    df_dia = df_dia.sort_values('fecha')
+    # Rolling 7 días para composición
+    df_dia['grasa_r7'] = df_dia['grasa'].rolling(7, min_periods=3).mean()
+    df_dia['proteina_r7'] = df_dia['proteina'].rolling(7, min_periods=3).mean()
+    df_dia['sng_r7'] = df_dia['sng'].rolling(7, min_periods=3).mean()
+    # Mensual
+    df_dia['mes'] = df_dia['fecha'].dt.to_period('M')
+    df_mes = (df_dia.groupby('mes')
+              .agg(
+                  grasa=('grasa', 'mean'),
+                  proteina=('proteina', 'mean'),
+                  sng=('sng', 'mean'),
+                  cs=('cs', 'mean'),
+                  ufc=('ufc', 'mean'),
+              ).reset_index())
+    df_mes['fecha_mes'] = df_mes['mes'].dt.to_timestamp()
+    return {'diario': df_dia, 'mensual': df_mes}
+
+
 # ── UI ───────────────────────────────────────────────────────────────────────
 st.title("🐄 Tambo")
 
@@ -181,7 +224,7 @@ tab_prod, tab_alim, tab_crea, tab_dairycomp = st.tabs([
 
 # ── Tab Producción de leche ─────────────────────────────────────────────────
 with tab_prod:
-    sub_rec, sub_hist = st.tabs(["Reciente", "Histórico"])
+    sub_rec, sub_hist, sub_cal = st.tabs(["Reciente", "Histórico", "Calidad de leche"])
 
     with sub_rec:
         data_pd = _get_partediario()
@@ -292,6 +335,159 @@ with tab_prod:
                     yaxis_title=var_label,
                 )
                 st.plotly_chart(fig_comp, use_container_width=True)
+
+    with sub_cal:
+        try:
+            cal = _get_calidad_leche()
+            df_dia = cal['diario']
+            df_mes = cal['mensual']
+
+            # ── KPIs últimos 30 días ────────────────────────────────────────
+            ultimos = df_dia[df_dia['fecha'] >= df_dia['fecha'].max() - pd.Timedelta(days=30)]
+            cs_ult = ultimos['cs'].mean()
+            ufc_ult = ultimos['ufc'].mean()
+            gr_ult = ultimos['grasa'].mean()
+            pr_ult = ultimos['proteina'].mean()
+
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("🧈 Grasa butirosa", f"{gr_ult:.2f} %" if pd.notna(gr_ult) else "—")
+            k2.metric("🥛 Proteína", f"{pr_ult:.2f} %" if pd.notna(pr_ult) else "—")
+            cs_label = f"{cs_ult/1000:.0f}k" if pd.notna(cs_ult) else "—"
+            cs_color = "normal" if pd.isna(cs_ult) else ("normal" if cs_ult < 300_000 else "inverse")
+            k3.metric("🔬 Cél. somáticas (prom. 30d)", cs_label, delta=None)
+            ufc_label = f"{ufc_ult/1000:.0f}k UFC/mL" if pd.notna(ufc_ult) else "—"
+            k4.metric("🦠 Recuento bacteriano (prom. 30d)", ufc_label, delta=None)
+
+            st.divider()
+
+            # ── Composición ─────────────────────────────────────────────────
+            st.subheader("Composición de la leche (media móvil 7 días)")
+
+            # Armar df largo para plotly
+            df_comp = df_dia[['fecha', 'grasa_r7', 'proteina_r7', 'sng_r7']].copy()
+            df_comp = df_comp.rename(columns={
+                'grasa_r7': 'Grasa butirosa (%)',
+                'proteina_r7': 'Proteína (%)',
+                'sng_r7': 'Sólidos no grasos (%)',
+            })
+            df_comp_long = df_comp.melt(id_vars='fecha', var_name='Parámetro', value_name='Valor')
+            df_comp_long = df_comp_long.dropna(subset=['Valor'])
+
+            fig_comp = px.line(
+                df_comp_long, x='fecha', y='Valor', color='Parámetro',
+                labels={'fecha': '', 'Valor': '%'},
+                height=400,
+                color_discrete_map={
+                    'Grasa butirosa (%)': '#f4a522',
+                    'Proteína (%)': '#5b8ff9',
+                    'Sólidos no grasos (%)': '#5ad8a6',
+                },
+            )
+            fig_comp.update_traces(line=dict(width=2))
+            st.plotly_chart(fig_comp, use_container_width=True)
+
+            # Promedios mensuales composición
+            st.subheader("Promedios mensuales — Composición")
+            df_mes_comp = df_mes[['fecha_mes', 'grasa', 'proteina', 'sng']].copy()
+            df_mes_comp = df_mes_comp.rename(columns={
+                'grasa': 'Grasa butirosa (%)',
+                'proteina': 'Proteína (%)',
+                'sng': 'Sólidos no grasos (%)',
+            })
+            df_mes_long = df_mes_comp.melt(id_vars='fecha_mes', var_name='Parámetro', value_name='Valor')
+            df_mes_long = df_mes_long.dropna(subset=['Valor'])
+            fig_mes = px.bar(
+                df_mes_long, x='fecha_mes', y='Valor', color='Parámetro',
+                barmode='group',
+                labels={'fecha_mes': '', 'Valor': '%'},
+                height=350,
+                color_discrete_map={
+                    'Grasa butirosa (%)': '#f4a522',
+                    'Proteína (%)': '#5b8ff9',
+                    'Sólidos no grasos (%)': '#5ad8a6',
+                },
+            )
+            st.plotly_chart(fig_mes, use_container_width=True)
+
+            st.divider()
+
+            # ── Sanidad ──────────────────────────────────────────────────────
+            st.subheader("Sanidad — Células somáticas y recuento bacteriano")
+            st.caption("Solo se registran en determinadas fechas (≈23% de los días)")
+
+            df_cs = df_dia[df_dia['cs'].notna()][['fecha', 'cs']].copy()
+            df_ufc = df_dia[df_dia['ufc'].notna()][['fecha', 'ufc']].copy()
+
+            if not df_cs.empty:
+                # Zonas de referencia (células somáticas)
+                # < 200k  = excelente
+                # 200-400k = aceptable
+                # > 400k = alerta
+                df_cs['Categoría'] = pd.cut(
+                    df_cs['cs'],
+                    bins=[0, 200_000, 400_000, float('inf')],
+                    labels=['< 200k (excelente)', '200-400k (aceptable)', '> 400k (alerta)']
+                )
+                fig_cs = px.scatter(
+                    df_cs, x='fecha', y='cs',
+                    color='Categoría',
+                    color_discrete_map={
+                        '< 200k (excelente)': '#52c41a',
+                        '200-400k (aceptable)': '#faad14',
+                        '> 400k (alerta)': '#f5222d',
+                    },
+                    labels={'fecha': '', 'cs': 'Células somáticas'},
+                    title='Células somáticas (CS)',
+                    height=380,
+                )
+                # Línea de tendencia mensual
+                if not df_mes.empty:
+                    df_cs_mes = df_mes[df_mes['cs'].notna()][['fecha_mes', 'cs']]
+                    fig_cs.add_trace(go.Scatter(
+                        x=df_cs_mes['fecha_mes'], y=df_cs_mes['cs'],
+                        mode='lines', name='Media mensual',
+                        line=dict(color='black', width=2, dash='dot'),
+                    ))
+                # Línea de umbral 400k
+                fig_cs.add_hline(y=400_000, line_dash='dash', line_color='red',
+                                 annotation_text='Umbral 400k', annotation_position='top left')
+                fig_cs.update_yaxes(tickformat='.0f')
+                st.plotly_chart(fig_cs, use_container_width=True)
+
+            if not df_ufc.empty:
+                df_ufc['Categoría'] = pd.cut(
+                    df_ufc['ufc'],
+                    bins=[0, 20_000, 50_000, float('inf')],
+                    labels=['< 20k (excelente)', '20-50k (aceptable)', '> 50k (alerta)']
+                )
+                fig_ufc = px.scatter(
+                    df_ufc, x='fecha', y='ufc',
+                    color='Categoría',
+                    color_discrete_map={
+                        '< 20k (excelente)': '#52c41a',
+                        '20-50k (aceptable)': '#faad14',
+                        '> 50k (alerta)': '#f5222d',
+                    },
+                    labels={'fecha': '', 'ufc': 'UFC/mL'},
+                    title='Recuento bacteriano (UFC/mL)',
+                    height=350,
+                )
+                fig_ufc.add_hline(y=50_000, line_dash='dash', line_color='red',
+                                  annotation_text='Umbral 50k', annotation_position='top left')
+                st.plotly_chart(fig_ufc, use_container_width=True)
+
+            st.divider()
+            st.download_button(
+                "⬇️ Descargar datos calidad (CSV)",
+                df_dia[['fecha','grasa','proteina','sng','ph','cs','ufc']].to_csv(index=False).encode('utf-8'),
+                file_name='calidad_leche_diario.csv',
+                mime='text/csv',
+                key='dl_calidad',
+            )
+
+        except Exception as e:
+            st.error(f"Error cargando calidad de leche: {e}")
+            import traceback; st.code(traceback.format_exc())
 
 
 # ── Tab Alimentación ────────────────────────────────────────────────────────
