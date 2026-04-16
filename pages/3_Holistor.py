@@ -13,30 +13,24 @@ st.set_page_config(page_title="Holistor — DJSA", page_icon="📊", layout="wid
 BASE_DATA = os.path.join(os.path.dirname(__file__), '..', 'data')
 
 # ── Tipo de cambio ───────────────────────────────────────────────────────────
-@st.cache_data(ttl=86400, show_spinner="Obteniendo tipo de cambio...")
+@st.cache_data(ttl=86400, show_spinner="Cargando tipo de cambio...")
 def _get_dict_cambio():
-    API_BASE = "https://apis.datos.gob.ar/series/api/"
-    SERIE = '92.2_TIPO_CAMBIION_0_0_21_24'
-
-    def _fetch(start, end):
-        params = urllib.parse.urlencode({
-            'ids': SERIE,
-            'start_date': start,
-            'end_date': end,
-            'collapse': 'month',
-            'format': 'csv',
-        })
-        url = f"{API_BASE}series?{params}"
-        return pd.read_csv(url)
-
+    """Carga USD/ARS desde data/usdars.csv y devuelve dict {YYYY-MM-01: tc}."""
     try:
-        df = pd.concat([
-            _fetch('2010-01-01', '2014-12-01'),
-            _fetch('2015-01-01', '2019-12-01'),
-            _fetch('2020-01-01', '2023-01-01'),
-        ])
-        return {r['indice_tiempo']: r['tipo_cambio_valuacion']
-                for r in df.to_dict('records')}
+        path = os.path.join(BASE_DATA, 'usdars.csv')
+        df_tc = pd.read_csv(path, encoding='utf-8-sig')
+        df_tc['Fecha'] = pd.to_datetime(
+            df_tc['Fecha'].str.strip().str.strip('"'), format='%d.%m.%Y'
+        )
+        df_tc['TC'] = (
+            df_tc['Último'].astype(str).str.strip().str.strip('"')
+            .str.replace('.', '', regex=False)
+            .str.replace(',', '.', regex=False)
+            .astype(float)
+        )
+        df_tc = df_tc[['Fecha', 'TC']].dropna().sort_values('Fecha')
+        df_tc = df_tc.set_index('Fecha').resample('MS').last().ffill()
+        return {d.strftime('%Y-%m-%d'): tc for d, tc in df_tc['TC'].items()}
     except Exception:
         return {}
 
