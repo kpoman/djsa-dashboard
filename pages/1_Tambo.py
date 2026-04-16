@@ -400,14 +400,28 @@ with tab_prod:
                 hovertemplate='Grasa: %{y:.2f}%<extra></extra>',
             ))
 
-            # UFC overlay — puntos rojos con tamaño proporcional al valor
+            # UFC overlay — eje Y = UFC, tamaño del punto = células somáticas
+            df_cs_raw = df_dia[df_dia['cs'].notna()][['fecha', 'cs']].copy()
             if not df_ufc.empty:
-                ufc_vals = df_ufc['ufc'].values
-                ufc_min, ufc_max = ufc_vals.min(), ufc_vals.max()
-                marker_sizes = 7 + 25 * (ufc_vals - ufc_min) / max(ufc_max - ufc_min, 1)
+                # Cruzar UFC con CS por fecha (inner join — solo días con ambos valores)
+                df_ufc_cs = df_ufc.merge(df_cs_raw, on='fecha', how='left')
+                # Para días sin CS usar tamaño neutro; si hay CS, escalar
+                cs_vals = df_ufc_cs['cs'].values
+                cs_min = np.nanmin(cs_vals) if not np.all(np.isnan(cs_vals)) else 0
+                cs_max = np.nanmax(cs_vals) if not np.all(np.isnan(cs_vals)) else 1
+                marker_sizes = np.where(
+                    np.isnan(cs_vals),
+                    8,
+                    7 + 28 * (cs_vals - cs_min) / max(cs_max - cs_min, 1)
+                )
+                hover_text = [
+                    f"UFC: {u:,.0f}/mL<br>CS: {c:,.0f}" if not np.isnan(c)
+                    else f"UFC: {u:,.0f}/mL<br>CS: sin dato"
+                    for u, c in zip(df_ufc_cs['ufc'], cs_vals)
+                ]
                 fig_comp.add_trace(go.Scatter(
-                    x=df_ufc['fecha'],
-                    y=df_ufc['ufc'],
+                    x=df_ufc_cs['fecha'],
+                    y=df_ufc_cs['ufc'],
                     name='UFC/mL (eje der.)',
                     mode='markers',
                     yaxis='y2',
@@ -416,7 +430,8 @@ with tab_prod:
                         color='rgba(210, 40, 40, 0.75)',
                         line=dict(color='darkred', width=1),
                     ),
-                    hovertemplate='UFC: %{y:,.0f}/mL<extra></extra>',
+                    text=hover_text,
+                    hovertemplate='%{text}<extra></extra>',
                 ))
                 fig_comp.update_layout(
                     yaxis2=dict(
