@@ -360,69 +360,129 @@ with tab_prod:
 
             st.divider()
 
-            # ── Composición ─────────────────────────────────────────────────
+            # ── Composición diaria — stacked area + UFC overlay ──────────────
             st.subheader("Composición de la leche (media móvil 7 días)")
 
-            # Armar df largo para plotly
             df_comp = df_dia[['fecha', 'grasa_r7', 'proteina_r7', 'sng_r7']].copy()
-            df_comp = df_comp.rename(columns={
-                'grasa_r7': 'Grasa butirosa (%)',
-                'proteina_r7': 'Proteína (%)',
-                'sng_r7': 'Sólidos no grasos (%)',
-            })
-            df_comp_long = df_comp.melt(id_vars='fecha', var_name='Parámetro', value_name='Valor')
-            df_comp_long = df_comp_long.dropna(subset=['Valor'])
+            df_comp['otros_r7'] = (df_comp['sng_r7'] - df_comp['proteina_r7']).clip(lower=0)
+            df_comp = df_comp.dropna(subset=['grasa_r7', 'proteina_r7', 'otros_r7'])
 
-            fig_comp = px.line(
-                df_comp_long, x='fecha', y='Valor', color='Parámetro',
-                labels={'fecha': '', 'Valor': '%'},
-                height=400,
-                color_discrete_map={
-                    'Grasa butirosa (%)': '#f4a522',
-                    'Proteína (%)': '#5b8ff9',
-                    'Sólidos no grasos (%)': '#5ad8a6',
-                },
+            df_ufc = df_dia[df_dia['ufc'].notna()][['fecha', 'ufc']].copy()
+
+            fig_comp = go.Figure()
+
+            # Stacked area: orden de abajo a arriba = otros, proteina, grasa
+            fig_comp.add_trace(go.Scatter(
+                x=df_comp['fecha'], y=df_comp['otros_r7'],
+                name='Otros sólidos (%)',
+                stackgroup='comp',
+                fillcolor='rgba(90, 216, 166, 0.75)',
+                line=dict(color='rgba(90, 216, 166, 0.9)', width=0.5),
+                mode='lines',
+                hovertemplate='Otros sólidos: %{y:.2f}%<extra></extra>',
+            ))
+            fig_comp.add_trace(go.Scatter(
+                x=df_comp['fecha'], y=df_comp['proteina_r7'],
+                name='Proteína (%)',
+                stackgroup='comp',
+                fillcolor='rgba(91, 143, 249, 0.75)',
+                line=dict(color='rgba(91, 143, 249, 0.9)', width=0.5),
+                mode='lines',
+                hovertemplate='Proteína: %{y:.2f}%<extra></extra>',
+            ))
+            fig_comp.add_trace(go.Scatter(
+                x=df_comp['fecha'], y=df_comp['grasa_r7'],
+                name='Grasa butirosa (%)',
+                stackgroup='comp',
+                fillcolor='rgba(244, 165, 34, 0.75)',
+                line=dict(color='rgba(244, 165, 34, 0.9)', width=0.5),
+                mode='lines',
+                hovertemplate='Grasa: %{y:.2f}%<extra></extra>',
+            ))
+
+            # UFC overlay — puntos rojos con tamaño proporcional al valor
+            if not df_ufc.empty:
+                ufc_vals = df_ufc['ufc'].values
+                ufc_min, ufc_max = ufc_vals.min(), ufc_vals.max()
+                marker_sizes = 7 + 25 * (ufc_vals - ufc_min) / max(ufc_max - ufc_min, 1)
+                fig_comp.add_trace(go.Scatter(
+                    x=df_ufc['fecha'],
+                    y=df_ufc['ufc'],
+                    name='UFC/mL (eje der.)',
+                    mode='markers',
+                    yaxis='y2',
+                    marker=dict(
+                        size=marker_sizes,
+                        color='rgba(210, 40, 40, 0.75)',
+                        line=dict(color='darkred', width=1),
+                    ),
+                    hovertemplate='UFC: %{y:,.0f}/mL<extra></extra>',
+                ))
+                fig_comp.update_layout(
+                    yaxis2=dict(
+                        title='UFC/mL',
+                        overlaying='y',
+                        side='right',
+                        showgrid=False,
+                        rangemode='tozero',
+                        tickformat='.0f',
+                    )
+                )
+
+            fig_comp.update_layout(
+                height=480,
+                yaxis=dict(title='Composición (%)'),
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
+                hovermode='x unified',
+                margin=dict(t=60, r=80),
             )
-            fig_comp.update_traces(line=dict(width=2))
             st.plotly_chart(fig_comp, use_container_width=True)
 
-            # Promedios mensuales composición
+            # ── Promedios mensuales — stacked area ───────────────────────────
             st.subheader("Promedios mensuales — Composición")
-            df_mes_comp = df_mes[['fecha_mes', 'grasa', 'proteina', 'sng']].copy()
-            df_mes_comp = df_mes_comp.rename(columns={
-                'grasa': 'Grasa butirosa (%)',
-                'proteina': 'Proteína (%)',
-                'sng': 'Sólidos no grasos (%)',
-            })
-            df_mes_long = df_mes_comp.melt(id_vars='fecha_mes', var_name='Parámetro', value_name='Valor')
-            df_mes_long = df_mes_long.dropna(subset=['Valor'])
-            fig_mes = px.bar(
-                df_mes_long, x='fecha_mes', y='Valor', color='Parámetro',
-                barmode='group',
-                labels={'fecha_mes': '', 'Valor': '%'},
+            df_mes['otros'] = (df_mes['sng'] - df_mes['proteina']).clip(lower=0)
+            df_mes_ok = df_mes.dropna(subset=['grasa', 'proteina', 'otros'])
+
+            fig_mes = go.Figure()
+            fig_mes.add_trace(go.Scatter(
+                x=df_mes_ok['fecha_mes'], y=df_mes_ok['otros'],
+                name='Otros sólidos (%)', stackgroup='mes',
+                fillcolor='rgba(90, 216, 166, 0.75)',
+                line=dict(color='rgba(90, 216, 166, 0.9)', width=0.5),
+                mode='lines',
+            ))
+            fig_mes.add_trace(go.Scatter(
+                x=df_mes_ok['fecha_mes'], y=df_mes_ok['proteina'],
+                name='Proteína (%)', stackgroup='mes',
+                fillcolor='rgba(91, 143, 249, 0.75)',
+                line=dict(color='rgba(91, 143, 249, 0.9)', width=0.5),
+                mode='lines',
+            ))
+            fig_mes.add_trace(go.Scatter(
+                x=df_mes_ok['fecha_mes'], y=df_mes_ok['grasa'],
+                name='Grasa butirosa (%)', stackgroup='mes',
+                fillcolor='rgba(244, 165, 34, 0.75)',
+                line=dict(color='rgba(244, 165, 34, 0.9)', width=0.5),
+                mode='lines',
+            ))
+            fig_mes.update_layout(
                 height=350,
-                color_discrete_map={
-                    'Grasa butirosa (%)': '#f4a522',
-                    'Proteína (%)': '#5b8ff9',
-                    'Sólidos no grasos (%)': '#5ad8a6',
-                },
+                yaxis=dict(title='%'),
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
+                hovermode='x unified',
+                margin=dict(t=50),
             )
             st.plotly_chart(fig_mes, use_container_width=True)
 
             st.divider()
 
-            # ── Sanidad ──────────────────────────────────────────────────────
-            st.subheader("Sanidad — Células somáticas y recuento bacteriano")
+            # ── Sanidad — Células somáticas ───────────────────────────────────
+            st.subheader("Sanidad — Células somáticas")
             st.caption("Solo se registran en determinadas fechas (≈23% de los días)")
 
             df_cs = df_dia[df_dia['cs'].notna()][['fecha', 'cs']].copy()
-            df_ufc = df_dia[df_dia['ufc'].notna()][['fecha', 'ufc']].copy()
 
             if not df_cs.empty:
-                # Zonas de referencia (células somáticas)
-                # < 200k  = excelente
-                # 200-400k = aceptable
-                # > 400k = alerta
                 df_cs['Categoría'] = pd.cut(
                     df_cs['cs'],
                     bins=[0, 200_000, 400_000, float('inf')],
@@ -438,9 +498,8 @@ with tab_prod:
                     },
                     labels={'fecha': '', 'cs': 'Células somáticas'},
                     title='Células somáticas (CS)',
-                    height=380,
+                    height=360,
                 )
-                # Línea de tendencia mensual
                 if not df_mes.empty:
                     df_cs_mes = df_mes[df_mes['cs'].notna()][['fecha_mes', 'cs']]
                     fig_cs.add_trace(go.Scatter(
@@ -448,33 +507,10 @@ with tab_prod:
                         mode='lines', name='Media mensual',
                         line=dict(color='black', width=2, dash='dot'),
                     ))
-                # Línea de umbral 400k
                 fig_cs.add_hline(y=400_000, line_dash='dash', line_color='red',
                                  annotation_text='Umbral 400k', annotation_position='top left')
                 fig_cs.update_yaxes(tickformat='.0f')
                 st.plotly_chart(fig_cs, use_container_width=True)
-
-            if not df_ufc.empty:
-                df_ufc['Categoría'] = pd.cut(
-                    df_ufc['ufc'],
-                    bins=[0, 20_000, 50_000, float('inf')],
-                    labels=['< 20k (excelente)', '20-50k (aceptable)', '> 50k (alerta)']
-                )
-                fig_ufc = px.scatter(
-                    df_ufc, x='fecha', y='ufc',
-                    color='Categoría',
-                    color_discrete_map={
-                        '< 20k (excelente)': '#52c41a',
-                        '20-50k (aceptable)': '#faad14',
-                        '> 50k (alerta)': '#f5222d',
-                    },
-                    labels={'fecha': '', 'ufc': 'UFC/mL'},
-                    title='Recuento bacteriano (UFC/mL)',
-                    height=350,
-                )
-                fig_ufc.add_hline(y=50_000, line_dash='dash', line_color='red',
-                                  annotation_text='Umbral 50k', annotation_position='top left')
-                st.plotly_chart(fig_ufc, use_container_width=True)
 
             st.divider()
             st.download_button(
