@@ -197,20 +197,40 @@ def _get_calidad_leche():
                   ufc=('recuento_ufc', 'mean'),
               ).reset_index())
     df_dia = df_dia.sort_values('fecha')
-    # Rolling 7 días para composición
-    df_dia['grasa_r7'] = df_dia['grasa'].rolling(7, min_periods=3).mean()
+
+    # ── Reindexar a un espine diario completo para que el rolling no
+    #    "puentee" los meses faltantes (ene-2020, dic-2020, nov-2022, ene-2023).
+    #    Los días sin datos quedan NaN y el rolling los ignora (min_periods=3).
+    full_idx = pd.date_range(df_dia['fecha'].min(), df_dia['fecha'].max(), freq='D')
+    df_dia = (df_dia.set_index('fecha')
+                    .reindex(full_idx)
+                    .rename_axis('fecha')
+                    .reset_index())
+
+    # Rolling 7 días para composición (sobre el espine diario)
+    df_dia['grasa_r7']    = df_dia['grasa'].rolling(7, min_periods=3).mean()
     df_dia['proteina_r7'] = df_dia['proteina'].rolling(7, min_periods=3).mean()
-    df_dia['sng_r7'] = df_dia['sng'].rolling(7, min_periods=3).mean()
-    # Mensual
+    df_dia['sng_r7']      = df_dia['sng'].rolling(7, min_periods=3).mean()
+
+    # ── Agregación mensual sobre espine de meses completo —
+    #    meses sin datos quedan NaN → Plotly dibuja un corte, no une con línea recta.
     df_dia['mes'] = df_dia['fecha'].dt.to_period('M')
-    df_mes = (df_dia.groupby('mes')
-              .agg(
-                  grasa=('grasa', 'mean'),
-                  proteina=('proteina', 'mean'),
-                  sng=('sng', 'mean'),
-                  cs=('cs', 'mean'),
-                  ufc=('ufc', 'mean'),
-              ).reset_index())
+    df_mes_real = (df_dia.groupby('mes')
+                   .agg(
+                       grasa=('grasa', 'mean'),
+                       proteina=('proteina', 'mean'),
+                       sng=('sng', 'mean'),
+                       cs=('cs', 'mean'),
+                       ufc=('ufc', 'mean'),
+                   ).reset_index())
+    # Espine mensual completo entre primer y último mes con datos
+    min_mes = df_mes_real['mes'].min()
+    max_mes = df_mes_real['mes'].max()
+    full_mes = pd.period_range(min_mes, max_mes, freq='M')
+    df_mes = (df_mes_real.set_index('mes')
+                         .reindex(full_mes)
+                         .rename_axis('mes')
+                         .reset_index())
     df_mes['fecha_mes'] = df_mes['mes'].dt.to_timestamp()
     return {'diario': df_dia, 'mensual': df_mes}
 
@@ -456,26 +476,31 @@ with tab_prod:
             # ── Promedios mensuales — stacked area ───────────────────────────
             st.subheader("Promedios mensuales — Composición")
             df_mes['otros'] = (df_mes['sng'] - df_mes['proteina']).clip(lower=0)
-            df_mes_ok = df_mes.dropna(subset=['grasa', 'proteina', 'otros'])
+            # Mantener el espine completo (NaN para meses faltantes) para que
+            # Plotly corte la línea en lugar de trazar sobre el vacío.
+            df_mes_plot = df_mes.copy()
 
             fig_mes = go.Figure()
             fig_mes.add_trace(go.Scatter(
-                x=df_mes_ok['fecha_mes'], y=df_mes_ok['otros'],
+                x=df_mes_plot['fecha_mes'], y=df_mes_plot['otros'],
                 name='Otros sólidos (%)', stackgroup='mes',
+                connectgaps=False,
                 fillcolor='rgba(90, 216, 166, 0.75)',
                 line=dict(color='rgba(90, 216, 166, 0.9)', width=0.5),
                 mode='lines',
             ))
             fig_mes.add_trace(go.Scatter(
-                x=df_mes_ok['fecha_mes'], y=df_mes_ok['proteina'],
+                x=df_mes_plot['fecha_mes'], y=df_mes_plot['proteina'],
                 name='Proteína (%)', stackgroup='mes',
+                connectgaps=False,
                 fillcolor='rgba(91, 143, 249, 0.75)',
                 line=dict(color='rgba(91, 143, 249, 0.9)', width=0.5),
                 mode='lines',
             ))
             fig_mes.add_trace(go.Scatter(
-                x=df_mes_ok['fecha_mes'], y=df_mes_ok['grasa'],
+                x=df_mes_plot['fecha_mes'], y=df_mes_plot['grasa'],
                 name='Grasa butirosa (%)', stackgroup='mes',
+                connectgaps=False,
                 fillcolor='rgba(244, 165, 34, 0.75)',
                 line=dict(color='rgba(244, 165, 34, 0.9)', width=0.5),
                 mode='lines',
@@ -500,13 +525,13 @@ with tab_prod:
             df_prod_hist['mes'] = df_prod_hist['Date'].dt.to_period('M')
             ltvo_mes = df_prod_hist[['mes', 'LTVO']].copy()
 
-            # Grasa mensual desde calidad_leche
-            df_cal_g = df_cal[df_cal['grasa'].notna()][['fecha', 'grasa']].copy()
-            df_cal_g['mes'] = df_cal_g['fecha'].dt.to_period('M')
-            grasa_mes = df_cal_g.groupby('mes')['grasa'].mean().reset_index()
+            # Grasa mensual ya viene en df_mes (con NaN en los meses faltantes)
+            # Usamos left join: meses sin calidad quedan con grasa=NaN → kg_grasa=NaN
+            # y los gráficos muestran un corte en esos puntos.
+            grasa_mes = df_mes[['mes', 'grasa']].copy()
 
             # Join por mes
-            df_gx = pd.merge(ltvo_mes, grasa_mes, on='mes')
+            df_gx = pd.merge(ltvo_mes, grasa_mes, on='mes', how='left')
             df_gx['fecha_mes'] = df_gx['mes'].dt.to_timestamp()
             df_gx['kg_grasa'] = (df_gx['LTVO'] * df_gx['grasa'] / 100).round(3)
             df_gx = df_gx.sort_values('fecha_mes')
@@ -564,26 +589,27 @@ with tab_prod:
                 # Gráfico 3: scatter LTVO vs % grasa (efecto dilución)
                 st.subheader("Efecto dilución: LTVO vs % Grasa")
                 st.caption("A mayor producción de leche, la grasa tiende a diluirse (relación inversa)")
+                df_sc = df_gx.dropna(subset=['LTVO', 'grasa'])  # excluir meses sin calidad
                 fig_sc = go.Figure()
                 fig_sc.add_trace(go.Scatter(
-                    x=df_gx['LTVO'], y=df_gx['grasa'],
+                    x=df_sc['LTVO'], y=df_sc['grasa'],
                     mode='markers+text',
-                    text=df_gx['fecha_mes'].dt.strftime('%b %y'),
+                    text=df_sc['fecha_mes'].dt.strftime('%b %y'),
                     textposition='top center',
                     textfont=dict(size=8),
                     marker=dict(
                         size=10,
-                        color=df_gx['fecha_mes'].astype(np.int64),
+                        color=df_sc['fecha_mes'].astype(np.int64),
                         colorscale='Viridis',
                         showscale=True,
                         colorbar=dict(title='Tiempo', tickvals=[], ticktext=[]),
                     ),
                     hovertemplate='%{text}<br>LTVO: %{x:.1f} L<br>Grasa: %{y:.2f}%<extra></extra>',
                 ))
-                # Línea de tendencia
-                if len(df_gx) >= 3:
-                    z = np.polyfit(df_gx['LTVO'], df_gx['grasa'], 1)
-                    x_line = np.linspace(df_gx['LTVO'].min(), df_gx['LTVO'].max(), 50)
+                # Línea de tendencia (solo con puntos reales)
+                if len(df_sc) >= 3:
+                    z = np.polyfit(df_sc['LTVO'], df_sc['grasa'], 1)
+                    x_line = np.linspace(df_sc['LTVO'].min(), df_sc['LTVO'].max(), 50)
                     y_line = np.polyval(z, x_line)
                     fig_sc.add_trace(go.Scatter(
                         x=x_line, y=y_line,
@@ -591,7 +617,7 @@ with tab_prod:
                         line=dict(color='red', width=1.5, dash='dash'),
                         hoverinfo='skip',
                     ))
-                    corr = df_gx['LTVO'].corr(df_gx['grasa'])
+                    corr = df_sc['LTVO'].corr(df_sc['grasa'])
                     st.caption(f"Correlación LTVO ↔ Grasa: **{corr:.2f}** "
                                f"({'inversa esperada ✓' if corr < 0 else 'positiva — revisar'})")
                 fig_sc.update_layout(
