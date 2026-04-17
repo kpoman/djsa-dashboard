@@ -21,17 +21,23 @@ URL_ALIMENTACION = (
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+/* Tarjetas: fondos con suficiente opacidad para ser legibles en dark/light */
 .kpi-card { padding:14px 16px; border-radius:8px; margin-bottom:10px; }
-.kpi-verde    { background:#d4edda; border-left:5px solid #28a745; }
-.kpi-amarillo { background:#fff3cd; border-left:5px solid #ffc107; }
-.kpi-rojo     { background:#f8d7da; border-left:5px solid #dc3545; }
-.kpi-gris     { background:#f0f0f0; border-left:5px solid #aaa; }
-.kpi-label { font-size:0.70em; color:#444; margin:0 0 3px; font-weight:700;
-             text-transform:uppercase; letter-spacing:.5px; }
-.kpi-value { font-size:1.65em; font-weight:800; margin:0 0 3px; color:#1a1a1a; }
-.kpi-ref   { font-size:0.68em; color:#666; margin:0; }
+.kpi-verde    { background:rgba(40,167,69,0.18);  border-left:5px solid #28a745; }
+.kpi-amarillo { background:rgba(255,193,7,0.18);  border-left:5px solid #ffc107; }
+.kpi-rojo     { background:rgba(220,53,69,0.18);  border-left:5px solid #dc3545; }
+.kpi-gris     { background:rgba(128,128,128,0.12); border-left:5px solid #888; }
+
+/* Texto dentro de las tarjetas: hereda el color del tema (blanco en dark, negro en light) */
+.kpi-label { font-size:0.70em; color:inherit; opacity:0.65; margin:0 0 3px;
+             font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.kpi-value { font-size:1.65em; font-weight:800; margin:0 0 3px; color:inherit; }
+.kpi-ref   { font-size:0.68em; color:inherit; opacity:0.50; margin:0; }
+
+/* Títulos de grupo: hereda el color del tema, separador semi-transparente */
 .kpi-group-title { margin:28px 0 10px; font-size:1.0em; font-weight:700;
-                   color:#333; border-bottom:2px solid #e0e0e0; padding-bottom:5px; }
+                   color:inherit; border-bottom:2px solid rgba(128,128,128,0.3);
+                   padding-bottom:5px; }
 </style>
 """, unsafe_allow_html=True)
 
