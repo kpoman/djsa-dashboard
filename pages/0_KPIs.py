@@ -101,6 +101,33 @@ def _load_calidad():
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
+def _load_ltvo_partediario():
+    """Devuelve df con columnas [date, diaria_ltvo] del parte diario."""
+    df_all = pd.read_excel(
+        URL_PARTE_DIARIO, header=None,
+        usecols=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        names=['cat', 'tarde_vo', 'tarde_tanque', 'tarde_prod',
+               'maniana_vo', 'maniana_tanque', 'maniana_prod',
+               'diaria_total', 'diaria_ltvo', 'entregado'],
+        sheet_name=None,
+    )
+    keys = list(df_all.keys())
+    tabs = []
+    for i in range(len(keys)):
+        tab_name = keys[len(keys) - i - 1]
+        if len(tab_name.split('-')) == 2:
+            tabs.append(df_all[tab_name])
+    if not tabs:
+        return None
+    df = pd.concat(tabs)
+    dates = df[df['cat'] == 'La Merced']['diaria_total'].to_list()
+    df_total = df[df['cat'] == 'Total'].assign(date=dates).reset_index()
+    df_total = df_total[df_total['diaria_ltvo'] > 0]
+    df_total['date'] = pd.to_datetime(df_total['date'], errors='coerce')
+    return df_total[['date', 'diaria_ltvo']].dropna()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
 def _load_alimentacion():
     try:
         df_raw = pd.read_excel(URL_ALIMENTACION, sheet_name=None)
@@ -152,10 +179,26 @@ def _calc():
         k['ref_ev']   = max_ev.strftime('%d/%m/%Y')
 
         # ── PRODUCCIÓN ────────────────────────────────────────────────────
-        ctrl_30d  = df_ctrl[df_ctrl['FechaCtr'] >= ref_ctrl_30d]
+        # L305E desde controles DairyComp (proyección individual por vaca)
         ctrl_12m  = df_ctrl[df_ctrl['FechaCtr'] >= ref_ev_12m]
-        k['ltvo']  = float(ctrl_30d['LECH'].mean())
         k['l305e'] = float(ctrl_12m['305E'].mean())
+
+        # LTVO desde parte diario (producción real del rodeo)
+        try:
+            df_pd = _load_ltvo_partediario()
+            if df_pd is not None and not df_pd.empty:
+                max_pd = df_pd['date'].max()
+                ref_pd_30d = max_pd - pd.Timedelta(days=30)
+                df_pd_30d = df_pd[df_pd['date'] >= ref_pd_30d]
+                k['ltvo'] = float(df_pd_30d['diaria_ltvo'].mean())
+                k['ref_ctrl'] = max_pd.strftime('%d/%m/%Y')
+            else:
+                # Fallback: promedio LECH de controles recientes
+                ctrl_30d = df_ctrl[df_ctrl['FechaCtr'] >= ref_ctrl_30d]
+                k['ltvo'] = float(ctrl_30d['LECH'].mean())
+        except Exception:
+            ctrl_30d = df_ctrl[df_ctrl['FechaCtr'] >= ref_ctrl_30d]
+            k['ltvo'] = float(ctrl_30d['LECH'].mean())
 
         # ── REPRODUCCIÓN ─────────────────────────────────────────────────
         df_12m = df_ev[df_ev['Fecha'] >= ref_ev_12m].copy()
@@ -277,7 +320,7 @@ with c1:
     _card("LTVO promedio (L/vc/día)",
           _fmt(v, 1),
           _color(v, 30, 26),
-          f"verde ≥30 · amarillo 26-30 · rojo <26 · últimos 30d hasta {ref_ctrl}")
+          f"verde ≥30 · amarillo 26-30 · rojo <26 · parte diario, 30d hasta {ref_ctrl}")
 
 with c2:
     v = k.get('l305e')
