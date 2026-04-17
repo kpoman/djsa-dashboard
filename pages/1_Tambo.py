@@ -491,6 +491,127 @@ with tab_prod:
 
             st.divider()
 
+            # ── Grasa × Producción ────────────────────────────────────────────
+            st.subheader("Grasa butirosa vs Producción (LTVO)")
+            st.caption("Relación entre % grasa, litros por vaca y kg de grasa producidos · datos mensuales")
+
+            # LTVO mensual histórico desde _PROD
+            df_prod_hist = _get_datos_prod()
+            df_prod_hist['mes'] = df_prod_hist['Date'].dt.to_period('M')
+            ltvo_mes = df_prod_hist[['mes', 'LTVO']].copy()
+
+            # Grasa mensual desde calidad_leche
+            df_cal_g = df_cal[df_cal['grasa'].notna()][['fecha', 'grasa']].copy()
+            df_cal_g['mes'] = df_cal_g['fecha'].dt.to_period('M')
+            grasa_mes = df_cal_g.groupby('mes')['grasa'].mean().reset_index()
+
+            # Join por mes
+            df_gx = pd.merge(ltvo_mes, grasa_mes, on='mes')
+            df_gx['fecha_mes'] = df_gx['mes'].dt.to_timestamp()
+            df_gx['kg_grasa'] = (df_gx['LTVO'] * df_gx['grasa'] / 100).round(3)
+            df_gx = df_gx.sort_values('fecha_mes')
+
+            if not df_gx.empty:
+                # Gráfico 1: LTVO + % Grasa (doble eje)
+                fig_gx = go.Figure()
+                fig_gx.add_trace(go.Scatter(
+                    x=df_gx['fecha_mes'], y=df_gx['LTVO'],
+                    name='LTVO (L/vc/día)', mode='lines+markers',
+                    line=dict(color='#5b8ff9', width=2),
+                    marker=dict(size=5),
+                    hovertemplate='LTVO: %{y:.1f} L<extra></extra>',
+                ))
+                fig_gx.add_trace(go.Scatter(
+                    x=df_gx['fecha_mes'], y=df_gx['grasa'],
+                    name='Grasa (%)', mode='lines+markers',
+                    yaxis='y2',
+                    line=dict(color='#f4a522', width=2),
+                    marker=dict(size=5),
+                    hovertemplate='Grasa: %{y:.2f}%<extra></extra>',
+                ))
+                fig_gx.update_layout(
+                    height=400,
+                    yaxis=dict(title='LTVO (L/vc/día)', rangemode='tozero'),
+                    yaxis2=dict(title='Grasa (%)', overlaying='y', side='right',
+                                showgrid=False, range=[2.5, 4.5]),
+                    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
+                    hovermode='x unified',
+                    margin=dict(t=50, r=70),
+                )
+                st.plotly_chart(fig_gx, use_container_width=True)
+
+                # Gráfico 2: kg grasa/vaca/día
+                fig_kg = go.Figure()
+                fig_kg.add_trace(go.Scatter(
+                    x=df_gx['fecha_mes'], y=df_gx['kg_grasa'],
+                    name='kg grasa/vaca/día',
+                    mode='lines+markers',
+                    fill='tozeroy',
+                    fillcolor='rgba(244, 165, 34, 0.15)',
+                    line=dict(color='#f4a522', width=2),
+                    marker=dict(size=5),
+                    hovertemplate='%{x|%b %Y}<br>kg grasa: %{y:.3f} kg/vc/día<extra></extra>',
+                ))
+                fig_kg.update_layout(
+                    height=300,
+                    title='kg grasa / vaca / día = LTVO × % grasa',
+                    yaxis=dict(title='kg grasa/vc/día', rangemode='tozero'),
+                    hovermode='x unified',
+                    margin=dict(t=50),
+                )
+                st.plotly_chart(fig_kg, use_container_width=True)
+
+                # Gráfico 3: scatter LTVO vs % grasa (efecto dilución)
+                st.subheader("Efecto dilución: LTVO vs % Grasa")
+                st.caption("A mayor producción de leche, la grasa tiende a diluirse (relación inversa)")
+                fig_sc = go.Figure()
+                fig_sc.add_trace(go.Scatter(
+                    x=df_gx['LTVO'], y=df_gx['grasa'],
+                    mode='markers+text',
+                    text=df_gx['fecha_mes'].dt.strftime('%b %y'),
+                    textposition='top center',
+                    textfont=dict(size=8),
+                    marker=dict(
+                        size=10,
+                        color=df_gx['fecha_mes'].astype(np.int64),
+                        colorscale='Viridis',
+                        showscale=True,
+                        colorbar=dict(title='Tiempo', tickvals=[], ticktext=[]),
+                    ),
+                    hovertemplate='%{text}<br>LTVO: %{x:.1f} L<br>Grasa: %{y:.2f}%<extra></extra>',
+                ))
+                # Línea de tendencia
+                if len(df_gx) >= 3:
+                    z = np.polyfit(df_gx['LTVO'], df_gx['grasa'], 1)
+                    x_line = np.linspace(df_gx['LTVO'].min(), df_gx['LTVO'].max(), 50)
+                    y_line = np.polyval(z, x_line)
+                    fig_sc.add_trace(go.Scatter(
+                        x=x_line, y=y_line,
+                        mode='lines', name='Tendencia',
+                        line=dict(color='red', width=1.5, dash='dash'),
+                        hoverinfo='skip',
+                    ))
+                    corr = df_gx['LTVO'].corr(df_gx['grasa'])
+                    st.caption(f"Correlación LTVO ↔ Grasa: **{corr:.2f}** "
+                               f"({'inversa esperada ✓' if corr < 0 else 'positiva — revisar'})")
+                fig_sc.update_layout(
+                    height=380,
+                    xaxis=dict(title='LTVO (L/vc/día)'),
+                    yaxis=dict(title='Grasa (%)'),
+                    showlegend=False,
+                    margin=dict(t=30),
+                )
+                st.plotly_chart(fig_sc, use_container_width=True)
+
+                # Descarga
+                st.download_button(
+                    "⬇️ Descargar grasa × producción (CSV)",
+                    df_gx[['fecha_mes', 'LTVO', 'grasa', 'kg_grasa']].to_csv(index=False).encode('utf-8'),
+                    file_name='grasa_vs_ltvo.csv', mime='text/csv', key='dl_gxprod',
+                )
+
+            st.divider()
+
             # ── Sanidad — Células somáticas ───────────────────────────────────
             st.subheader("Sanidad — Células somáticas")
             st.caption("Solo se registran en determinadas fechas (≈23% de los días)")
