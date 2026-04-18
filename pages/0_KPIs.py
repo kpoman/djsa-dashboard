@@ -322,6 +322,11 @@ def _calc():
         ufc = df30['recuento_ufc'].dropna()
         if not ufc.empty:
             k['ufc'] = float(ufc.mean())
+            # Días únicos con al menos una lectura >50k
+            ufc_diario = (df30.groupby('fecha')['recuento_ufc']
+                          .apply(lambda x: pd.to_numeric(x, errors='coerce').mean()))
+            k['ufc_dias_alerta'] = int((ufc_diario > 50_000).sum())
+            k['ufc_dias_medidos'] = int(ufc_diario.notna().sum())
     except Exception as e:
         k['err_cal'] = str(e)
 
@@ -423,11 +428,15 @@ with c3:
 
 with c4:
     v = k.get('ufc')
+    dias_alerta = k.get('ufc_dias_alerta', 0)
+    dias_medidos = k.get('ufc_dias_medidos', 0)
     disp = f"{v/1000:.0f}k UFC/mL" if v and not np.isnan(v) else "s/d"
+    alerta_txt = (f"⚠️ {dias_alerta} día{'s' if dias_alerta != 1 else ''} >50k"
+                  if dias_alerta > 0 else f"✓ ningún día >50k")
     _card("Recuento bacteriano (UFC)",
           disp,
           _color(v, 20_000, 50_000, invert=True) if v else 'gris',
-          f"verde <20k · amarillo 20-50k · rojo >50k · hasta {ref_cal}")
+          f"verde <20k · amarillo 20-50k · rojo >50k · {alerta_txt} en {dias_medidos} días medidos")
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 3 — REPRODUCCIÓN
