@@ -186,6 +186,8 @@ def _get_calidad_leche():
     for col in ['grasa_butirosa', 'solid_no_grasos', 'proteina', 'acidez', 'pH',
                 'celulas_somaticas', 'recuento_ufc']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
+    # Sin dato de UFC = 0 (no se registra cuando da negativo)
+    df['recuento_ufc'] = df['recuento_ufc'].fillna(0)
     # Promedio diario (hay ~2 lecturas por día)
     df_dia = (df.groupby('fecha')
               .agg(
@@ -387,7 +389,7 @@ with tab_prod:
             df_comp['otros_r7'] = (df_comp['sng_r7'] - df_comp['proteina_r7']).clip(lower=0)
             df_comp = df_comp.dropna(subset=['grasa_r7', 'proteina_r7', 'otros_r7'])
 
-            df_ufc = df_dia[df_dia['ufc'].notna()][['fecha', 'ufc']].copy()
+            df_ufc = df_dia[df_dia['ufc'] > 0][['fecha', 'ufc']].copy()
 
             fig_comp = go.Figure()
 

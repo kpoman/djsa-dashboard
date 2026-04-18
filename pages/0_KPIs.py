@@ -319,14 +319,14 @@ def _calc():
         cs = df30['celulas_somaticas'].dropna()
         if not cs.empty:
             k['cs'] = float(cs.mean())
-        ufc = df30['recuento_ufc'].dropna()
-        if not ufc.empty:
-            k['ufc'] = float(ufc.mean())
-            # Días únicos con al menos una lectura >50k
-            ufc_diario = (df30.groupby('fecha')['recuento_ufc']
-                          .apply(lambda x: pd.to_numeric(x, errors='coerce').mean()))
-            k['ufc_dias_alerta'] = int((ufc_diario > 50_000).sum())
-            k['ufc_dias_medidos'] = int(ufc_diario.notna().sum())
+        # Sin dato de UFC = resultado 0 (no se registra cuando da negativo)
+        ufc_filled = pd.to_numeric(df30['recuento_ufc'], errors='coerce').fillna(0)
+        k['ufc'] = float(ufc_filled.mean())
+        # Días únicos: promedio diario (NaN→0), contar días >50k
+        ufc_diario = (df30.groupby('fecha')['recuento_ufc']
+                      .apply(lambda x: pd.to_numeric(x, errors='coerce').fillna(0).mean()))
+        k['ufc_dias_alerta'] = int((ufc_diario > 50_000).sum())
+        k['ufc_dias_medidos'] = int(len(ufc_diario))
     except Exception as e:
         k['err_cal'] = str(e)
 
