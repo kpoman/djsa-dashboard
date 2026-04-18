@@ -208,50 +208,96 @@ def _calc():
 
         # ── REPRODUCCIÓN ─────────────────────────────────────────────────
         df_12m = df_ev[df_ev['Fecha'] >= ref_ev_12m].copy()
-        n_vacas   = df_12m['ID'].nunique()
+        n_vacas    = df_12m['ID'].nunique()
         k['n_vacas'] = n_vacas
 
         n_partos   = (df_12m['Evento'] == 'PARTO').sum()
-        n_insemin  = (df_12m['Evento'] == 'INSEMIN').sum()
-        n_prenadas = (df_12m['Evento'] == 'PREÑADA').sum()
         n_abortos  = (df_12m['Evento'] == 'ABORTO').sum()
         n_muertas  = (df_12m['Evento'] == 'MUERTA').sum()
         n_vendidas = (df_12m['Evento'] == 'VENDIDA').sum()
 
         k['n_partos']  = int(n_partos)
-        k['n_insemin'] = int(n_insemin)
 
-        if n_insemin > 0:
-            k['tc'] = n_prenadas / n_insemin * 100
-        if n_prenadas > 0:
-            k['nsp'] = n_insemin / n_prenadas
-        if n_prenadas + n_abortos > 0:
-            k['ta'] = n_abortos / (n_prenadas + n_abortos) * 100
-        if n_vacas > 0:
-            k['tm']  = n_muertas  / n_vacas * 100
-            k['td']  = n_vendidas / n_vacas * 100
+        # ── Tablas base de eventos ────────────────────────────────────────
+        df_p  = df_ev[df_ev['Evento'] == 'PARTO'  ][['ID','Fecha']].rename(columns={'Fecha':'FP'})
+        df_i  = df_ev[df_ev['Evento'] == 'INSEMIN'][['ID','Fecha']].rename(columns={'Fecha':'FI'})
+        df_pr = df_ev[df_ev['Evento'] == 'PREÑADA'][['ID','Fecha']].rename(columns={'Fecha':'FPrena'})
 
-        # D1S: días parto → primer servicio
-        df_p = df_ev[df_ev['Evento'] == 'PARTO'][['ID', 'Fecha']].rename(columns={'Fecha': 'FP'})
-        df_i = df_ev[df_ev['Evento'] == 'INSEMIN'][['ID', 'Fecha']].rename(columns={'Fecha': 'FI'})
+        # Partos dentro de ventana 12m
         df_p12 = df_p[df_p['FP'] >= ref_ev_12m]
+
+        # ── TC corregido ──────────────────────────────────────────────────
+        # Solo inseminaciones con suficiente tiempo para diagnóstico (~60d).
+        # Para cada inseminación elegible, verifica si hay PREÑADA dentro de 90d.
+        cutoff_diag = max_ev - pd.Timedelta(days=60)
+        df_i_elig = df_i[(df_i['FI'] >= ref_ev_12m) & (df_i['FI'] < cutoff_diag)]
+        k['n_insemin'] = int((df_12m['Evento'] == 'INSEMIN').sum())
+        if not df_i_elig.empty:
+            m_tc = pd.merge(df_i_elig, df_pr, on='ID')
+            m_tc = m_tc[(m_tc['FPrena'] > m_tc['FI']) &
+                        (m_tc['FPrena'] <= m_tc['FI'] + pd.Timedelta(days=90))]
+            concebidas = m_tc.drop_duplicates(['ID','FI']).shape[0]
+            k['tc'] = concebidas / len(df_i_elig) * 100
+
+        # ── NS/P corregido ────────────────────────────────────────────────
+        # Por vaca: cantidad de inseminaciones entre su parto y su primera preñez.
+        # Solo partos con tiempo suficiente para tener diagnóstico.
+        df_p12_elig = df_p12[df_p12['FP'] < cutoff_diag]
+        if not df_p12_elig.empty and not df_pr.empty:
+            m_pr = pd.merge(df_p12_elig, df_pr, on='ID')
+            m_pr = m_pr[(m_pr['FPrena'] > m_pr['FP']) &
+                        (m_pr['FPrena'] <= m_pr['FP'] + pd.Timedelta(days=400))]
+            if not m_pr.empty:
+                primera = m_pr.sort_values('FPrena').groupby(['ID','FP']).first().reset_index()
+                nsp_list = []
+                for _, r in primera.iterrows():
+                    n = df_i[(df_i['ID'] == r['ID']) &
+                             (df_i['FI'] > r['FP']) &
+                             (df_i['FI'] <= r['FPrena'])].shape[0]
+                    nsp_list.append(max(n, 1))  # mínimo 1 (la que confirmó)
+                k['nsp'] = float(pd.Series(nsp_list).mean())
+
+        # ── TA: % vacas con aborto confirmado post-preñez ────────────────
+        # Vacas únicas con ABORTO / vacas únicas con PREÑADA en 12m.
+        # Evita mezclar ciclos distintos usando conteo por vaca.
+        n_prenadas_unicas = df_12m[df_12m['Evento'] == 'PREÑADA']['ID'].nunique()
+        n_abortos_unicas  = df_12m[df_12m['Evento'] == 'ABORTO' ]['ID'].nunique()
+        if n_prenadas_unicas + n_abortos_unicas > 0:
+            k['ta'] = n_abortos_unicas / (n_prenadas_unicas + n_abortos_unicas) * 100
+
+        if n_vacas > 0:
+            k['tm'] = n_muertas  / n_vacas * 100
+            k['td'] = n_vendidas / n_vacas * 100
+
+        # ── D1S: días parto → primer servicio ────────────────────────────
         if not df_p12.empty and not df_i.empty:
-            m = pd.merge(df_p12, df_i, on='ID')
-            m = m[(m['FI'] > m['FP']) & (m['FI'] <= m['FP'] + pd.Timedelta(days=250))]
-            if not m.empty:
-                fi = m.sort_values('FI').groupby(['ID', 'FP']).first().reset_index()
+            m_d1s = pd.merge(df_p12, df_i, on='ID')
+            m_d1s = m_d1s[(m_d1s['FI'] > m_d1s['FP']) &
+                          (m_d1s['FI'] <= m_d1s['FP'] + pd.Timedelta(days=250))]
+            if not m_d1s.empty:
+                fi = m_d1s.sort_values('FI').groupby(['ID','FP']).first().reset_index()
                 fi['d'] = (fi['FI'] - fi['FP']).dt.days
                 k['d1s'] = float(fi['d'].mean())
 
-        # DV: días vacíos parto → primera preñez
-        df_pr = df_ev[df_ev['Evento'] == 'PREÑADA'][['ID', 'Fecha']].rename(columns={'Fecha': 'FPrena'})
+        # ── DV: días vacíos parto → concepción estimada ──────────────────
+        # DairyComp registra la fecha de *diagnóstico* en PREÑADA, no la de
+        # concepción. Restamos 42d (tacto estándar a 42d post-servicio) para
+        # estimar la fecha real de concepción.
         if not df_p12.empty and not df_pr.empty:
-            m2 = pd.merge(df_p12, df_pr, on='ID')
-            m2 = m2[(m2['FPrena'] > m2['FP']) & (m2['FPrena'] <= m2['FP'] + pd.Timedelta(days=400))]
-            if not m2.empty:
-                fp = m2.sort_values('FPrena').groupby(['ID', 'FP']).first().reset_index()
-                fp['d'] = (fp['FPrena'] - fp['FP']).dt.days
-                k['dv'] = float(fp['d'].mean())
+            m_dv = pd.merge(df_p12, df_pr, on='ID')
+            m_dv = m_dv[(m_dv['FPrena'] > m_dv['FP']) &
+                        (m_dv['FPrena'] <= m_dv['FP'] + pd.Timedelta(days=400))]
+            if not m_dv.empty:
+                fp2 = m_dv.sort_values('FPrena').groupby(['ID','FP']).first().reset_index()
+                fp2['d'] = (fp2['FPrena'] - fp2['FP']).dt.days - 42  # corrección diagnóstico
+                k['dv'] = float(fp2['d'].mean())
+
+        # ── TDC: tasa detección de celo con collares ─────────────────────
+        # % de vacas con parto en 12m que tuvieron ≥1 CELO detectado.
+        n_parto_unicas = df_p12['ID'].nunique()
+        n_celo_unicas  = df_12m[df_12m['Evento'] == 'CELO']['ID'].nunique()
+        if n_parto_unicas > 0:
+            k['tdc'] = n_celo_unicas / n_parto_unicas * 100
 
         # Mastitis: % vacas únicas con MAST en 12m
         n_mast_vacas = df_12m[df_12m['Evento'] == 'MAST']['ID'].nunique()
@@ -390,61 +436,62 @@ st.markdown('<p class="kpi-group-title">🐄 Reproducción (últimos 12 meses)</
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    v = k.get('dv')
-    _card("Días vacíos (parto → preñez)",
-          _fmt(v, 0, " d"),
-          _color(v, 110, 140, invert=True),
-          "verde <110 · amarillo 110-140 · rojo >140")
+    v = k.get('tdc')
+    _card("Tasa detección de celo (collar)",
+          _fmt(v, 1, " %"),
+          _color(v, 90, 70),
+          "verde ≥90 · amarillo 70-90 · rojo <70")
 
 with c2:
-    v = k.get('d1s')
-    _card("Días parto → 1er servicio",
-          _fmt(v, 0, " d"),
-          _color(v, 60, 75, invert=True),
-          "verde <60 · amarillo 60-75 · rojo >75")
+    v = k.get('tc')
+    _card("Tasa de concepción (%)",
+          _fmt(v, 1, " %"),
+          _color(v, 51, 43),
+          "verde ≥51 · amarillo 43-51 · rojo <43 · solo serv. con diagnóstico confirmado")
 
 with c3:
     v = k.get('nsp')
     _card("Servicios por preñez",
           _fmt(v, 2),
           _color(v, 1.7, 2.5, invert=True),
-          "verde <1.7 · amarillo 1.7-2.5 · rojo >2.5")
+          "verde <1.7 · amarillo 1.7-2.5 · rojo >2.5 · promedio por vaca")
 
 with c4:
-    v = k.get('tc')
-    _card("Tasa de concepción (%)",
-          _fmt(v, 1, " %"),
-          _color(v, 51, 43),
-          "verde ≥51 · amarillo 43-51 · rojo <43")
+    v = k.get('d1s')
+    _card("Días parto → 1er servicio",
+          _fmt(v, 0, " d"),
+          _color(v, 60, 75, invert=True),
+          "verde <60 · amarillo 60-75 · rojo >75")
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
+    v = k.get('dv')
+    _card("Días vacíos (estimado a concepción)",
+          _fmt(v, 0, " d"),
+          _color(v, 110, 140, invert=True),
+          "verde <110 · amarillo 110-140 · rojo >140 · fecha PREÑADA − 42d")
+
+with c2:
     v = k.get('ta')
     _card("Tasa de aborto (%)",
           _fmt(v, 1, " %"),
           _color(v, 3, 5, invert=True),
-          "verde <3 · amarillo 3-5 · rojo >5")
+          "verde <3 · amarillo 3-5 · rojo >5 · vacas únicas con ABORTO / (PREÑADA+ABORTO)")
 
-with c2:
+with c3:
     v = k.get('tm')
     _card("Tasa de mortandad (%)",
           _fmt(v, 1, " %"),
           _color(v, 3, 5, invert=True),
           "verde <3 · amarillo 3-5 · rojo >5")
 
-with c3:
+with c4:
     v = k.get('td')
     _card("Tasa de descarte (%)",
           _fmt(v, 1, " %"),
           _color(v, 20, 30, invert=True),
           "verde <20 · amarillo 20-30 · rojo >30")
-
-with c4:
-    n = k.get('n_vacas')
-    _card("Vacas en seguimiento",
-          _fmt(n, 0) if n else "s/d",
-          'gris', f"IDs únicos con eventos · hasta {ref_ev}")
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 4 — SANIDAD
@@ -482,15 +529,16 @@ with st.expander("ℹ️ Metodología y fuentes"):
     st.markdown(f"""
 | KPI | Fuente | Período | Metodología |
 |---|---|---|---|
-| LTVO | DairyComp controles | 30d hasta {ref_ctrl} | Promedio LECH (VALR>0) |
+| LTVO | Parte diario | 30d hasta {ref_ctrl} | Promedio diaria_ltvo |
 | L305E | DairyComp controles | 12m | Promedio campo 305E |
 | Grasa / Proteína | calidad_leche.csv | 30d hasta {ref_cal} | Promedio diario (outliers filtrados) |
-| CS / UFC | calidad_leche.csv | 30d hasta {ref_cal} | Promedio días con medición (~23% de días) |
-| DV (días vacíos) | DairyComp eventos | 12m hasta {ref_ev} | Primera PREÑADA post-PARTO por vaca |
+| CS / UFC | calidad_leche.csv | 30d hasta {ref_cal} | Promedio días con medición |
+| TDC (collar) | DairyComp eventos | 12m hasta {ref_ev} | Vacas únicas con CELO / vacas con PARTO en 12m |
+| Tasa concepción | DairyComp eventos | 12m | Serv. con PREÑADA en 90d / total serv. elegibles (excl. últimos 60d sin diagnóstico) |
+| NS/P | DairyComp eventos | 12m | Promedio por vaca: INSEMIN entre PARTO y primera PREÑADA |
 | D1S | DairyComp eventos | 12m | Primer INSEMIN post-PARTO por vaca |
-| NS/P | DairyComp eventos | 12m | Total INSEMIN / Total PREÑADA |
-| Tasa concepción | DairyComp eventos | 12m | PREÑADA / INSEMIN × 100 |
-| Tasa aborto | DairyComp eventos | 12m | ABORTO / (PREÑADA+ABORTO) × 100 |
+| DV (días vacíos) | DairyComp eventos | 12m | (Fecha PREÑADA − 42d) − Fecha PARTO · resta lag de diagnóstico |
+| Tasa aborto | DairyComp eventos | 12m | Vacas únicas con ABORTO / (vacas únicas PREÑADA + ABORTO) |
 | Tasa mortandad | DairyComp eventos | 12m | MUERTA / vacas únicas × 100 |
 | Tasa descarte | DairyComp eventos | 12m | VENDIDA / vacas únicas × 100 |
 | Mastitis | DairyComp eventos | 12m | Vacas únicas con MAST / vacas únicas × 100 |
