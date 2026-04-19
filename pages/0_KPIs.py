@@ -317,9 +317,13 @@ def _calc():
         df30 = df_cal[df_cal['fecha'] >= ref_cal_30d]
         k['grasa']   = float(df30['grasa_butirosa'].mean())
         k['proteina'] = float(df30['proteina'].mean())
-        cs = df30['celulas_somaticas'].dropna()
-        if not cs.empty:
-            k['cs'] = float(cs.mean())
+        # Sin dato de CS = resultado 0 (igual que UFC)
+        cs_filled = pd.to_numeric(df30['celulas_somaticas'], errors='coerce').fillna(0)
+        k['cs'] = float(cs_filled.mean())
+        cs_diario = (df30.groupby('fecha')['celulas_somaticas']
+                     .apply(lambda x: pd.to_numeric(x, errors='coerce').fillna(0).mean()))
+        k['cs_dias_alerta'] = int((cs_diario > 400_000).sum())
+        k['cs_dias_medidos'] = int(len(cs_diario))
         # Sin dato de UFC = resultado 0 (no se registra cuando da negativo)
         ufc_filled = pd.to_numeric(df30['recuento_ufc'], errors='coerce').fillna(0)
         k['ufc'] = float(ufc_filled.mean())
@@ -686,10 +690,14 @@ with c2:
 
 with c3:
     v = k.get('cs')
+    cs_dias_alerta  = k.get('cs_dias_alerta', 0)
+    cs_dias_medidos = k.get('cs_dias_medidos', 0)
     disp = f"{v/1000:.0f}k cél/mL" if v and not np.isnan(v) else "s/d"
+    cs_alerta_txt = (f"⚠️ {cs_dias_alerta} día{'s' if cs_dias_alerta != 1 else ''} >400k"
+                     if cs_dias_alerta > 0 else "✓ ningún día >400k")
     _card("Células somáticas (SCC)", disp,
           _color(v, 250_000, 400_000, invert=True) if v else 'gris',
-          f"verde <250k · amarillo 250-400k · rojo >400k · hasta {ref_cal}")
+          f"verde <250k · amarillo 250-400k · rojo >400k · {cs_alerta_txt} en {cs_dias_medidos} días")
     if 'cs' in charts:
         with st.popover("📈 ver tendencia", use_container_width=True):
             st.plotly_chart(charts['cs'], use_container_width=True)

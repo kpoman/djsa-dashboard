@@ -186,8 +186,9 @@ def _get_calidad_leche():
     for col in ['grasa_butirosa', 'solid_no_grasos', 'proteina', 'acidez', 'pH',
                 'celulas_somaticas', 'recuento_ufc']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
-    # Sin dato de UFC = 0 (no se registra cuando da negativo)
-    df['recuento_ufc'] = df['recuento_ufc'].fillna(0)
+    # Sin dato de UFC o CS = 0 (no se registra cuando da negativo/normal)
+    df['recuento_ufc']      = df['recuento_ufc'].fillna(0)
+    df['celulas_somaticas'] = df['celulas_somaticas'].fillna(0)
     # Promedio diario (hay ~2 lecturas por día)
     df_dia = (df.groupby('fecha')
               .agg(
@@ -423,7 +424,7 @@ with tab_prod:
             ))
 
             # UFC overlay — eje Y = UFC, tamaño del punto = células somáticas
-            df_cs_raw = df_dia[df_dia['cs'].notna()][['fecha', 'cs']].copy()
+            df_cs_raw = df_dia[df_dia['cs'] > 0][['fecha', 'cs']].copy()
             if not df_ufc.empty:
                 # Cruzar UFC con CS por fecha (inner join — solo días con ambos valores)
                 df_ufc_cs = df_ufc.merge(df_cs_raw, on='fecha', how='left')
@@ -644,7 +645,7 @@ with tab_prod:
             st.subheader("Sanidad — Células somáticas")
             st.caption("Solo se registran en determinadas fechas (≈23% de los días)")
 
-            df_cs = df_dia[df_dia['cs'].notna()][['fecha', 'cs']].copy()
+            df_cs = df_dia[df_dia['cs'] > 0][['fecha', 'cs']].copy()
 
             if not df_cs.empty:
                 df_cs['Categoría'] = pd.cut(
