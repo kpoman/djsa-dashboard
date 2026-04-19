@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="KPIs — DJSA", page_icon="🎯", layout="wide")
 
@@ -347,11 +348,274 @@ def _calc():
     return k
 
 
+# ── Mini-chart helpers ────────────────────────────────────────────────────────
+def _mini_layout(fig, title="", h=220):
+    fig.update_layout(
+        height=h, margin=dict(t=28, b=28, l=36, r=16),
+        title=dict(text=title, font=dict(size=12)),
+        showlegend=False, hovermode='x unified',
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor='rgba(128,128,128,0.15)')
+    return fig
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _make_mini_charts():
+    """Genera todos los gráficos mini para los popovers. Cachéado."""
+    charts = {}
+    AZUL   = '#5b8ff9'
+    VERDE  = '#5ad8a6'
+    NARANJA= '#f4a522'
+    ROJO   = '#dc3545'
+
+    # ── datos base ──
+    try:
+        df_ev, df_ctrl = _load_dairycomp()
+        max_ev  = df_ev['Fecha'].max()
+        ref_12m = max_ev - pd.DateOffset(months=12)
+        df_12m  = df_ev[df_ev['Fecha'] >= ref_12m].copy()
+    except Exception:
+        df_ev = df_ctrl = df_12m = None
+
+    try:
+        df_cal = _load_calidad()
+        max_cal  = df_cal['fecha'].max()
+        ref_90d  = max_cal - pd.Timedelta(days=90)
+        df_cal90 = df_cal[df_cal['fecha'] >= ref_90d].copy()
+        df_cal90['recuento_ufc'] = pd.to_numeric(df_cal90['recuento_ufc'], errors='coerce').fillna(0)
+        # Promedios diarios
+        cal_dia = (df_cal90.groupby('fecha')
+                   .agg(grasa=('grasa_butirosa','mean'),
+                        proteina=('proteina','mean'),
+                        cs=('celulas_somaticas','mean'),
+                        ufc=('recuento_ufc','mean'))
+                   .reset_index())
+    except Exception:
+        df_cal = cal_dia = None
+
+    try:
+        df_pd = _load_ltvo_partediario()
+        if df_pd is not None:
+            max_pd  = df_pd['date'].max()
+            ref_90d_pd = max_pd - pd.Timedelta(days=90)
+            pd90 = df_pd[df_pd['date'] >= ref_90d_pd].copy()
+        else:
+            pd90 = None
+    except Exception:
+        pd90 = None
+
+    # ══ PRODUCCIÓN ═══════════════════════════════════════════════════════
+    # LTVO — línea 90d
+    if pd90 is not None and not pd90.empty:
+        fig = go.Figure(go.Scatter(
+            x=pd90['date'], y=pd90['diaria_ltvo'],
+            mode='lines', line=dict(color=AZUL, width=1.5),
+            hovertemplate='%{x|%d/%m}<br>%{y:.1f} L<extra></extra>',
+        ))
+        fig.add_hline(y=30, line_dash='dot', line_color=VERDE, line_width=1,
+                      annotation_text='meta 30L', annotation_font_size=9)
+        charts['ltvo'] = _mini_layout(fig, 'LTVO (L/vc/día) — últimos 90d')
+
+    # L305E — histograma distribución vacas
+    if df_ctrl is not None:
+        ref_12m_ctrl = df_ctrl['FechaCtr'].max() - pd.DateOffset(months=12)
+        l305 = df_ctrl[df_ctrl['FechaCtr'] >= ref_12m_ctrl]['305E'].dropna()
+        if not l305.empty:
+            fig = go.Figure(go.Histogram(
+                x=l305, nbinsx=25,
+                marker_color=AZUL, opacity=0.8,
+                hovertemplate='%{x:.0f} L: %{y} vacas<extra></extra>',
+            ))
+            fig.add_vline(x=l305.mean(), line_dash='dash', line_color=NARANJA,
+                          annotation_text=f'media {l305.mean():.0f}L',
+                          annotation_font_size=9)
+            charts['l305e'] = _mini_layout(fig, 'Distribución L305E — últimos 12m')
+
+    # ══ CALIDAD ══════════════════════════════════════════════════════════
+    if cal_dia is not None and not cal_dia.empty:
+        # Grasa — línea 90d
+        fig = go.Figure(go.Scatter(
+            x=cal_dia['fecha'], y=cal_dia['grasa'],
+            mode='lines', line=dict(color=NARANJA, width=1.5),
+            hovertemplate='%{x|%d/%m}<br>%{y:.2f}%<extra></extra>',
+        ))
+        fig.add_hline(y=3.2, line_dash='dot', line_color=VERDE, line_width=1,
+                      annotation_text='meta 3.2%', annotation_font_size=9)
+        charts['grasa'] = _mini_layout(fig, 'Grasa butirosa (%) — últimos 90d')
+
+        # Proteína — línea 90d
+        fig = go.Figure(go.Scatter(
+            x=cal_dia['fecha'], y=cal_dia['proteina'],
+            mode='lines', line=dict(color=AZUL, width=1.5),
+            hovertemplate='%{x|%d/%m}<br>%{y:.2f}%<extra></extra>',
+        ))
+        fig.add_hline(y=3.3, line_dash='dot', line_color=VERDE, line_width=1,
+                      annotation_text='meta 3.3%', annotation_font_size=9)
+        charts['proteina'] = _mini_layout(fig, 'Proteína (%) — últimos 90d')
+
+        # CS — línea 90d
+        cs_dia = cal_dia.dropna(subset=['cs'])
+        if not cs_dia.empty:
+            fig = go.Figure(go.Scatter(
+                x=cs_dia['fecha'], y=cs_dia['cs'] / 1000,
+                mode='lines+markers', marker=dict(size=4),
+                line=dict(color=ROJO, width=1.5),
+                hovertemplate='%{x|%d/%m}<br>%{y:.0f}k cél/mL<extra></extra>',
+            ))
+            fig.add_hline(y=250, line_dash='dot', line_color=VERDE, line_width=1,
+                          annotation_text='250k', annotation_font_size=9)
+            charts['cs'] = _mini_layout(fig, 'Células somáticas (miles/mL) — 90d')
+
+        # UFC — barras 90d (días con UFC>0)
+        ufc_dia = cal_dia[cal_dia['ufc'] > 0].copy()
+        if not ufc_dia.empty:
+            colores_ufc = ['#dc3545' if v > 50000 else '#ffc107' if v > 20000 else '#28a745'
+                           for v in ufc_dia['ufc']]
+            fig = go.Figure(go.Bar(
+                x=ufc_dia['fecha'], y=ufc_dia['ufc'] / 1000,
+                marker_color=colores_ufc,
+                hovertemplate='%{x|%d/%m}<br>%{y:.0f}k UFC/mL<extra></extra>',
+            ))
+            fig.add_hline(y=20, line_dash='dot', line_color=VERDE, line_width=1,
+                          annotation_text='20k', annotation_font_size=9)
+            fig.add_hline(y=50, line_dash='dot', line_color=ROJO, line_width=1,
+                          annotation_text='50k', annotation_font_size=9)
+            charts['ufc'] = _mini_layout(fig, 'UFC/mL (miles) — días con conteo >0, 90d')
+
+    # ══ REPRODUCCIÓN ═════════════════════════════════════════════════════
+    if df_12m is not None:
+        df_12m['mes'] = df_12m['Fecha'].dt.to_period('M')
+        meses = sorted(df_12m['mes'].unique())
+        fechas_mes = [m.to_timestamp() for m in meses]
+        cutoff_diag = max_ev - pd.Timedelta(days=60)
+
+        # TDC — barras mensuales (% vacas con celo detectado)
+        tdc_mes = []
+        for m in meses:
+            dfm = df_12m[df_12m['mes'] == m]
+            n_p = dfm[dfm['Evento']=='PARTO']['ID'].nunique()
+            n_c = dfm[dfm['Evento']=='CELO']['ID'].nunique()
+            tdc_mes.append(n_c / n_p * 100 if n_p > 0 else np.nan)
+        fig = go.Figure(go.Bar(
+            x=fechas_mes, y=tdc_mes, marker_color=VERDE,
+            hovertemplate='%{x|%b %Y}<br>%{y:.1f}%<extra></extra>',
+        ))
+        fig.add_hline(y=90, line_dash='dot', line_color=VERDE, line_width=1,
+                      annotation_text='meta 90%', annotation_font_size=9)
+        charts['tdc'] = _mini_layout(fig, 'TDC mensual (%)')
+
+        # TC — barras mensuales
+        tc_mes = []
+        for m in meses:
+            df_i_m = df_ev[(df_ev['Evento']=='INSEMIN') &
+                           (df_ev['Fecha'].dt.to_period('M')==m) &
+                           (df_ev['Fecha'] < cutoff_diag)]
+            df_p_all = df_ev[df_ev['Evento']=='PREÑADA'][['ID','Fecha']].rename(columns={'Fecha':'FP'})
+            if len(df_i_m) == 0:
+                tc_mes.append(np.nan); continue
+            m_tc = pd.merge(df_i_m[['ID','Fecha']].rename(columns={'Fecha':'FI'}), df_p_all, on='ID')
+            m_tc = m_tc[(m_tc['FP']>m_tc['FI']) & (m_tc['FP']<=m_tc['FI']+pd.Timedelta(days=90))]
+            tc_mes.append(m_tc.drop_duplicates(['ID','FI']).shape[0] / len(df_i_m) * 100)
+        colors_tc = ['#28a745' if v and v>=51 else '#ffc107' if v and v>=43 else '#dc3545'
+                     for v in tc_mes]
+        fig = go.Figure(go.Bar(
+            x=fechas_mes, y=tc_mes, marker_color=colors_tc,
+            hovertemplate='%{x|%b %Y}<br>%{y:.1f}%<extra></extra>',
+        ))
+        fig.add_hline(y=51, line_dash='dot', line_color=VERDE, line_width=1,
+                      annotation_text='51%', annotation_font_size=9)
+        charts['tc'] = _mini_layout(fig, 'Tasa de concepción mensual (%)')
+
+        # NS/P — distribución de servicios por preñez
+        df_p_ev = df_ev[(df_ev['Evento']=='PARTO') &
+                        (df_ev['Fecha']>=ref_12m) &
+                        (df_ev['Fecha']<cutoff_diag)][['ID','Fecha']].rename(columns={'Fecha':'FP'})
+        df_pr_ev = df_ev[df_ev['Evento']=='PREÑADA'][['ID','Fecha']].rename(columns={'Fecha':'FPrena'})
+        df_i_ev  = df_ev[df_ev['Evento']=='INSEMIN'][['ID','Fecha']].rename(columns={'Fecha':'FI'})
+        if not df_p_ev.empty and not df_pr_ev.empty:
+            mp = pd.merge(df_p_ev, df_pr_ev, on='ID')
+            mp = mp[(mp['FPrena']>mp['FP']) & (mp['FPrena']<=mp['FP']+pd.Timedelta(days=400))]
+            if not mp.empty:
+                primera = mp.sort_values('FPrena').groupby(['ID','FP']).first().reset_index()
+                nsp_list = []
+                for _, r in primera.iterrows():
+                    n = df_i_ev[(df_i_ev['ID']==r['ID']) &
+                                (df_i_ev['FI']>r['FP']) &
+                                (df_i_ev['FI']<=r['FPrena'])].shape[0]
+                    nsp_list.append(max(n, 1))
+                s = pd.Series(nsp_list).value_counts().sort_index()
+                s.index = [f'{i}' if i < 5 else '5+' for i in s.index]
+                fig = go.Figure(go.Bar(
+                    x=s.index, y=s.values, marker_color=AZUL,
+                    hovertemplate='%{x} serv.: %{y} vacas<extra></extra>',
+                ))
+                charts['nsp'] = _mini_layout(fig, 'Distribución servicios por preñez (# vacas)')
+
+        # D1S — histograma días parto→1er servicio
+        df_p12 = df_ev[(df_ev['Evento']=='PARTO') & (df_ev['Fecha']>=ref_12m)][['ID','Fecha']].rename(columns={'Fecha':'FP'})
+        if not df_p12.empty and not df_i_ev.empty:
+            md = pd.merge(df_p12, df_i_ev, on='ID')
+            md = md[(md['FI']>md['FP']) & (md['FI']<=md['FP']+pd.Timedelta(days=250))]
+            if not md.empty:
+                fi = md.sort_values('FI').groupby(['ID','FP']).first().reset_index()
+                fi['d'] = (fi['FI'] - fi['FP']).dt.days
+                fig = go.Figure(go.Histogram(
+                    x=fi['d'], nbinsx=20, marker_color=AZUL, opacity=0.8,
+                    hovertemplate='%{x}d: %{y} vacas<extra></extra>',
+                ))
+                fig.add_vline(x=60, line_dash='dot', line_color=VERDE, line_width=1,
+                              annotation_text='meta 60d', annotation_font_size=9)
+                charts['d1s'] = _mini_layout(fig, 'Días parto → 1er servicio (distribución)')
+
+        # DV — histograma días vacíos estimados
+        if not df_p12.empty and not df_pr_ev.empty:
+            mdv = pd.merge(df_p12, df_pr_ev, on='ID')
+            mdv = mdv[(mdv['FPrena']>mdv['FP']) & (mdv['FPrena']<=mdv['FP']+pd.Timedelta(days=400))]
+            if not mdv.empty:
+                fp2 = mdv.sort_values('FPrena').groupby(['ID','FP']).first().reset_index()
+                fp2['d'] = (fp2['FPrena'] - fp2['FP']).dt.days - 42
+                fig = go.Figure(go.Histogram(
+                    x=fp2['d'], nbinsx=20, marker_color=VERDE, opacity=0.8,
+                    hovertemplate='%{x}d: %{y} vacas<extra></extra>',
+                ))
+                fig.add_vline(x=110, line_dash='dot', line_color=VERDE, line_width=1,
+                              annotation_text='meta 110d', annotation_font_size=9)
+                charts['dv'] = _mini_layout(fig, 'Días vacíos estimados (distribución)')
+
+        # TA / TM / TD — barras mensuales
+        for evento, clave, titulo in [
+            ('ABORTO', 'ta', 'Abortos por mes'),
+            ('MUERTA', 'tm', 'Muertes por mes'),
+            ('VENDIDA','td', 'Descartes por mes'),
+        ]:
+            cnts = (df_12m[df_12m['Evento']==evento]
+                    .groupby('mes').size().reindex(meses, fill_value=0))
+            fig = go.Figure(go.Bar(
+                x=fechas_mes, y=cnts.values, marker_color=ROJO,
+                hovertemplate='%{x|%b %Y}<br>%{y} eventos<extra></extra>',
+            ))
+            charts[clave] = _mini_layout(fig, titulo + ' (conteo)')
+
+        # Mastitis — barras mensuales
+        mast_cnts = (df_12m[df_12m['Evento']=='MAST']
+                     .groupby('mes')['ID'].nunique().reindex(meses, fill_value=0))
+        fig = go.Figure(go.Bar(
+            x=fechas_mes, y=mast_cnts.values, marker_color=NARANJA,
+            hovertemplate='%{x|%b %Y}<br>%{y} vacas<extra></extra>',
+        ))
+        charts['mast'] = _mini_layout(fig, 'Vacas con mastitis por mes')
+
+    return charts
+
+
 # ── UI ────────────────────────────────────────────────────────────────────────
 st.title("🎯 Dashboard KPIs — Tambo DJSA")
 
 with st.spinner("Calculando indicadores..."):
     k = _calc()
+    charts = _make_mini_charts()
 
 if 'err_dairy' in k:
     st.error(f"Error DairyComp: {k['err_dairy']}")
@@ -374,29 +638,29 @@ c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     v = k.get('ltvo')
-    _card("LTVO promedio (L/vc/día)",
-          _fmt(v, 1),
-          _color(v, 30, 26),
+    _card("LTVO promedio (L/vc/día)", _fmt(v, 1), _color(v, 30, 26),
           f"verde ≥30 · amarillo 26-30 · rojo <26 · parte diario, 30d hasta {ref_ctrl}")
+    if 'ltvo' in charts:
+        with st.popover("📈 ver tendencia", use_container_width=True):
+            st.plotly_chart(charts['ltvo'], use_container_width=True)
 
 with c2:
     v = k.get('l305e')
-    _card("Proyección L305E promedio",
-          _fmt(v, 0, " L"),
-          _color(v, 10000, 8500),
+    _card("Proyección L305E promedio", _fmt(v, 0, " L"), _color(v, 10000, 8500),
           "verde ≥10.000 · amarillo 8.500-10.000 · rojo <8.500 · últimos 12m")
+    if 'l305e' in charts:
+        with st.popover("📈 ver distribución", use_container_width=True):
+            st.plotly_chart(charts['l305e'], use_container_width=True)
 
 with c3:
     n = k.get('n_partos')
-    _card("Partos (12 meses)",
-          _fmt(n, 0) if n else "s/d",
-          'gris', f"total acumulado · hasta {ref_ev}")
+    _card("Partos (12 meses)", _fmt(n, 0) if n else "s/d", 'gris',
+          f"total acumulado · hasta {ref_ev}")
 
 with c4:
     n = k.get('n_insemin')
-    _card("Inseminaciones (12 meses)",
-          _fmt(n, 0) if n else "s/d",
-          'gris', f"total acumulado · hasta {ref_ev}")
+    _card("Inseminaciones (12 meses)", _fmt(n, 0) if n else "s/d", 'gris',
+          f"total acumulado · hasta {ref_ev}")
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 2 — CALIDAD DE LECHE
@@ -406,25 +670,29 @@ c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     v = k.get('grasa')
-    _card("Grasa butirosa (%)",
-          _fmt(v, 2),
-          _color(v, 3.2, 3.0),
+    _card("Grasa butirosa (%)", _fmt(v, 2), _color(v, 3.2, 3.0),
           f"verde ≥3.2 · amarillo 3.0-3.2 · rojo <3.0 · hasta {ref_cal}")
+    if 'grasa' in charts:
+        with st.popover("📈 ver tendencia", use_container_width=True):
+            st.plotly_chart(charts['grasa'], use_container_width=True)
 
 with c2:
     v = k.get('proteina')
-    _card("Proteína (%)",
-          _fmt(v, 2),
-          _color(v, 3.3, 3.1),
+    _card("Proteína (%)", _fmt(v, 2), _color(v, 3.3, 3.1),
           f"verde ≥3.3 · amarillo 3.1-3.3 · rojo <3.1 · hasta {ref_cal}")
+    if 'proteina' in charts:
+        with st.popover("📈 ver tendencia", use_container_width=True):
+            st.plotly_chart(charts['proteina'], use_container_width=True)
 
 with c3:
     v = k.get('cs')
     disp = f"{v/1000:.0f}k cél/mL" if v and not np.isnan(v) else "s/d"
-    _card("Células somáticas (SCC)",
-          disp,
+    _card("Células somáticas (SCC)", disp,
           _color(v, 250_000, 400_000, invert=True) if v else 'gris',
           f"verde <250k · amarillo 250-400k · rojo >400k · hasta {ref_cal}")
+    if 'cs' in charts:
+        with st.popover("📈 ver tendencia", use_container_width=True):
+            st.plotly_chart(charts['cs'], use_container_width=True)
 
 with c4:
     v = k.get('ufc')
@@ -432,11 +700,13 @@ with c4:
     dias_medidos = k.get('ufc_dias_medidos', 0)
     disp = f"{v/1000:.0f}k UFC/mL" if v and not np.isnan(v) else "s/d"
     alerta_txt = (f"⚠️ {dias_alerta} día{'s' if dias_alerta != 1 else ''} >50k"
-                  if dias_alerta > 0 else f"✓ ningún día >50k")
-    _card("Recuento bacteriano (UFC)",
-          disp,
+                  if dias_alerta > 0 else "✓ ningún día >50k")
+    _card("Recuento bacteriano (UFC)", disp,
           _color(v, 20_000, 50_000, invert=True) if v else 'gris',
           f"verde <20k · amarillo 20-50k · rojo >50k · {alerta_txt} en {dias_medidos} días medidos")
+    if 'ufc' in charts:
+        with st.popover("📈 ver detalle", use_container_width=True):
+            st.plotly_chart(charts['ufc'], use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 3 — REPRODUCCIÓN
@@ -446,61 +716,70 @@ c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     v = k.get('tdc')
-    _card("Tasa detección de celo (collar)",
-          _fmt(v, 1, " %"),
-          _color(v, 90, 70),
+    _card("Tasa detección de celo (collar)", _fmt(v, 1, " %"), _color(v, 90, 70),
           "verde ≥90 · amarillo 70-90 · rojo <70")
+    if 'tdc' in charts:
+        with st.popover("📈 ver mensual", use_container_width=True):
+            st.plotly_chart(charts['tdc'], use_container_width=True)
 
 with c2:
     v = k.get('tc')
-    _card("Tasa de concepción (%)",
-          _fmt(v, 1, " %"),
-          _color(v, 51, 43),
+    _card("Tasa de concepción (%)", _fmt(v, 1, " %"), _color(v, 51, 43),
           "verde ≥51 · amarillo 43-51 · rojo <43 · solo serv. con diagnóstico confirmado")
+    if 'tc' in charts:
+        with st.popover("📈 ver mensual", use_container_width=True):
+            st.plotly_chart(charts['tc'], use_container_width=True)
 
 with c3:
     v = k.get('nsp')
-    _card("Servicios por preñez",
-          _fmt(v, 2),
-          _color(v, 1.7, 2.5, invert=True),
+    _card("Servicios por preñez", _fmt(v, 2), _color(v, 1.7, 2.5, invert=True),
           "verde <1.7 · amarillo 1.7-2.5 · rojo >2.5 · promedio por vaca")
+    if 'nsp' in charts:
+        with st.popover("📈 ver distribución", use_container_width=True):
+            st.plotly_chart(charts['nsp'], use_container_width=True)
 
 with c4:
     v = k.get('d1s')
-    _card("Días parto → 1er servicio",
-          _fmt(v, 0, " d"),
-          _color(v, 60, 75, invert=True),
+    _card("Días parto → 1er servicio", _fmt(v, 0, " d"), _color(v, 60, 75, invert=True),
           "verde <60 · amarillo 60-75 · rojo >75")
+    if 'd1s' in charts:
+        with st.popover("📈 ver distribución", use_container_width=True):
+            st.plotly_chart(charts['d1s'], use_container_width=True)
 
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     v = k.get('dv')
-    _card("Días vacíos (estimado a concepción)",
-          _fmt(v, 0, " d"),
+    _card("Días vacíos (estimado a concepción)", _fmt(v, 0, " d"),
           _color(v, 110, 140, invert=True),
           "verde <110 · amarillo 110-140 · rojo >140 · fecha PREÑADA − 42d")
+    if 'dv' in charts:
+        with st.popover("📈 ver distribución", use_container_width=True):
+            st.plotly_chart(charts['dv'], use_container_width=True)
 
 with c2:
     v = k.get('ta')
-    _card("Tasa de aborto (%)",
-          _fmt(v, 1, " %"),
-          _color(v, 3, 5, invert=True),
+    _card("Tasa de aborto (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True),
           "verde <3 · amarillo 3-5 · rojo >5 · vacas únicas con ABORTO / (PREÑADA+ABORTO)")
+    if 'ta' in charts:
+        with st.popover("📈 ver mensual", use_container_width=True):
+            st.plotly_chart(charts['ta'], use_container_width=True)
 
 with c3:
     v = k.get('tm')
-    _card("Tasa de mortandad (%)",
-          _fmt(v, 1, " %"),
-          _color(v, 3, 5, invert=True),
+    _card("Tasa de mortandad (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True),
           "verde <3 · amarillo 3-5 · rojo >5")
+    if 'tm' in charts:
+        with st.popover("📈 ver mensual", use_container_width=True):
+            st.plotly_chart(charts['tm'], use_container_width=True)
 
 with c4:
     v = k.get('td')
-    _card("Tasa de descarte (%)",
-          _fmt(v, 1, " %"),
-          _color(v, 20, 30, invert=True),
+    _card("Tasa de descarte (%)", _fmt(v, 1, " %"), _color(v, 20, 30, invert=True),
           "verde <20 · amarillo 20-30 · rojo >30")
+    if 'td' in charts:
+        with st.popover("📈 ver mensual", use_container_width=True):
+            st.plotly_chart(charts['td'], use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 4 — SANIDAD
@@ -510,19 +789,21 @@ c1, c2, c3, c4 = st.columns(4)
 
 with c1:
     v = k.get('mast')
-    _card("Incidencia mastitis (% vacas)",
-          _fmt(v, 1, " %"),
-          _color(v, 15, 25, invert=True),
+    _card("Incidencia mastitis (% vacas)", _fmt(v, 1, " %"), _color(v, 15, 25, invert=True),
           "verde <15 · amarillo 15-25 · rojo >25")
+    if 'mast' in charts:
+        with st.popover("📈 ver mensual", use_container_width=True):
+            st.plotly_chart(charts['mast'], use_container_width=True)
 
 with c2:
-    # CS ya está en calidad, repetir aquí para sanidad
     v = k.get('cs')
     disp = f"{v/1000:.0f}k" if v and not np.isnan(v) else "s/d"
-    _card("Células somáticas (SCC prom.)",
-          disp,
+    _card("Células somáticas (SCC prom.)", disp,
           _color(v, 250_000, 400_000, invert=True) if v else 'gris',
           "verde <250k · amarillo 250-400k · rojo >400k")
+    if 'cs' in charts:
+        with st.popover("📈 ver tendencia", use_container_width=True):
+            st.plotly_chart(charts['cs'], use_container_width=True)
 
 with c3:
     st.empty()
