@@ -646,7 +646,7 @@ with c1:
           f"verde ≥30 · amarillo 26-30 · rojo <26 · parte diario, 30d hasta {ref_ctrl}")
     if 'ltvo' in charts:
         with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['ltvo'], use_container_width=True)
+            st.plotly_chart(charts['ltvo'], use_container_width=True, key="pop_ltvo")
 
 with c2:
     v = k.get('l305e')
@@ -654,7 +654,7 @@ with c2:
           "verde ≥10.000 · amarillo 8.500-10.000 · rojo <8.500 · últimos 12m")
     if 'l305e' in charts:
         with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['l305e'], use_container_width=True)
+            st.plotly_chart(charts['l305e'], use_container_width=True, key="pop_l305e")
 
 with c3:
     n = k.get('n_partos')
@@ -678,7 +678,7 @@ with c1:
           f"verde ≥3.2 · amarillo 3.0-3.2 · rojo <3.0 · hasta {ref_cal}")
     if 'grasa' in charts:
         with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['grasa'], use_container_width=True)
+            st.plotly_chart(charts['grasa'], use_container_width=True, key="pop_grasa")
 
 with c2:
     v = k.get('proteina')
@@ -686,7 +686,7 @@ with c2:
           f"verde ≥3.3 · amarillo 3.1-3.3 · rojo <3.1 · hasta {ref_cal}")
     if 'proteina' in charts:
         with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['proteina'], use_container_width=True)
+            st.plotly_chart(charts['proteina'], use_container_width=True, key="pop_proteina")
 
 with c3:
     v = k.get('cs')
@@ -700,7 +700,7 @@ with c3:
           f"verde <250k · amarillo 250-400k · rojo >400k · {cs_alerta_txt} en {cs_dias_medidos} días")
     if 'cs' in charts:
         with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['cs'], use_container_width=True)
+            st.plotly_chart(charts['cs'], use_container_width=True, key="pop_cs")
 
 with c4:
     v = k.get('ufc')
@@ -714,7 +714,7 @@ with c4:
           f"verde <20k · amarillo 20-50k · rojo >50k · {alerta_txt} en {dias_medidos} días medidos")
     if 'ufc' in charts:
         with st.popover("📈 ver detalle", use_container_width=True):
-            st.plotly_chart(charts['ufc'], use_container_width=True)
+            st.plotly_chart(charts['ufc'], use_container_width=True, key="pop_ufc")
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 3 — REPRODUCCIÓN
@@ -728,7 +728,7 @@ with c1:
           "verde ≥90 · amarillo 70-90 · rojo <70")
     if 'tdc' in charts:
         with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['tdc'], use_container_width=True)
+            st.plotly_chart(charts['tdc'], use_container_width=True, key="pop_tdc")
 
 with c2:
     v = k.get('tc')
@@ -736,7 +736,7 @@ with c2:
           "verde ≥51 · amarillo 43-51 · rojo <43 · solo serv. con diagnóstico confirmado")
     if 'tc' in charts:
         with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['tc'], use_container_width=True)
+            st.plotly_chart(charts['tc'], use_container_width=True, key="pop_tc")
 
 with c3:
     v = k.get('nsp')
@@ -744,7 +744,7 @@ with c3:
           "verde <1.7 · amarillo 1.7-2.5 · rojo >2.5 · promedio por vaca")
     if 'nsp' in charts:
         with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['nsp'], use_container_width=True)
+            st.plotly_chart(charts['nsp'], use_container_width=True, key="pop_nsp")
 
 with c4:
     v = k.get('d1s')
@@ -752,7 +752,7 @@ with c4:
           "verde <60 · amarillo 60-75 · rojo >75")
     if 'd1s' in charts:
         with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['d1s'], use_container_width=True)
+            st.plotly_chart(charts['d1s'], use_container_width=True, key="pop_d1s")
 
 c1, c2, c3, c4 = st.columns(4)
 
@@ -763,7 +763,7 @@ with c1:
           "verde <110 · amarillo 110-140 · rojo >140 · fecha PREÑADA − 42d")
     if 'dv' in charts:
         with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['dv'], use_container_width=True)
+            st.plotly_chart(charts['dv'], use_container_width=True, key="pop_dv")
 
 with c2:
     v = k.get('ta')
@@ -771,7 +771,7 @@ with c2:
           "verde <3 · amarillo 3-5 · rojo >5 · vacas únicas con ABORTO / (PREÑADA+ABORTO)")
     if 'ta' in charts:
         with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['ta'], use_container_width=True)
+            st.plotly_chart(charts['ta'], use_container_width=True, key="pop_ta")
 
 with c3:
     v = k.get('tm')
@@ -779,7 +779,7 @@ with c3:
           "verde <3 · amarillo 3-5 · rojo >5")
     if 'tm' in charts:
         with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['tm'], use_container_width=True)
+            st.plotly_chart(charts['tm'], use_container_width=True, key="pop_tm")
 
 with c4:
     v = k.get('td')
@@ -787,7 +787,7 @@ with c4:
           "verde <20 · amarillo 20-30 · rojo >30")
     if 'td' in charts:
         with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['td'], use_container_width=True)
+            st.plotly_chart(charts['td'], use_container_width=True, key="pop_td")
 
 # ═══════════════════════════════════════════════════════════════════════
 # GRUPO 4 — SANIDAD
@@ -801,7 +801,7 @@ with c1:
           "verde <15 · amarillo 15-25 · rojo >25")
     if 'mast' in charts:
         with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['mast'], use_container_width=True)
+            st.plotly_chart(charts['mast'], use_container_width=True, key="pop_mast")
 
 with c2:
     v = k.get('cs')
@@ -811,7 +811,7 @@ with c2:
           "verde <250k · amarillo 250-400k · rojo >400k")
     if 'cs' in charts:
         with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['cs'], use_container_width=True)
+            st.plotly_chart(charts['cs'], use_container_width=True, key="pop_cs_2")
 
 with c3:
     st.empty()
