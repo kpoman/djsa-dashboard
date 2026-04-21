@@ -76,6 +76,11 @@ try:
 
     metrica = st.selectbox("Métrica", metricas_disp, key="metrica_gestion")
 
+    # Métricas por unidad (ya son /ha o /tn): se promedian, no se suman
+    _METRICAS_PROM = {'MB/ha U$D', 'Ingreso U$D/ha', 'Gasto U$D/ha', 'Valor/tn'}
+    _es_prom = metrica in _METRICAS_PROM
+    _agg = 'mean' if _es_prom else 'sum'
+
     # ── KPIs resumidos ───────────────────────────────────────────────────────
     ultima_camp = df_f['Campaña'].max()
     df_ult = df_f[df_f['Campaña'] == ultima_camp]
@@ -83,11 +88,12 @@ try:
     df_pen = df_f[df_f['Campaña'] == penult] if penult else pd.DataFrame()
 
     k1, k2, k3, k4 = st.columns(4)
-    total_ult = df_ult[metrica].sum()
-    total_pen = df_pen[metrica].sum() if not df_pen.empty else 0
+    total_ult = df_ult[metrica].mean() if _es_prom else df_ult[metrica].sum()
+    total_pen = (df_pen[metrica].mean() if _es_prom else df_pen[metrica].sum()) if not df_pen.empty else 0
     delta = total_ult - total_pen if total_pen != 0 else None
+    _kpi_label = f"Promedio {metrica}" if _es_prom else f"Total {metrica}"
 
-    k1.metric(f"{metrica} ({ultima_camp})", f"${total_ult:,.0f}",
+    k1.metric(f"{_kpi_label} ({ultima_camp})", f"${total_ult:,.0f}",
               delta=f"${delta:,.0f}" if delta is not None else None)
     k2.metric("Establecimientos", len(df_f['Establecimiento'].unique()))
     k3.metric("Actividades", len(df_f['Actividad'].unique()))
@@ -105,7 +111,7 @@ try:
         col_color = st.radio("Agrupar por", ['Rubro', 'Actividad', 'Establecimiento'],
                              horizontal=True, key="evol_color")
 
-        df_evo = df_f.groupby(['Date', 'Campaña', col_color])[metrica].sum().reset_index()
+        df_evo = df_f.groupby(['Date', 'Campaña', col_color])[metrica].agg(_agg).reset_index()
 
         fig_evo = px.bar(
             df_evo, x='Campaña', y=metrica, color=col_color,
@@ -115,11 +121,12 @@ try:
         fig_evo.update_layout(height=500, xaxis_tickangle=-45)
         st.plotly_chart(fig_evo, use_container_width=True)
 
-        # Línea de evolución acumulada
-        df_acum = df_f.groupby(['Date', 'Campaña'])[metrica].sum().reset_index()
+        # Línea de evolución
+        df_acum = df_f.groupby(['Date', 'Campaña'])[metrica].agg(_agg).reset_index()
+        _evol_title = f'Evolución {"promedio" if _es_prom else "total"} {metrica}'
         fig_linea = px.line(
             df_acum, x='Campaña', y=metrica,
-            title=f'Evolución total {metrica}',
+            title=_evol_title,
             markers=True,
         )
         fig_linea.update_layout(height=400)
@@ -139,14 +146,14 @@ try:
 
         col_pie, col_bar = st.columns(2)
         with col_pie:
-            df_pie = df_comp.groupby(tipo_comp)[metrica].sum().reset_index()
+            df_pie = df_comp.groupby(tipo_comp)[metrica].agg(_agg).reset_index()
             df_pie = df_pie[df_pie[metrica] != 0]
             fig_pie = px.pie(df_pie, values=metrica, names=tipo_comp,
                              title=f'{metrica} — {camp_comp}')
             st.plotly_chart(fig_pie, use_container_width=True)
 
         with col_bar:
-            df_bar = df_comp.groupby([tipo_comp])[metrica].sum().reset_index().sort_values(metrica, ascending=True)
+            df_bar = df_comp.groupby([tipo_comp])[metrica].agg(_agg).reset_index().sort_values(metrica, ascending=True)
             fig_hbar = px.bar(df_bar, x=metrica, y=tipo_comp, orientation='h',
                               title=f'{metrica} por {tipo_comp} — {camp_comp}',
                               color=tipo_comp)
@@ -155,7 +162,7 @@ try:
 
         # Treemap
         group_cols = ['Establecimiento', 'Rubro', 'Actividad']
-        df_tree = df_comp.groupby(group_cols)[metrica].sum().reset_index()
+        df_tree = df_comp.groupby(group_cols)[metrica].agg(_agg).reset_index()
         df_tree = df_tree[df_tree[metrica] > 0]
         if not df_tree.empty:
             fig_tree = px.treemap(
@@ -171,7 +178,7 @@ try:
     with tab_sede:
         st.subheader("Comparación entre establecimientos")
 
-        df_sede = df_f.groupby(['Campaña', 'Establecimiento'])[metrica].sum().reset_index()
+        df_sede = df_f.groupby(['Campaña', 'Establecimiento'])[metrica].agg(_agg).reset_index()
         fig_sede = px.bar(
             df_sede, x='Campaña', y=metrica, color='Establecimiento',
             barmode='group',
@@ -183,7 +190,7 @@ try:
         # Por rubro dentro de cada sede
         for est in sorted(df_f['Establecimiento'].unique()):
             df_est = df_f[df_f['Establecimiento'] == est]
-            df_est_g = df_est.groupby(['Campaña', 'Rubro'])[metrica].sum().reset_index()
+            df_est_g = df_est.groupby(['Campaña', 'Rubro'])[metrica].agg(_agg).reset_index()
             fig_est = px.bar(
                 df_est_g, x='Campaña', y=metrica, color='Rubro',
                 title=f'{est} — {metrica} por rubro',
@@ -197,10 +204,11 @@ try:
         st.subheader("Tabla resumen por campaña")
         group_cols = [c for c in ['Establecimiento', 'Rubro', 'Actividad'] if c in df_f.columns]
         if group_cols:
-            df_tabla = df_f.groupby(group_cols + ['Campaña'])[metrica].sum().reset_index()
-            df_wide = df_tabla.pivot_table(index=group_cols, columns='Campaña', values=metrica, aggfunc='sum')
-            df_wide['TOTAL'] = df_wide.sum(axis=1)
-            df_wide = df_wide.sort_values('TOTAL', ascending=False)
+            df_tabla = df_f.groupby(group_cols + ['Campaña'])[metrica].agg(_agg).reset_index()
+            df_wide = df_tabla.pivot_table(index=group_cols, columns='Campaña', values=metrica, aggfunc=_agg)
+            _col_resumen = 'PROMEDIO' if _es_prom else 'TOTAL'
+            df_wide[_col_resumen] = df_wide.mean(axis=1) if _es_prom else df_wide.sum(axis=1)
+            df_wide = df_wide.sort_values(_col_resumen, ascending=False)
             st.dataframe(df_wide.style.format('${:,.0f}'), use_container_width=True)
 
         st.divider()
