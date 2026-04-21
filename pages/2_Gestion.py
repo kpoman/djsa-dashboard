@@ -52,7 +52,7 @@ try:
         sel_act = st.multiselect("Actividad", acts_disp, default=acts_disp)
     with col_camp:
         campanas = sorted(df['Campaña'].unique())
-        sel_camp = st.multiselect("Campaña(s)", campanas, default=campanas)
+        sel_camp = st.multiselect("Campaña(s)", campanas, default=campanas[-5:])
 
     # Aplicar filtros
     df_f = df.copy()
