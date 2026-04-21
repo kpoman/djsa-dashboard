@@ -476,47 +476,6 @@ with tab_prod:
             )
             st.plotly_chart(fig_comp, use_container_width=True)
 
-            # ── Promedios mensuales — stacked area ───────────────────────────
-            st.subheader("Promedios mensuales — Composición")
-            df_mes['otros'] = (df_mes['sng'] - df_mes['proteina']).clip(lower=0)
-            # Mantener el espine completo (NaN para meses faltantes) para que
-            # Plotly corte la línea en lugar de trazar sobre el vacío.
-            df_mes_plot = df_mes.copy()
-
-            fig_mes = go.Figure()
-            fig_mes.add_trace(go.Scatter(
-                x=df_mes_plot['fecha_mes'], y=df_mes_plot['otros'],
-                name='Otros sólidos (%)', stackgroup='mes',
-                connectgaps=False,
-                fillcolor='rgba(90, 216, 166, 0.75)',
-                line=dict(color='rgba(90, 216, 166, 0.9)', width=0.5),
-                mode='lines',
-            ))
-            fig_mes.add_trace(go.Scatter(
-                x=df_mes_plot['fecha_mes'], y=df_mes_plot['proteina'],
-                name='Proteína (%)', stackgroup='mes',
-                connectgaps=False,
-                fillcolor='rgba(91, 143, 249, 0.75)',
-                line=dict(color='rgba(91, 143, 249, 0.9)', width=0.5),
-                mode='lines',
-            ))
-            fig_mes.add_trace(go.Scatter(
-                x=df_mes_plot['fecha_mes'], y=df_mes_plot['grasa'],
-                name='Grasa butirosa (%)', stackgroup='mes',
-                connectgaps=False,
-                fillcolor='rgba(244, 165, 34, 0.75)',
-                line=dict(color='rgba(244, 165, 34, 0.9)', width=0.5),
-                mode='lines',
-            ))
-            fig_mes.update_layout(
-                height=350,
-                yaxis=dict(title='%'),
-                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
-                hovermode='x unified',
-                margin=dict(t=50),
-            )
-            st.plotly_chart(fig_mes, use_container_width=True)
-
             st.divider()
 
             # ── Grasa × Producción ────────────────────────────────────────────
@@ -990,22 +949,224 @@ with tab_crea:
                           if c not in ('Ano', 'Mes', 'Periodo') and
                           pd.api.types.is_numeric_dtype(df_crea[c])]
 
-        col1, col2 = st.columns(2)
-        with col1:
-            variable = st.selectbox("Variable a graficar", cols_numericas,
-                                    index=cols_numericas.index('VT') if 'VT' in cols_numericas else 0)
-        with col2:
-            anos_disp = sorted(df_crea['Ano'].unique())
-            anos_sel = st.multiselect("Año(s)", anos_disp, default=anos_disp[-5:])
+        _COLORS = ['#f4a522', '#5b8ff9', '#5ad8a6', '#ff6b6b',
+                   '#c050e8', '#ff9f40', '#00c0c7', '#e8825a']
+        MESES_STR = ['Ene','Feb','Mar','Abr','May','Jun',
+                     'Jul','Ago','Sep','Oct','Nov','Dic']
 
-        df_crea_f = df_crea[df_crea['Ano'].isin(anos_sel)] if anos_sel else df_crea
-        fig_c = px.line(df_crea_f, x='Periodo', y=variable, color='Ano',
-                        title=f'{variable} por período',
-                        labels={'Periodo': 'Fecha', variable: variable})
-        st.plotly_chart(fig_c, use_container_width=True)
+        sub_exp, sub_seas, sub_tend = st.tabs([
+            "🔍 Explorador", "📅 Estacionalidad", "📈 Tendencia"
+        ])
+
+        # ── Explorador: multi-variable con ejes independientes ───────────────
+        with sub_exp:
+            st.caption(
+                "Superponé hasta 4 variables. Con 1–2 variables se usan ejes "
+                "independientes izquierda/derecha. Con 3–4, o activando "
+                "**Normalizar**, todas van a la misma escala 0–100 %."
+            )
+            c1, c2, c3 = st.columns([4, 1, 2])
+            with c1:
+                vars_sel = st.multiselect(
+                    "Variables", cols_numericas,
+                    default=[v for v in ['VT', 'LTVO'] if v in cols_numericas]
+                             or cols_numericas[:2],
+                    key='crea_vars',
+                )
+            with c2:
+                normalizar = st.checkbox("Normalizar\n(0–100)", value=False,
+                                         key='crea_norm')
+            with c3:
+                anos_disp_e = sorted(df_crea['Ano'].unique())
+                rango_anos = st.select_slider(
+                    "Período",
+                    options=anos_disp_e,
+                    value=(anos_disp_e[0], anos_disp_e[-1]),
+                    key='crea_rango',
+                )
+
+            vars_sel = vars_sel[:4]  # tope de 4
+            forzar_norm = normalizar or len(vars_sel) > 2
+
+            if not vars_sel:
+                st.info("Seleccioná al menos una variable.")
+            else:
+                df_f = df_crea[
+                    df_crea['Ano'].between(rango_anos[0], rango_anos[1])
+                ].copy()
+
+                fig_exp = go.Figure()
+
+                for i, var in enumerate(vars_sel):
+                    serie = df_f.set_index('Periodo')[var].dropna()
+                    color = _COLORS[i % len(_COLORS)]
+
+                    if forzar_norm:
+                        mn, mx = serie.min(), serie.max()
+                        y_vals = ((serie - mn) / (mx - mn) * 100
+                                  if mx > mn else serie * 0 + 50)
+                        yref = 'y'
+                        htmpl = f'{var}: %{{y:.1f}} % norm<extra></extra>'
+                    else:
+                        y_vals = serie
+                        yref = 'y' if i == 0 else 'y2'
+                        htmpl = f'{var}: %{{y:.2f}}<extra></extra>'
+
+                    fig_exp.add_trace(go.Scatter(
+                        x=serie.index, y=y_vals,
+                        name=var, yaxis=yref,
+                        line=dict(color=color, width=2),
+                        hovertemplate=htmpl,
+                        mode='lines',
+                    ))
+
+                layout_exp = dict(
+                    height=430,
+                    hovermode='x unified',
+                    legend=dict(orientation='h', yanchor='bottom',
+                                y=1.02, xanchor='left', x=0),
+                    margin=dict(t=50, r=70 if not forzar_norm
+                                and len(vars_sel) == 2 else 20),
+                )
+                if forzar_norm:
+                    layout_exp['yaxis'] = dict(title='% normalizado',
+                                               range=[-5, 105])
+                elif len(vars_sel) == 2:
+                    layout_exp['yaxis']  = dict(
+                        title=dict(text=vars_sel[0],
+                                   font=dict(color=_COLORS[0])),
+                        tickfont=dict(color=_COLORS[0]),
+                    )
+                    layout_exp['yaxis2'] = dict(
+                        title=dict(text=vars_sel[1],
+                                   font=dict(color=_COLORS[1])),
+                        tickfont=dict(color=_COLORS[1]),
+                        overlaying='y', side='right',
+                        showgrid=False,
+                    )
+                else:
+                    layout_exp['yaxis'] = dict(title=vars_sel[0])
+
+                fig_exp.update_layout(**layout_exp)
+                st.plotly_chart(fig_exp, use_container_width=True,
+                                key='crea_exp_chart')
+
+        # ── Estacionalidad ───────────────────────────────────────────────────
+        with sub_seas:
+            st.caption(
+                "**Box por mes**: distribución histórica de cada mes (todos los años). "
+                "**Años superpuestos**: cada año como una línea ene→dic para ver patrones estacionales."
+            )
+            c1, c2 = st.columns([2, 2])
+            with c1:
+                var_seas = st.selectbox(
+                    "Variable", cols_numericas,
+                    index=cols_numericas.index('VT') if 'VT' in cols_numericas else 0,
+                    key='crea_seas_var',
+                )
+            with c2:
+                modo_seas = st.radio(
+                    "Modo", ["Box por mes", "Años superpuestos"],
+                    horizontal=True, key='crea_seas_modo',
+                )
+
+            df_s = df_crea[['Ano', 'Mes', var_seas]].dropna(subset=[var_seas])
+
+            if modo_seas == "Box por mes":
+                fig_seas = go.Figure()
+                for m in range(1, 13):
+                    vals = df_s[df_s['Mes'] == m][var_seas]
+                    fig_seas.add_trace(go.Box(
+                        y=vals, name=MESES_STR[m - 1],
+                        marker_color='#5b8ff9',
+                        boxmean='sd',
+                        showlegend=False,
+                    ))
+                fig_seas.update_layout(
+                    height=400, yaxis_title=var_seas,
+                    margin=dict(t=20),
+                )
+            else:
+                fig_seas = go.Figure()
+                SEAS_COL = px.colors.qualitative.Set2
+                for i, ano in enumerate(sorted(df_s['Ano'].unique())):
+                    df_ano = df_s[df_s['Ano'] == ano].sort_values('Mes')
+                    fig_seas.add_trace(go.Scatter(
+                        x=df_ano['Mes'], y=df_ano[var_seas],
+                        name=str(int(ano)),
+                        mode='lines+markers',
+                        line=dict(width=1.8, color=SEAS_COL[i % len(SEAS_COL)]),
+                        marker=dict(size=5),
+                    ))
+                fig_seas.update_layout(
+                    height=400,
+                    xaxis=dict(
+                        tickmode='array',
+                        tickvals=list(range(1, 13)),
+                        ticktext=MESES_STR,
+                        title='Mes',
+                    ),
+                    yaxis_title=var_seas,
+                    hovermode='x unified',
+                    legend=dict(orientation='h', yanchor='bottom',
+                                y=1.02, xanchor='left', x=0),
+                    margin=dict(t=40),
+                )
+
+            st.plotly_chart(fig_seas, use_container_width=True, key='crea_seas_chart')
+
+        # ── Tendencia ────────────────────────────────────────────────────────
+        with sub_tend:
+            st.caption(
+                "Serie original más media móvil centrada. "
+                "Ajustá la ventana para ver tendencias de corto o largo plazo."
+            )
+            c1, c2 = st.columns([2, 2])
+            with c1:
+                var_tend = st.selectbox(
+                    "Variable", cols_numericas,
+                    index=cols_numericas.index('VT') if 'VT' in cols_numericas else 0,
+                    key='crea_tend_var',
+                )
+            with c2:
+                ventana = st.slider(
+                    "Ventana media móvil (meses)", 2, 24, 6,
+                    key='crea_tend_ventana',
+                )
+
+            df_t = (df_crea[['Periodo', var_tend]]
+                    .dropna(subset=[var_tend])
+                    .sort_values('Periodo'))
+            rolling = (df_t[var_tend]
+                       .rolling(ventana, center=True,
+                                min_periods=max(1, ventana // 2))
+                       .mean())
+
+            fig_tend = go.Figure()
+            fig_tend.add_trace(go.Scatter(
+                x=df_t['Periodo'], y=df_t[var_tend],
+                name='Dato real', mode='lines',
+                line=dict(color='rgba(91,143,249,0.4)', width=1.2),
+                hovertemplate=f'{var_tend}: %{{y:.2f}}<extra></extra>',
+            ))
+            fig_tend.add_trace(go.Scatter(
+                x=df_t['Periodo'], y=rolling,
+                name=f'Media móvil {ventana}m', mode='lines',
+                line=dict(color='#f4a522', width=2.5),
+                hovertemplate=f'Tendencia ({ventana}m): %{{y:.2f}}<extra></extra>',
+            ))
+            fig_tend.update_layout(
+                height=400,
+                yaxis_title=var_tend,
+                hovermode='x unified',
+                legend=dict(orientation='h', yanchor='bottom',
+                            y=1.02, xanchor='left', x=0),
+                margin=dict(t=40),
+            )
+            st.plotly_chart(fig_tend, use_container_width=True, key='crea_tend_chart')
 
         with st.expander("Datos brutos CREA"):
-            st.dataframe(df_crea_f, use_container_width=True)
+            st.dataframe(df_crea, use_container_width=True)
 
     except Exception as e:
         st.error(f"Error cargando datos CREA: {e}")
