@@ -1183,8 +1183,9 @@ with tab_dairycomp:
         grouped_y = grouped.groupby(['Ano', 'Tipo', 'Evento']).sum().reset_index()
         grouped_m = grouped.groupby(['Mes', 'Tipo', 'Evento']).mean().reset_index()
 
-        sub_salud, sub_repro, sub_ctrl, sub_animal = st.tabs([
-            "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero", "Historial Animal"
+        sub_salud, sub_repro, sub_ctrl, sub_animal, sub_expl = st.tabs([
+            "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero",
+            "Historial Animal", "📊 Explorador",
         ])
 
         with sub_salud:
@@ -1538,6 +1539,264 @@ with tab_dairycomp:
                             ctr_animal[cols_ctr].sort_values('FechaCtr', ascending=False),
                             use_container_width=True, hide_index=True,
                         )
+
+        # ── Sub-tab Explorador ───────────────────────────────────────────────
+        with sub_expl:
+            # ── Construir serie mensual unificada ────────────────────────────
+            # Eventos: contar por tipo por mes
+            _EV_INTERES = [
+                'INSEMIN', 'PARTO', 'PREÑADA', 'VACIA', 'CELO',
+                'MAST', 'RENGA', 'SECA', 'MUERTA', 'VENDIDA',
+                'RETPLAC', 'ABORTO', 'ANESTRO',
+            ]
+            df_ev2 = df_ev.copy()
+            df_ev2['Periodo'] = pd.to_datetime(
+                df_ev2['Ano'].astype(str) + '-' +
+                df_ev2['Mes'].astype(str).str.zfill(2) + '-01'
+            )
+            ev_series = {}
+            for ev in _EV_INTERES:
+                s = (df_ev2[df_ev2['Evento'] == ev]
+                     .groupby('Periodo')['ID'].count()
+                     .rename(f'n_{ev}'))
+                if s.sum() > 0:
+                    ev_series[f'n_{ev}'] = s
+
+            # Controles: promedio mensual
+            df_ctrl3 = df_ctrl.copy()
+            df_ctrl3['Periodo'] = df_ctrl3['FechaCtr'].dt.to_period('M').dt.to_timestamp()
+            _CTRL_COLS = [c for c in ['LECH', 'DE', 'PCT', 'LCG', '305E', 'LACT']
+                         if c in df_ctrl3.columns]
+            ctrl_m = df_ctrl3.groupby('Periodo')[_CTRL_COLS].mean()
+
+            # Espine mensual completo
+            full_range_dc = pd.date_range(
+                df_ev2['Periodo'].min(),
+                df_ev2['Periodo'].max(),
+                freq='MS',
+            )
+            df_expl = pd.DataFrame({'Periodo': full_range_dc})
+            for name, s in ev_series.items():
+                df_expl[name] = df_expl['Periodo'].map(s).fillna(0)
+            for col in _CTRL_COLS:
+                if col in ctrl_m.columns:
+                    df_expl[col] = df_expl['Periodo'].map(ctrl_m[col])
+            df_expl['Ano'] = df_expl['Periodo'].dt.year
+            df_expl['Mes'] = df_expl['Periodo'].dt.month
+
+            # Nombres amigables
+            _LABELS = {
+                'n_INSEMIN': 'Inseminaciones', 'n_PARTO': 'Partos',
+                'n_PREÑADA': 'Preñeces', 'n_VACIA': 'Vacías',
+                'n_CELO': 'Celos detectados', 'n_MAST': 'Mastitis',
+                'n_RENGA': 'Rengas', 'n_SECA': 'Secas',
+                'n_MUERTA': 'Muertes', 'n_VENDIDA': 'Vendidas',
+                'n_RETPLAC': 'Ret. placenta', 'n_ABORTO': 'Abortos',
+                'n_ANESTRO': 'Anestros',
+                'LECH': 'Producción media (L)', 'DE': 'Días en leche',
+                'PCT': 'PCT', 'LCG': 'LCG', '305E': '305E', 'LACT': 'Lactancia media',
+            }
+            cols_expl = [c for c in df_expl.columns
+                        if c not in ('Periodo', 'Ano', 'Mes')]
+            _COLORS_DC = ['#f4a522', '#5b8ff9', '#5ad8a6', '#ff6b6b',
+                          '#c050e8', '#ff9f40', '#00c0c7', '#e8825a']
+            _MESES_DC = ['Ene','Feb','Mar','Abr','May','Jun',
+                         'Jul','Ago','Sep','Oct','Nov','Dic']
+
+            xp_exp, xp_seas, xp_tend = st.tabs([
+                "🔍 Explorador", "📅 Estacionalidad", "📈 Tendencia"
+            ])
+
+            # ── Explorador ───────────────────────────────────────────────────
+            with xp_exp:
+                st.caption(
+                    "Variables derivadas de eventos (conteos mensuales) y de controles "
+                    "lecheros (promedios mensuales). 1–2 variables → ejes duales; "
+                    "3–4 o **Normalizar** → escala 0–100 %."
+                )
+                cx1, cx2, cx3 = st.columns([4, 1, 2])
+                with cx1:
+                    dc_vars = st.multiselect(
+                        "Variables",
+                        cols_expl,
+                        format_func=lambda c: _LABELS.get(c, c),
+                        default=[c for c in ['n_INSEMIN', 'LECH'] if c in cols_expl],
+                        key='dc_vars',
+                    )
+                with cx2:
+                    dc_norm = st.checkbox("Normalizar\n(0–100)", key='dc_norm')
+                with cx3:
+                    anos_dc = sorted(df_expl['Ano'].unique())
+                    dc_rango = st.select_slider(
+                        "Período", options=anos_dc,
+                        value=(anos_dc[0], anos_dc[-1]),
+                        key='dc_rango',
+                    )
+
+                dc_vars = dc_vars[:4]
+                dc_forzar = dc_norm or len(dc_vars) > 2
+
+                if not dc_vars:
+                    st.info("Seleccioná al menos una variable.")
+                else:
+                    df_fx = df_expl[df_expl['Ano'].between(dc_rango[0], dc_rango[1])].copy()
+                    fig_dcx = go.Figure()
+
+                    for i, var in enumerate(dc_vars):
+                        serie = df_fx.set_index('Periodo')[var].dropna()
+                        color = _COLORS_DC[i % len(_COLORS_DC)]
+                        lbl = _LABELS.get(var, var)
+
+                        if dc_forzar:
+                            mn, mx = serie.min(), serie.max()
+                            yv = (serie - mn) / (mx - mn) * 100 if mx > mn else serie * 0 + 50
+                            yref = 'y'
+                            ht = f'{lbl}: %{{y:.1f}} % norm<extra></extra>'
+                        else:
+                            yv = serie
+                            yref = 'y' if i == 0 else 'y2'
+                            ht = f'{lbl}: %{{y:.2f}}<extra></extra>'
+
+                        fig_dcx.add_trace(go.Scatter(
+                            x=serie.index, y=yv,
+                            name=lbl, yaxis=yref,
+                            line=dict(color=color, width=2),
+                            hovertemplate=ht,
+                            mode='lines',
+                        ))
+
+                    lo_dc = dict(
+                        height=430, hovermode='x unified',
+                        legend=dict(orientation='h', yanchor='bottom',
+                                    y=1.02, xanchor='left', x=0),
+                        margin=dict(t=50, r=70 if not dc_forzar and len(dc_vars) == 2 else 20),
+                    )
+                    if dc_forzar:
+                        lo_dc['yaxis'] = dict(title='% normalizado', range=[-5, 105])
+                    elif len(dc_vars) == 2:
+                        lo_dc['yaxis']  = dict(
+                            title=dict(text=_LABELS.get(dc_vars[0], dc_vars[0]),
+                                       font=dict(color=_COLORS_DC[0])),
+                            tickfont=dict(color=_COLORS_DC[0]),
+                        )
+                        lo_dc['yaxis2'] = dict(
+                            title=dict(text=_LABELS.get(dc_vars[1], dc_vars[1]),
+                                       font=dict(color=_COLORS_DC[1])),
+                            tickfont=dict(color=_COLORS_DC[1]),
+                            overlaying='y', side='right', showgrid=False,
+                        )
+                    else:
+                        lo_dc['yaxis'] = dict(title=_LABELS.get(dc_vars[0], dc_vars[0]))
+
+                    fig_dcx.update_layout(**lo_dc)
+                    st.plotly_chart(fig_dcx, use_container_width=True, key='dc_exp_chart')
+
+            # ── Estacionalidad ───────────────────────────────────────────────
+            with xp_seas:
+                st.caption(
+                    "**Box por mes**: distribución histórica de cada mes. "
+                    "**Años superpuestos**: cada año como línea ene→dic."
+                )
+                cs1, cs2 = st.columns([2, 2])
+                with cs1:
+                    dc_var_s = st.selectbox(
+                        "Variable", cols_expl,
+                        format_func=lambda c: _LABELS.get(c, c),
+                        key='dc_seas_var',
+                    )
+                with cs2:
+                    dc_modo_s = st.radio(
+                        "Modo", ["Box por mes", "Años superpuestos"],
+                        horizontal=True, key='dc_seas_modo',
+                    )
+
+                df_ss = df_expl[['Ano', 'Mes', dc_var_s]].dropna(subset=[dc_var_s])
+                lbl_s = _LABELS.get(dc_var_s, dc_var_s)
+
+                if dc_modo_s == "Box por mes":
+                    fig_dcs = go.Figure()
+                    for m in range(1, 13):
+                        vals = df_ss[df_ss['Mes'] == m][dc_var_s]
+                        fig_dcs.add_trace(go.Box(
+                            y=vals, name=_MESES_DC[m - 1],
+                            marker_color='#5b8ff9',
+                            boxmean='sd', showlegend=False,
+                        ))
+                    fig_dcs.update_layout(
+                        height=400, yaxis_title=lbl_s, margin=dict(t=20),
+                    )
+                else:
+                    fig_dcs = go.Figure()
+                    SEAS_DC = px.colors.qualitative.Set2
+                    for i, ano in enumerate(sorted(df_ss['Ano'].unique())):
+                        df_ano = df_ss[df_ss['Ano'] == ano].sort_values('Mes')
+                        fig_dcs.add_trace(go.Scatter(
+                            x=df_ano['Mes'], y=df_ano[dc_var_s],
+                            name=str(int(ano)), mode='lines+markers',
+                            line=dict(width=1.8, color=SEAS_DC[i % len(SEAS_DC)]),
+                            marker=dict(size=5),
+                        ))
+                    fig_dcs.update_layout(
+                        height=400,
+                        xaxis=dict(tickmode='array', tickvals=list(range(1, 13)),
+                                   ticktext=_MESES_DC, title='Mes'),
+                        yaxis_title=lbl_s,
+                        hovermode='x unified',
+                        legend=dict(orientation='h', yanchor='bottom',
+                                    y=1.02, xanchor='left', x=0),
+                        margin=dict(t=40),
+                    )
+
+                st.plotly_chart(fig_dcs, use_container_width=True, key='dc_seas_chart')
+
+            # ── Tendencia ────────────────────────────────────────────────────
+            with xp_tend:
+                st.caption(
+                    "Serie mensual real + media móvil centrada. "
+                    "Ajustá la ventana para separar ruido de tendencia."
+                )
+                ct1, ct2 = st.columns([2, 2])
+                with ct1:
+                    dc_var_t = st.selectbox(
+                        "Variable", cols_expl,
+                        format_func=lambda c: _LABELS.get(c, c),
+                        key='dc_tend_var',
+                    )
+                with ct2:
+                    dc_vent = st.slider(
+                        "Ventana media móvil (meses)", 2, 24, 6, key='dc_tend_vent',
+                    )
+
+                lbl_t = _LABELS.get(dc_var_t, dc_var_t)
+                df_tt = (df_expl[['Periodo', dc_var_t]]
+                         .dropna(subset=[dc_var_t])
+                         .sort_values('Periodo'))
+                roll_dc = (df_tt[dc_var_t]
+                           .rolling(dc_vent, center=True,
+                                    min_periods=max(1, dc_vent // 2))
+                           .mean())
+
+                fig_dct = go.Figure()
+                fig_dct.add_trace(go.Scatter(
+                    x=df_tt['Periodo'], y=df_tt[dc_var_t],
+                    name='Dato real', mode='lines',
+                    line=dict(color='rgba(91,143,249,0.4)', width=1.2),
+                    hovertemplate=f'{lbl_t}: %{{y:.1f}}<extra></extra>',
+                ))
+                fig_dct.add_trace(go.Scatter(
+                    x=df_tt['Periodo'], y=roll_dc,
+                    name=f'Media móvil {dc_vent}m', mode='lines',
+                    line=dict(color='#f4a522', width=2.5),
+                    hovertemplate=f'Tendencia: %{{y:.1f}}<extra></extra>',
+                ))
+                fig_dct.update_layout(
+                    height=400, yaxis_title=lbl_t,
+                    hovermode='x unified',
+                    legend=dict(orientation='h', yanchor='bottom',
+                                y=1.02, xanchor='left', x=0),
+                    margin=dict(t=40),
+                )
+                st.plotly_chart(fig_dct, use_container_width=True, key='dc_tend_chart')
 
     except Exception as e:
         st.error(f"Error cargando DairyComp: {e}")
