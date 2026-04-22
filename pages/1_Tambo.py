@@ -386,7 +386,7 @@ with tab_prod:
             # ── Composición diaria — stacked area + UFC overlay ──────────────
             _c_hdr, _c_chk = st.columns([6, 1])
             _c_hdr.subheader("Composición de la leche (media móvil 7 días)")
-            _comp_stacked = _c_chk.checkbox("Acumulado", value=True, key="comp_stacked")
+            _comp_stacked = _c_chk.checkbox("Acumulado", value=False, key="comp_stacked")
 
             df_comp = df_dia[['fecha', 'grasa_r7', 'proteina_r7', 'sng_r7']].copy()
             df_comp['otros_r7'] = (df_comp['sng_r7'] - df_comp['proteina_r7']).clip(lower=0)
