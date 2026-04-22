@@ -405,10 +405,10 @@ with tab_prod:
                 fig_comp.add_trace(go.Scatter(
                     x=df_comp['fecha'], y=df_comp[col],
                     name=name,
-                    stackgroup='comp' if _comp_stacked else None,
-                    fill='tonexty' if not _comp_stacked else None,
-                    fillcolor=fillcol,
-                    line=dict(color=linecol, width=0.5 if _comp_stacked else 2),
+                    **(dict(stackgroup='comp', fillcolor=fillcol,
+                            line=dict(color=linecol, width=0.5))
+                       if _comp_stacked else
+                       dict(line=dict(color=linecol, width=2))),
                     mode='lines',
                     hovertemplate=htmpl + '<extra></extra>',
                 ))
