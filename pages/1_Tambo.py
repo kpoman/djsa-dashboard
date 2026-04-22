@@ -384,7 +384,9 @@ with tab_prod:
             st.divider()
 
             # ── Composición diaria — stacked area + UFC overlay ──────────────
-            st.subheader("Composición de la leche (media móvil 7 días)")
+            _c_hdr, _c_chk = st.columns([6, 1])
+            _c_hdr.subheader("Composición de la leche (media móvil 7 días)")
+            _comp_stacked = _c_chk.checkbox("Acumulado", value=True, key="comp_stacked")
 
             df_comp = df_dia[['fecha', 'grasa_r7', 'proteina_r7', 'sng_r7']].copy()
             df_comp['otros_r7'] = (df_comp['sng_r7'] - df_comp['proteina_r7']).clip(lower=0)
@@ -394,34 +396,22 @@ with tab_prod:
 
             fig_comp = go.Figure()
 
-            # Stacked area: orden de abajo a arriba = otros, proteina, grasa
-            fig_comp.add_trace(go.Scatter(
-                x=df_comp['fecha'], y=df_comp['otros_r7'],
-                name='Otros sólidos (%)',
-                stackgroup='comp',
-                fillcolor='rgba(90, 216, 166, 0.75)',
-                line=dict(color='rgba(90, 216, 166, 0.9)', width=0.5),
-                mode='lines',
-                hovertemplate='Otros sólidos: %{y:.2f}%<extra></extra>',
-            ))
-            fig_comp.add_trace(go.Scatter(
-                x=df_comp['fecha'], y=df_comp['proteina_r7'],
-                name='Proteína (%)',
-                stackgroup='comp',
-                fillcolor='rgba(91, 143, 249, 0.75)',
-                line=dict(color='rgba(91, 143, 249, 0.9)', width=0.5),
-                mode='lines',
-                hovertemplate='Proteína: %{y:.2f}%<extra></extra>',
-            ))
-            fig_comp.add_trace(go.Scatter(
-                x=df_comp['fecha'], y=df_comp['grasa_r7'],
-                name='Grasa butirosa (%)',
-                stackgroup='comp',
-                fillcolor='rgba(244, 165, 34, 0.75)',
-                line=dict(color='rgba(244, 165, 34, 0.9)', width=0.5),
-                mode='lines',
-                hovertemplate='Grasa: %{y:.2f}%<extra></extra>',
-            ))
+            _comp_traces = [
+                ('otros_r7',    'Otros sólidos (%)',  'rgba(90, 216, 166, 0.75)', 'rgba(90, 216, 166, 0.9)',  'Otros sólidos: %{y:.2f}%'),
+                ('proteina_r7', 'Proteína (%)',        'rgba(91, 143, 249, 0.75)', 'rgba(91, 143, 249, 0.9)',  'Proteína: %{y:.2f}%'),
+                ('grasa_r7',    'Grasa butirosa (%)',  'rgba(244, 165, 34, 0.75)', 'rgba(244, 165, 34, 0.9)',  'Grasa: %{y:.2f}%'),
+            ]
+            for col, name, fillcol, linecol, htmpl in _comp_traces:
+                fig_comp.add_trace(go.Scatter(
+                    x=df_comp['fecha'], y=df_comp[col],
+                    name=name,
+                    stackgroup='comp' if _comp_stacked else None,
+                    fill='tonexty' if not _comp_stacked else None,
+                    fillcolor=fillcol,
+                    line=dict(color=linecol, width=0.5 if _comp_stacked else 2),
+                    mode='lines',
+                    hovertemplate=htmpl + '<extra></extra>',
+                ))
 
             # UFC overlay — eje Y = UFC, tamaño del punto = células somáticas
             df_cs_raw = df_dia[df_dia['cs'] > 0][['fecha', 'cs']].copy()
