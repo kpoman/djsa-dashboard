@@ -1282,8 +1282,7 @@ else:
         zmin=0, zmax=1,
         showscale=True,
         colorbar=dict(
-            title='← meta     lejos →',
-            titleside='right',
+            title=dict(text='← meta / lejos →'),
             tickvals=[0, 0.5, 1],
             ticktext=['en meta', 'alerta', 'crítico'],
             len=0.6,
