@@ -824,18 +824,20 @@ with c4:
 # ═══════════════════════════════════════════════════════════════════════
 def _doc_kpi(titulo, descripcion, formula, umbrales, referencia, fuente, chart_key=None):
     """Renderiza un bloque de documentación con texto + gráfico opcional."""
-    ct, cc = st.columns([3, 2]) if chart_key and chart_key in charts else (st, None)
-    with ct:
-        st.markdown(f"**{titulo}**")
-        st.markdown(descripcion)
-        st.caption(f"📐 **Fórmula:** {formula}")
-        st.caption(f"🎯 **Umbrales:** {umbrales}")
-        st.caption(f"📚 **Referencia:** {referencia}")
-        st.caption(f"💾 **Fuente actual:** {fuente}")
-    if cc is not None:
-        with cc:
-            st.plotly_chart(charts[chart_key], use_container_width=True,
-                            key=f"doc_{chart_key}")
+    has_chart = chart_key and chart_key in charts
+    if has_chart:
+        ct, cc = st.columns([3, 2])
+    else:
+        ct, cc = st.container(), None
+    ct.markdown(f"**{titulo}**")
+    ct.markdown(descripcion)
+    ct.caption(f"📐 **Fórmula:** {formula}")
+    ct.caption(f"🎯 **Umbrales:** {umbrales}")
+    ct.caption(f"📚 **Referencia:** {referencia}")
+    ct.caption(f"💾 **Fuente actual:** {fuente}")
+    if has_chart:
+        cc.plotly_chart(charts[chart_key], use_container_width=True,
+                        key=f"doc_{chart_key}")
     st.divider()
 
 
