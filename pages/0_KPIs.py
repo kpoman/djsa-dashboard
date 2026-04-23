@@ -820,26 +820,177 @@ with c4:
     st.empty()
 
 # ═══════════════════════════════════════════════════════════════════════
-# Nota metodológica
+# Documentación de KPIs
 # ═══════════════════════════════════════════════════════════════════════
 st.divider()
-with st.expander("ℹ️ Metodología y fuentes"):
-    st.markdown(f"""
-| KPI | Fuente | Período | Metodología |
-|---|---|---|---|
-| LTVO | Parte diario | 30d hasta {ref_ctrl} | Promedio diaria_ltvo |
-| L305E | DairyComp controles | 12m | Promedio campo 305E |
-| Grasa / Proteína | calidad_leche.csv | 30d hasta {ref_cal} | Promedio diario (outliers filtrados) |
-| CS / UFC | calidad_leche.csv | 30d hasta {ref_cal} | Promedio días con medición |
-| TDC (collar) | DairyComp eventos | 12m hasta {ref_ev} | Vacas únicas con CELO / vacas con PARTO en 12m |
-| Tasa concepción | DairyComp eventos | 12m | Serv. con PREÑADA en 90d / total serv. elegibles (excl. últimos 60d sin diagnóstico) |
-| NS/P | DairyComp eventos | 12m | Promedio por vaca: INSEMIN entre PARTO y primera PREÑADA |
-| D1S | DairyComp eventos | 12m | Primer INSEMIN post-PARTO por vaca |
-| DV (días vacíos) | DairyComp eventos | 12m | (Fecha PREÑADA − 42d) − Fecha PARTO · resta lag de diagnóstico |
-| Tasa aborto | DairyComp eventos | 12m | Vacas únicas con ABORTO / (vacas únicas PREÑADA + ABORTO) |
-| Tasa mortandad | DairyComp eventos | 12m | MUERTA / vacas únicas × 100 |
-| Tasa descarte | DairyComp eventos | 12m | VENDIDA / vacas únicas × 100 |
-| Mastitis | DairyComp eventos | 12m | Vacas únicas con MAST / vacas únicas × 100 |
+with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
 
-*Fuente bibliográfica de umbrales: Piccardi, Bruno, Córdoba, Masía, Balzarini (2019) — CONICET / Editorial Brujas.*
-    """)
+    st.markdown("### 🥛 Producción")
+    st.markdown(f"""
+**LTVO — Litros por Vaca Ordeñada**
+Producción diaria promedio del rodeo por vaca efectivamente en ordeño (no incluye vacas secas).
+Es el indicador más directo de eficiencia productiva del tambo.
+- **Fórmula:** promedio de `diaria_ltvo` en los últimos 30 días
+- **Umbrales:** 🟢 ≥ 30 L · 🟡 26–30 L · 🔴 < 26 L
+- **Referencia:** benchmarks CREA Litoral (tambo intensivo, raza HF)
+- **Fuente actual:** Parte Diario (Google Sheets, actualización manual diaria) — hasta **{ref_ctrl}**
+
+---
+
+**L305E — Proyección a 305 días**
+Producción total proyectada de cada vaca al normalizar su lactancia a 305 días según el modelo
+de Wood (`y = a·t^b·e^(−c·t)`). Permite comparar vacas en distintos estadios de lactancia
+sobre una base común.
+- **Fórmula:** promedio del campo `305E` de controles lecheros DairyComp (últimos 12 meses)
+- **Umbrales:** 🟢 ≥ 10.000 L · 🟡 8.500–10.000 L · 🔴 < 8.500 L
+- **Referencia:** Piccardi et al. (2019), CONICET / Editorial Brujas
+- **Fuente actual:** `control-202604.csv` — exportación estática de DairyComp (actualizar manualmente)
+""")
+
+    st.markdown("### 🔬 Calidad de leche")
+    st.markdown(f"""
+**Grasa butirosa (%)**
+Porcentaje de grasa en la leche. Afecta directamente el precio pagado por industria y
+la calificación del tambo. Influenciado por alimentación (fibra efectiva), estado corporal y
+etapa de lactancia.
+- **Fórmula:** promedio diario de `grasa_butirosa` en últimos 30 días (outliers fisiológicos filtrados: 1–7 %)
+- **Umbrales:** 🟢 ≥ 3.2 % · 🟡 3.0–3.2 % · 🔴 < 3.0 %
+- **Referencia:** estándares SENASA / Piccardi et al. (2019)
+- **Fuente actual:** `calidad_leche.csv` — extraído de PDFs de análisis de leche (OCR + revisión manual con `limpiar_calidad.py`) — hasta **{ref_cal}**
+
+---
+
+**Proteína (%)**
+Porcentaje de proteína bruta en leche. Indicador de eficiencia en el uso de proteína dietaria.
+Valores bajos pueden indicar déficit energético o proteico en la dieta.
+- **Fórmula:** promedio diario de `proteina` en últimos 30 días (rango fisiológico: 2.5–5.0 %)
+- **Umbrales:** 🟢 ≥ 3.3 % · 🟡 3.1–3.3 % · 🔴 < 3.1 %
+- **Referencia:** Piccardi et al. (2019)
+- **Fuente actual:** `calidad_leche.csv` — misma fuente que grasa
+
+---
+
+**Células somáticas — SCC (cel/mL)**
+Recuento de células somáticas en leche. Indicador primario de salud de la ubre y mastitis
+subclínica. Valores elevados reducen precio, vida útil de la leche y producción futura.
+- **Fórmula:** promedio diario de `celulas_somaticas` (días sin dato = 0, interpretado como sin evento)
+- **Umbrales:** 🟢 < 250.000 · 🟡 250.000–400.000 · 🔴 > 400.000 cel/mL
+- **Referencia:** Reglamento 2687/SENASA; Schukken et al. (2003); Piccardi et al. (2019)
+- **Fuente actual:** `calidad_leche.csv`
+
+---
+
+**Recuento bacteriano — UFC (UFC/mL)**
+Unidades formadoras de colonias por mL. Indicador de higiene de ordeño, limpieza de equipos
+y cadena de frío. Valores altos implican multas o rechazo de leche.
+- **Fórmula:** promedio diario de `recuento_ufc` (días sin dato = 0)
+- **Umbrales:** 🟢 < 20.000 · 🟡 20.000–50.000 · 🔴 > 50.000 UFC/mL
+- **Referencia:** Resolución 2/2020 SENASA; Piccardi et al. (2019)
+- **Fuente actual:** `calidad_leche.csv`
+""")
+
+    st.markdown("### 🐄 Reproducción")
+    st.markdown(f"""
+**TDC — Tasa de Detección de Celo (%)**
+Porcentaje de vacas en producción con al menos un celo detectado en el período.
+Alta TDC indica buena expresión del celo (salud metabólica, balance energético) y
+eficacia del sistema de detección (collar de actividad).
+- **Fórmula:** vacas únicas con evento CELO / vacas únicas con PARTO en 12m × 100
+- **Umbrales:** 🟢 ≥ 90 % · 🟡 70–90 % · 🔴 < 70 %
+- **Referencia:** Cavestany & Galina (2002); benchmarks CREA
+- **Fuente actual:** `eventos-202604.csv` — exportación DairyComp (collares Afimilk/SCR) — hasta **{ref_ev}**
+
+---
+
+**TC — Tasa de Concepción (%)**
+Porcentaje de inseminaciones que resultan en preñez confirmada (diagnóstico positivo dentro
+de 90 días post-servicio). Refleja la fertilidad del rodeo, calidad del semen y manejo reproductivo.
+- **Fórmula:** servicios con PREÑADA dentro de 90d / total servicios elegibles × 100
+  *(se excluyen inseminaciones en los últimos 60 días sin tiempo suficiente para diagnóstico)*
+- **Umbrales:** 🟢 ≥ 51 % · 🟡 43–51 % · 🔴 < 43 %
+- **Referencia:** Piccardi et al. (2019); Lucy (2001) J. Dairy Sci.
+- **Fuente actual:** `eventos-202604.csv`
+
+---
+
+**NS/P — Número de servicios por preñez**
+Promedio de inseminaciones necesarias para lograr una preñez por vaca. Directamente
+relacionado con TC: NS/P ≈ 1 / TC. Valores altos aumentan costo reproductivo.
+- **Fórmula:** promedio de inseminaciones entre PARTO y primera PREÑADA, por vaca, en partos de 12m
+- **Umbrales:** 🟢 < 1.7 · 🟡 1.7–2.5 · 🔴 > 2.5
+- **Referencia:** Piccardi et al. (2019)
+- **Fuente actual:** `eventos-202604.csv`
+
+---
+
+**D1S — Días parto → primer servicio**
+Días transcurridos entre el parto y la primera inseminación. Refleja el período voluntario
+de espera (PVE) y la velocidad de recuperación reproductiva post-parto.
+- **Fórmula:** mediana de (fecha 1er INSEMIN − fecha PARTO) por vaca, partos en 12m
+- **Umbrales:** 🟢 < 60 d · 🟡 60–75 d · 🔴 > 75 d
+- **Referencia:** Risco & Melendez (2011); Piccardi et al. (2019)
+- **Fuente actual:** `eventos-202604.csv`
+
+---
+
+**DV — Días vacíos (estimado a concepción)**
+Días entre el parto y la concepción real estimada. DairyComp registra la fecha del
+*diagnóstico* de preñez, no la de la inseminación que resultó preñada. Se restan 42 días
+(lag estándar de diagnóstico a tacto) para estimar la fecha de concepción.
+- **Fórmula:** (fecha PREÑADA − 42d) − fecha PARTO · primer PREÑADA por vaca en 12m
+- **Umbrales:** 🟢 < 110 d · 🟡 110–140 d · 🔴 > 140 d
+- **Referencia:** Stevenson (2001); benchmarks CREA Litoral
+- **Fuente actual:** `eventos-202604.csv`
+
+---
+
+**TA — Tasa de aborto (%)**
+Porcentaje de gestaciones confirmadas que terminan en aborto. Puede indicar problemas
+sanitarios (BVD, leptospira, neospora) o nutricionales.
+- **Fórmula:** vacas únicas con ABORTO / (vacas únicas con PREÑADA + ABORTO) × 100 · en 12m
+- **Umbrales:** 🟢 < 3 % · 🟡 3–5 % · 🔴 > 5 %
+- **Referencia:** Gnemmi & Maraboli (2010); Piccardi et al. (2019)
+- **Fuente actual:** `eventos-202604.csv`
+
+---
+
+**TM — Tasa de mortandad (%) / TD — Tasa de descarte (%)**
+Proporción de vacas del rodeo que mueren o son vendidas en el año. La mortandad alta
+indica problemas sanitarios; el descarte elevado puede ser voluntario (selección genética)
+o forzado (salud, reproducción).
+- **Fórmula:** vacas únicas con MUERTA o VENDIDA / vacas únicas activas × 100 · en 12m
+- **Umbrales Mortandad:** 🟢 < 3 % · 🟡 3–5 % · 🔴 > 5 %
+- **Umbrales Descarte:** 🟢 < 20 % · 🟡 20–30 % · 🔴 > 30 %
+- **Referencia:** Hadley et al. (2006); Piccardi et al. (2019)
+- **Fuente actual:** `eventos-202604.csv`
+""")
+
+    st.markdown("### 💊 Sanidad")
+    st.markdown(f"""
+**Incidencia de mastitis (% vacas)**
+Porcentaje de vacas que presentaron al menos un evento de mastitis clínica registrado
+en DairyComp en los últimos 12 meses. Complementa el SCC (mastitis subclínica).
+- **Fórmula:** vacas únicas con evento MAST / vacas únicas activas × 100 · en 12m
+- **Umbrales:** 🟢 < 15 % · 🟡 15–25 % · 🔴 > 25 %
+- **Referencia:** Schukken et al. (2003); Piccardi et al. (2019)
+- **Fuente actual:** `eventos-202604.csv` — DairyComp, registros de tratamientos
+
+---
+
+**📚 Bibliografía de referencia para umbrales**
+- Piccardi M., Bruno O., Córdoba M., Masía G., Balzarini M. (2019). *Indicadores de eficiencia en tambos argentinos.* CONICET / Editorial Brujas, Córdoba.
+- Lucy M.C. (2001). Reproductive loss in high-producing dairy cattle. *J. Dairy Sci.* 84:1277–1293.
+- Schukken Y.H. et al. (2003). Monitoring udder health. *Prev. Vet. Med.* 61:75–93.
+- Stevenson J.S. (2001). Reproductive management of dairy cows. *J. Dairy Sci.* 84(E. Suppl.):E128–E143.
+
+**💾 Resumen de fuentes de datos actuales**
+
+| Fuente | Tipo | Cobertura | Actualización |
+|---|---|---|---|
+| Parte Diario | Google Sheets (pub) | hasta {ref_ctrl} | Manual, diaria |
+| DairyComp eventos | CSV estático (`eventos-202604.csv`) | hasta {ref_ev} | Manual, exportar de DairyComp |
+| DairyComp controles | CSV estático (`control-202604.csv`) | hasta {ref_ctrl} | Manual, exportar de DairyComp |
+| Calidad de leche | CSV estático (`calidad_leche.csv`) | hasta {ref_cal} | Manual, desde PDFs del laboratorio |
+| Tipo de cambio USD/ARS | CSV estático (`usdars.csv`) | histórico 2010–2026 | Actualización periódica |
+""")
+
