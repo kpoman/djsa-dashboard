@@ -738,57 +738,69 @@ def _make_mini_charts():
 @st.cache_data(ttl=3600, show_spinner=False)
 def _build_semaforo_hist():
     """
-    Devuelve (df_wide, df_vals) donde:
-      df_wide  — matriz indicadores × Periodo con valores 0/1/2/3
-                 (0=sin dato gris, 1=verde, 2=amarillo, 3=rojo)
-      df_vals  — misma forma pero con el valor numérico real para el hover
+    Devuelve (mat_score, mat_vals):
+      mat_score — matriz indicadores × Periodo con scores continuos 0.0–1.0
+                  (0 = en meta / verde puro · 1 = muy lejos de meta / rojo puro
+                   NaN = sin dato)
+      mat_vals  — misma forma con el valor numérico real (para hover)
+
+    Normalización: el umbral 'good' mapea a 0.0 y el umbral 'warn' a 0.5.
+    El punto 'bad' (2·warn − good) mapea a 1.0; valores peores se clampean a 1.0.
     """
-    # Codificación: 0=sin dato, 1=verde, 2=amarillo, 3=rojo
-    def _s(val, good, warn, invert=False):
-        if val is None or (isinstance(val, float) and np.isnan(val)):
-            return 0
-        if not invert:
-            if val >= good: return 1
-            if val >= warn: return 2
-            return 3
-        else:
-            if val <= good: return 1
-            if val <= warn: return 2
-            return 3
 
-    def _s_rng(val, lo_g, hi_g, lo_a, hi_a):
-        """Verde si en rango bueno, amarillo si en rango tolerable, rojo fuera."""
+    def _ns_hi(val, good, warn):
+        """Mayor es mejor. good→0.0, warn→0.5, 2·warn−good→1.0"""
         if val is None or (isinstance(val, float) and np.isnan(val)):
-            return 0
-        if lo_g <= val <= hi_g: return 1
-        if lo_a <= val <= hi_a: return 2
-        return 3
+            return np.nan
+        if good <= warn:   # degenerate
+            return np.nan
+        bad = 2 * warn - good
+        return float(np.clip((good - val) / (good - bad), 0.0, 1.0))
 
-    rows_s = []   # status
-    rows_v = []   # valor real
+    def _ns_lo(val, good, warn):
+        """Menor es mejor. good→0.0, warn→0.5, 2·warn−good→1.0"""
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return np.nan
+        if warn <= good:   # degenerate
+            return np.nan
+        bad = 2 * warn - good
+        return float(np.clip((val - good) / (bad - good), 0.0, 1.0))
+
+    def _ns_rng(val, lo_g, hi_g, lo_a, hi_a):
+        """Rango óptimo [lo_g, hi_g]. Distancia normalizada desde el borde del rango."""
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return np.nan
+        if lo_g <= val <= hi_g:
+            return 0.0
+        if val < lo_g:
+            span = max(lo_g - lo_a, 0.01)
+            return float(np.clip((lo_g - val) / span, 0.0, 1.0))
+        span = max(hi_a - hi_g, 0.01)
+        return float(np.clip((val - hi_g) / span, 0.0, 1.0))
+
+    rows_sc = []   # score continuo
+    rows_v  = []   # valor real
+
+    def _add(p, lbl, val, score):
+        rows_sc.append({'Periodo': p, 'indicador': lbl, 'score': score})
+        rows_v.append( {'Periodo': p, 'indicador': lbl, 'valor': val})
 
     # ── CREA (mensual) ──────────────────────────────────────────────────
     try:
         dc = _load_crea()
         for _, r in dc.iterrows():
             p = r['Periodo']
-
             def _rv(col):
                 v = r.get(col)
                 return float(v) if v is not None and not pd.isna(v) else np.nan
 
-            entries = [
-                ('% VO/VT',        _rv('_pct_VO_VT'),      _s(_rv('_pct_VO_VT'),     75, 65)),
-                ('Tasa parición',  _rv('_tasa_paricion'),   _s(_rv('_tasa_paricion'), 82, 75)),
-                ('Días en leche',  _rv('Dias Lactancia'),   _s_rng(_rv('Dias Lactancia'), 150,175, 140,190)),
-                ('Mort. perinatal',_rv('_mort_perinatal'),  _s(_rv('_mort_perinatal'), 5,  8,  invert=True)),
-                ('Mort. adultas',  _rv('_mort_adultas'),    _s(_rv('_mort_adultas'),   3,  5.7,invert=True)),
-                ('Mort. guachera', _rv('_mort_guachera'),   _s(_rv('_mort_guachera'),  8,  10.3,invert=True)),
-                ('Tasa abortos',   _rv('_tasa_abortos'),    _s(_rv('_tasa_abortos'),   3,  5,  invert=True)),
-            ]
-            for lbl, val, st_ in entries:
-                rows_s.append({'Periodo': p, 'indicador': lbl, 'status': st_})
-                rows_v.append({'Periodo': p, 'indicador': lbl, 'valor':  val})
+            _add(p, '% VO/VT',        _rv('_pct_VO_VT'),    _ns_hi(_rv('_pct_VO_VT'),    75,  65))
+            _add(p, 'Tasa parición',  _rv('_tasa_paricion'), _ns_hi(_rv('_tasa_paricion'),82,  75))
+            _add(p, 'Días en leche',  _rv('Dias Lactancia'), _ns_rng(_rv('Dias Lactancia'),150,175,140,190))
+            _add(p, 'Mort. perinatal',_rv('_mort_perinatal'),_ns_lo(_rv('_mort_perinatal'),5,   8))
+            _add(p, 'Mort. adultas',  _rv('_mort_adultas'),  _ns_lo(_rv('_mort_adultas'),  3,   5.7))
+            _add(p, 'Mort. guachera', _rv('_mort_guachera'), _ns_lo(_rv('_mort_guachera'), 8,  10.3))
+            _add(p, 'Tasa abortos',   _rv('_tasa_abortos'),  _ns_lo(_rv('_tasa_abortos'),  3,   5))
     except Exception:
         pass
 
@@ -804,15 +816,10 @@ def _build_semaforo_hist():
         ).reset_index()
         for _, r in df_mes_cal.iterrows():
             p = r['Periodo']
-            entries = [
-                ('Grasa (%)',   r['grasa'],    _s(r['grasa'],    3.2, 3.0)),
-                ('Proteína (%)',r['proteina'], _s(r['proteina'], 3.3, 3.1)),
-                ('CS (k/mL)',   r['cs']/1000 if not np.isnan(r['cs']) else np.nan,
-                 _s(r['cs'], 250_000, 400_000, invert=True)),
-            ]
-            for lbl, val, st_ in entries:
-                rows_s.append({'Periodo': p, 'indicador': lbl, 'status': st_})
-                rows_v.append({'Periodo': p, 'indicador': lbl, 'valor':  val})
+            cs_k = r['cs'] / 1000 if not np.isnan(r['cs']) else np.nan
+            _add(p, 'Grasa (%)',    r['grasa'],    _ns_hi(r['grasa'],    3.2, 3.0))
+            _add(p, 'Proteína (%)', r['proteina'], _ns_hi(r['proteina'], 3.3, 3.1))
+            _add(p, 'CS (k/mL)',    cs_k,          _ns_lo(r['cs'], 250_000, 400_000))
     except Exception:
         pass
 
@@ -822,71 +829,60 @@ def _build_semaforo_hist():
         df_ev_dc['Periodo'] = df_ev_dc['Fecha'].dt.to_period('M').dt.to_timestamp()
         max_ev_dc = df_ev_dc['Fecha'].max()
         cutoff_dc = max_ev_dc - pd.Timedelta(days=60)
-
-        df_p_dc  = df_ev_dc[df_ev_dc['Evento']=='PARTO'  ][['ID','Fecha']].rename(columns={'Fecha':'FP'})
         df_i_dc  = df_ev_dc[df_ev_dc['Evento']=='INSEMIN'][['ID','Fecha']].rename(columns={'Fecha':'FI'})
         df_pr_dc = df_ev_dc[df_ev_dc['Evento']=='PREÑADA'][['ID','Fecha']].rename(columns={'Fecha':'FPrena'})
 
-        meses_dc = sorted(df_ev_dc['Periodo'].unique())
-        for mes in meses_dc:
+        for mes in sorted(df_ev_dc['Periodo'].unique()):
             win_start = mes - pd.DateOffset(months=2)
 
-            # TC (ventana 3m, sin diagnósticos recientes)
+            # TC — ventana 3m, excluir diagnósticos pendientes
             df_i_w = df_i_dc[(df_i_dc['FI'] >= win_start) &
                               (df_i_dc['FI'] <= mes) &
                               (df_i_dc['FI'] < cutoff_dc)]
             if len(df_i_w) >= 8:
                 m = pd.merge(df_i_w, df_pr_dc, on='ID')
-                m = m[(m['FPrena']>m['FI']) & (m['FPrena']<=m['FI']+pd.Timedelta(days=90))]
+                m = m[(m['FPrena'] > m['FI']) &
+                      (m['FPrena'] <= m['FI'] + pd.Timedelta(days=90))]
                 tc_val = m.drop_duplicates(['ID','FI']).shape[0] / len(df_i_w) * 100
-                st_tc = _s(tc_val, 51, 43)
-                rows_s.append({'Periodo': mes, 'indicador': 'TC (%)', 'status': st_tc})
-                rows_v.append({'Periodo': mes, 'indicador': 'TC (%)', 'valor':  tc_val})
+                _add(mes, 'TC (%)', tc_val, _ns_hi(tc_val, 51, 43))
 
-            # Mort. rodeo mensual (solo conteo del mes puntual)
+            # Mort. rodeo — conteo mensual puntual
             df_m = df_ev_dc[df_ev_dc['Periodo'] == mes]
-            n_id  = df_m['ID'].nunique()
-            n_mu  = (df_m['Evento'] == 'MUERTA').sum()
+            n_id = df_m['ID'].nunique()
+            n_mu = (df_m['Evento'] == 'MUERTA').sum()
             if n_id >= 10:
                 mort_val = n_mu / n_id * 100
-                st_mort = _s(mort_val, 0.5, 1.0, invert=True)  # umbral mensual ~<0.5%/mes
-                rows_s.append({'Periodo': mes, 'indicador': 'Mort. rodeo/mes', 'status': st_mort})
-                rows_v.append({'Periodo': mes, 'indicador': 'Mort. rodeo/mes', 'valor':  mort_val})
+                _add(mes, 'Mort. rodeo/mes', mort_val, _ns_lo(mort_val, 0.5, 1.0))
     except Exception:
         pass
 
-    if not rows_s:
+    if not rows_sc:
         return None, None
 
-    df_s = pd.DataFrame(rows_s)
-    df_v = pd.DataFrame(rows_v)
+    df_sc = pd.DataFrame(rows_sc)
+    df_v  = pd.DataFrame(rows_v)
 
-    # Pivotar a matriz indicadores × tiempo
-    # Ordenar indicadores por categoría lógica
     _ORDEN = [
         '% VO/VT', 'Tasa parición', 'Días en leche',
         'TC (%)', 'Mort. perinatal', 'Tasa abortos',
         'Mort. adultas', 'Mort. guachera', 'Mort. rodeo/mes',
         'Grasa (%)', 'Proteína (%)', 'CS (k/mL)',
     ]
-    indicadores = [i for i in _ORDEN if i in df_s['indicador'].unique()]
-    # Agregar cualquier indicador no listado al final
-    extra = [i for i in df_s['indicador'].unique() if i not in indicadores]
-    indicadores += extra
+    indicadores = [i for i in _ORDEN if i in df_sc['indicador'].unique()]
+    indicadores += [i for i in df_sc['indicador'].unique() if i not in indicadores]
+    periodos = sorted(df_sc['Periodo'].unique())
 
-    periodos = sorted(df_s['Periodo'].unique())
+    mat_sc = pd.DataFrame(np.nan, index=indicadores, columns=periodos)
+    mat_v  = pd.DataFrame(np.nan, index=indicadores, columns=periodos)
 
-    mat_s = pd.DataFrame(0, index=indicadores, columns=periodos)
-    mat_v = pd.DataFrame(np.nan, index=indicadores, columns=periodos)
-
-    for _, row in df_s.iterrows():
-        if row['indicador'] in mat_s.index:
-            mat_s.loc[row['indicador'], row['Periodo']] = row['status']
+    for _, row in df_sc.iterrows():
+        if row['indicador'] in mat_sc.index:
+            mat_sc.loc[row['indicador'], row['Periodo']] = row['score']
     for _, row in df_v.iterrows():
         if row['indicador'] in mat_v.index:
             mat_v.loc[row['indicador'], row['Periodo']] = row['valor']
 
-    return mat_s, mat_v
+    return mat_sc, mat_v
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
@@ -1237,15 +1233,15 @@ else:
     mat_f = mat_s[_sel_cols]
     val_f = mat_v[_sel_cols]
 
-    # Colorscale discreta: 0=gris, 1=verde, 2=amarillo, 3=rojo
+    # Colorscale continua verde→amarillo→naranja→rojo (zmin=0, zmax=1)
     _CS = [
-        [0.00, '#d0d0d0'], [0.249, '#d0d0d0'],   # sin dato
-        [0.25, '#28a745'], [0.499, '#28a745'],    # verde
-        [0.50, '#ffc107'], [0.749, '#ffc107'],    # amarillo
-        [0.75, '#dc3545'], [1.000, '#dc3545'],    # rojo
+        [0.00, '#27ae60'],  # verde puro  — en meta
+        [0.35, '#f1c40f'],  # amarillo    — zona de alerta
+        [0.65, '#e67e22'],  # naranja     — alejándose
+        [1.00, '#c0392b'],  # rojo oscuro — muy lejos de meta
     ]
 
-    # Texto para hover: valor real formateado
+    # Hover con valor real
     _UNITS = {
         '% VO/VT': '%', 'Tasa parición': '%', 'Días en leche': 'd',
         'TC (%)': '%', 'Mort. perinatal': '%', 'Tasa abortos': '%',
@@ -1257,61 +1253,73 @@ else:
         row_txt = []
         unit = _UNITS.get(ind, '')
         for p in _sel_cols:
-            v = val_f.loc[ind, p]
-            s = mat_f.loc[ind, p]
-            lbl = {0: 's/d', 1: '✓', 2: '⚠', 3: '✗'}.get(s, '')
-            if np.isnan(v):
+            v   = val_f.loc[ind, p]
+            sc  = mat_f.loc[ind, p]
+            if np.isnan(v) or np.isnan(sc):
                 row_txt.append(f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>sin dato")
             else:
                 dec = 0 if unit == 'd' else 1
+                pct_meta = int((1 - sc) * 100)
                 row_txt.append(
                     f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>"
-                    f"{v:.{dec}f} {unit}  {lbl}"
+                    f"valor: {v:.{dec}f} {unit}<br>"
+                    f"cercanía a meta: {pct_meta} %"
                 )
         hover_text.append(row_txt)
 
     x_labels = [pd.Timestamp(p).strftime('%b %y') for p in _sel_cols]
 
+    # Reemplazar NaN por None para que Plotly los muestre en gris
+    z_vals = mat_f.where(mat_f.notna(), other=None).values.tolist()
+
     fig_sem = go.Figure(go.Heatmap(
-        z=mat_f.values.tolist(),
+        z=z_vals,
         x=x_labels,
         y=list(mat_f.index),
         text=hover_text,
         hovertemplate='%{text}<extra></extra>',
         colorscale=_CS,
-        zmin=0, zmax=3,
-        showscale=False,
+        zmin=0, zmax=1,
+        showscale=True,
+        colorbar=dict(
+            title='← meta     lejos →',
+            titleside='right',
+            tickvals=[0, 0.5, 1],
+            ticktext=['en meta', 'alerta', 'crítico'],
+            len=0.6,
+        ),
         xgap=2, ygap=2,
     ))
 
-    # Línea separadora entre grupos de indicadores
-    _SEPARADORES = ['TC (%)', 'Grasa (%)']  # después de estos cambia de categoría
+    # Separadores visuales entre grupos
+    _SEPARADORES = ['TC (%)', 'Grasa (%)']
     for sep_ind in _SEPARADORES:
         if sep_ind in list(mat_f.index):
             idx_sep = list(mat_f.index).index(sep_ind)
             fig_sem.add_hline(
                 y=idx_sep + 0.5,
-                line_width=2, line_color='rgba(255,255,255,0.6)',
+                line_width=2, line_color='rgba(255,255,255,0.5)',
                 line_dash='dot',
             )
 
-    _h = max(300, len(mat_f.index) * 38 + 80)
+    _h = max(320, len(mat_f.index) * 40 + 80)
     fig_sem.update_layout(
         height=_h,
-        margin=dict(t=20, b=60, l=160, r=20),
+        margin=dict(t=20, b=60, l=160, r=120),
         xaxis=dict(side='bottom', tickangle=-45, tickfont=dict(size=10)),
         yaxis=dict(tickfont=dict(size=11), autorange='reversed'),
-        plot_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(128,128,128,0.08)',
         paper_bgcolor='rgba(0,0,0,0)',
     )
     st.plotly_chart(fig_sem, use_container_width=True, key='semaforo_hist')
 
-    # Leyenda manual (Plotly no muestra leyenda en Heatmap discreto)
     st.caption(
-        "⬜ sin dato &nbsp;|&nbsp; "
-        '<span style="color:#28a745">■</span> verde — objetivo cumplido &nbsp;|&nbsp; '
-        '<span style="color:#ffc107">■</span> amarillo — alerta &nbsp;|&nbsp; '
-        '<span style="color:#dc3545">■</span> rojo — fuera de rango',
+        "⬜ gris = sin dato · "
+        '<span style="color:#27ae60">■</span> verde = en meta · '
+        '<span style="color:#f1c40f">■</span> amarillo = alerta · '
+        '<span style="color:#e67e22">■</span> naranja = alejándose · '
+        '<span style="color:#c0392b">■</span> rojo = crítico — '
+        'el color es proporcional a la distancia al objetivo, no un umbral fijo',
         unsafe_allow_html=True,
     )
 
