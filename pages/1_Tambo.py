@@ -139,6 +139,31 @@ def _get_datos_crea():
 
     df_clean['Ano'] = df_clean['Ano'].astype(int)
     df_clean['Periodo'] = pd.to_datetime({'year': df_clean['Ano'], 'month': df_clean['Mes'], 'day': 1})
+
+    # ── Variables derivadas (indicadores de gestión) ─────────────────────────
+    def _spct(num_col, den_col):
+        """Cociente num/den × 100, devuelve None si alguna columna falta."""
+        if num_col not in df_clean.columns or den_col not in df_clean.columns:
+            return None
+        num = pd.to_numeric(df_clean[num_col], errors='coerce')
+        den = pd.to_numeric(df_clean[den_col], errors='coerce').replace(0, np.nan)
+        return (num / den * 100).round(2)
+
+    _derived = [
+        ('_pct_VO_VT',       'VO',               'VT'),
+        ('_mort_perinatal',  'Partos Muertos',    'Partos Totales'),
+        ('_mort_adultas',    'Muertes',           'VT'),
+        ('_mort_guachera',   'Muertes guachera',  'Hembras nacidas'),
+        ('_mort_recria',     'Muertes Recria',    'Hembras nacidas'),
+        ('_tasa_paricion',   'Partos Totales',    'VT'),
+        ('_pct_hembras',     'Hembras nacidas',   'Partos Totales'),
+        ('_tasa_abortos',    'Abortos',           'VT'),
+    ]
+    for new_col, num_c, den_c in _derived:
+        v = _spct(num_c, den_c)
+        if v is not None:
+            df_clean[new_col] = v
+
     return df_clean
 
 
@@ -943,6 +968,83 @@ with tab_crea:
                    '#c050e8', '#ff9f40', '#00c0c7', '#e8825a']
         MESES_STR = ['Ene','Feb','Mar','Abr','May','Jun',
                      'Jul','Ago','Sep','Oct','Nov','Dic']
+
+        # ── KPIs del mes más reciente ────────────────────────────────────────
+        # Definición: (col, label, unit, meta_lo, meta_hi, dir, referencia)
+        # dir: 'up' = mayor es mejor, 'down' = menor es mejor, None = rango óptimo
+        _KPI_DEFS = [
+            ('_pct_VO_VT',      '% VO/VT',           '%',   75,  None, 'up',
+             'Meta ≥75 % · INTA EEA Rafaela'),
+            ('Dias Lactancia',  'Días en lactancia',  'd',  150,   175, None,
+             'Meta 150–175 d · Piccardi (2014) CONICET, 291 tambos SF+Córdoba'),
+            ('_tasa_paricion',  'Tasa parición',      '%',   80,  None, 'up',
+             'Meta ≥80 % · INTA Enc. Lechera 2018–19: media 82.7 %'),
+            ('_mort_perinatal', 'Mort. perinatal',    '%',  None,   5, 'down',
+             'Meta <5 % · Piccardi (2014) CONICET'),
+            ('_mort_adultas',   'Mort. adultas',      '%',  None, 5.7, 'down',
+             'Meta <5.7 % · INTA Enc. Lechera 2018–19: media 5.7 %'),
+            ('_mort_guachera',  'Mort. guachera',     '%',  None,  10, 'down',
+             'Meta <10 % · INTA Enc. Lechera 2018–19: media 10.3 %'),
+            ('_tasa_abortos',   'Tasa abortos',       '%',  None,   3, 'down',
+             'Meta <3 % · referencia de manejo'),
+            ('_pct_hembras',    '% hembras nacidas',  '%',   47,  53, None,
+             'Esperado 48–52 % (50 % biológico esperado)'),
+        ]
+
+        ult_per = df_crea['Periodo'].max()
+        row_ult = df_crea[df_crea['Periodo'] == ult_per]
+        row_pen = df_crea[df_crea['Periodo'] < ult_per].sort_values('Periodo').tail(1)
+
+        kpis_visibles = [
+            kd for kd in _KPI_DEFS
+            if kd[0] in df_crea.columns
+            and not row_ult[kd[0]].isna().all()
+        ]
+
+        if kpis_visibles and not row_ult.empty:
+            st.subheader(f"Indicadores clave — {ult_per.strftime('%b %Y')}")
+            st.caption(
+                "Comparación con mes anterior · "
+                "🟢 dentro del objetivo · 🔴 fuera del objetivo · ⚪ sin meta definida"
+            )
+            n_cols = 4
+            grid = [kpis_visibles[i:i + n_cols] for i in range(0, len(kpis_visibles), n_cols)]
+            for fila in grid:
+                cols_kpi = st.columns(n_cols)
+                for j, (col, label, unit, meta_lo, meta_hi, direction, ref) in enumerate(fila):
+                    val_raw  = row_ult[col].values[0]
+                    val      = float(val_raw)  if not pd.isna(val_raw) else None
+                    prev_raw = row_pen[col].values[0] if not row_pen.empty else None
+                    val_prev = float(prev_raw) if (prev_raw is not None and not pd.isna(prev_raw)) else None
+
+                    if val is None:
+                        continue
+
+                    # Estado semáforo
+                    if direction == 'up' and meta_lo is not None:
+                        good = val >= meta_lo
+                    elif direction == 'down' and meta_hi is not None:
+                        good = val <= meta_hi
+                    elif meta_lo is not None and meta_hi is not None:
+                        good = meta_lo <= val <= meta_hi
+                    else:
+                        good = None
+                    icon = '🟢' if good is True else ('🔴' if good is False else '⚪')
+
+                    delta_str = (
+                        f"{val - val_prev:+.1f} {unit}"
+                        if val_prev is not None else None
+                    )
+
+                    with cols_kpi[j]:
+                        st.metric(
+                            f"{icon} {label}",
+                            f"{val:.1f} {unit}",
+                            delta=delta_str,
+                        )
+                        st.caption(f"📚 {ref}")
+
+            st.divider()
 
         sub_exp, sub_seas, sub_tend = st.tabs([
             "🔍 Explorador", "📅 Estacionalidad", "📈 Tendencia"

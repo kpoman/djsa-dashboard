@@ -18,6 +18,11 @@ URL_ALIMENTACION = (
     "2PACX-1vSfp0TxyH1dX_7GWU-waeQRqk9cs1ynSsPYq49g4tyIjXTRuQHODOOiLl69b2Zwlx-lB_bGor9Qotp1"
     "/pub?output=xlsx"
 )
+URL_DATOS_CREA = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vTaYOZHAcL06SuvN7VPwASlZ4G5-w6zBn8G4ucjXZCtGvGYgfFBIvBGVUmIyWkfPMN4lTKW9yBOSzSa"
+    "/pub?output=xlsx"
+)
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -168,6 +173,57 @@ def _load_alimentacion():
         return {'dietas': df_d, 'prod': df_p, 'tc': tc_daily}
     except Exception:
         return None
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _load_crea():
+    """Carga planilla CREA y calcula indicadores derivados."""
+    df_raw = pd.read_excel(URL_DATOS_CREA, header=None, sheet_name=None)
+    df_dc = df_raw['datos crea'].transpose()
+    columns = df_dc.iloc[0][:35].to_list()
+    columns[0] = 'Ano'
+    columns[1] = 'Mes'
+    df = df_dc.drop(range(35, 49), axis=1).set_axis(columns, axis=1)
+    df.drop(0, axis=0, inplace=True)
+    df['Ano'] = df['Ano'].ffill()
+    df['Ano'] = df['Ano'].astype('Int64')
+    df.dropna(subset=['Mes'], inplace=True)
+    df['Mes'] = pd.to_datetime(df['Mes'], errors='coerce')
+    df.dropna(subset=['Mes'], inplace=True)
+    df['Mes'] = df['Mes'].apply(lambda x: x.month)
+    df = df[df['VT'] > 0]
+    if df.shape[1] > 33:
+        df.drop(df.columns[33], axis=1, inplace=True)
+
+    num_cols = ['Partos de vaca:', 'Partos de vaq.', 'Partos Totales', 'Partos Muertos',
+                'VO', 'VS', 'VT', 'Muertes', 'Bajas Adultas', 'Dias Lactancia',
+                'Abortos', 'Hembras nacidas', 'Muertes guachera', 'Muertes Recria']
+    for c in num_cols:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+
+    df['Ano'] = df['Ano'].astype(int)
+    df['Periodo'] = pd.to_datetime({'year': df['Ano'], 'month': df['Mes'], 'day': 1})
+
+    def _spct(n, d):
+        if n not in df.columns or d not in df.columns:
+            return None
+        return (df[n] / df[d].replace(0, np.nan) * 100).round(2)
+
+    for col, nc, dc in [
+        ('_pct_VO_VT',      'VO',               'VT'),
+        ('_mort_perinatal', 'Partos Muertos',    'Partos Totales'),
+        ('_mort_adultas',   'Muertes',           'VT'),
+        ('_mort_guachera',  'Muertes guachera',  'Hembras nacidas'),
+        ('_tasa_paricion',  'Partos Totales',    'VT'),
+        ('_pct_hembras',    'Hembras nacidas',   'Partos Totales'),
+        ('_tasa_abortos',   'Abortos',           'VT'),
+    ]:
+        v = _spct(nc, dc)
+        if v is not None:
+            df[col] = v
+
+    return df.sort_values('Periodo').reset_index(drop=True)
 
 
 # ── Cálculo KPIs ─────────────────────────────────────────────────────────────
@@ -348,6 +404,31 @@ def _calc():
             k['alim_ok'] = True
     except Exception:
         pass
+
+    # ── CREA — indicadores de gestión del rodeo ───────────────────────────
+    try:
+        df_crea = _load_crea()
+        ult_per = df_crea['Periodo'].max()
+        row_c = df_crea[df_crea['Periodo'] == ult_per].iloc[0]
+        k['ref_crea'] = ult_per.strftime('%b %Y')
+
+        _KPI_MAP = {
+            '_pct_VO_VT':      'crea_pct_vo_vt',
+            '_tasa_paricion':  'crea_tasa_paricion',
+            '_mort_perinatal': 'crea_mort_perinatal',
+            '_mort_adultas':   'crea_mort_adultas',
+            '_mort_guachera':  'crea_mort_guachera',
+            '_tasa_abortos':   'crea_tasa_abortos',
+            '_pct_hembras':    'crea_pct_hembras',
+            'Dias Lactancia':  'crea_del',
+        }
+        for df_col, k_key in _KPI_MAP.items():
+            if df_col in df_crea.columns:
+                val = row_c.get(df_col)
+                if val is not None and not pd.isna(val):
+                    k[k_key] = float(val)
+    except Exception as e:
+        k['err_crea'] = str(e)
 
     return k
 
@@ -611,7 +692,201 @@ def _make_mini_charts():
         ))
         charts['mast'] = _mini_layout(fig, 'Vacas con mastitis por mes')
 
+    # ══ CREA — indicadores de gestión del rodeo ═══════════════════════════
+    try:
+        df_crea = _load_crea()
+        ult_crea = df_crea['Periodo'].max()
+        df_c24 = df_crea[df_crea['Periodo'] >= ult_crea - pd.DateOffset(months=24)].copy()
+
+        _CREA_CHRT = [
+            # (col_df,          chart_key,             título,                    color,   meta_lo, meta_hi)
+            ('_pct_VO_VT',      'crea_pct_vo_vt',      '% VO/VT — 24m',          AZUL,    75,  None),
+            ('_tasa_paricion',  'crea_tasa_paricion',  'Tasa parición % — 24m',   VERDE,   80,  None),
+            ('_mort_perinatal', 'crea_mort_perinatal', 'Mort. perinatal % — 24m', ROJO,    None, 5),
+            ('_mort_adultas',   'crea_mort_adultas',   'Mort. adultas % — 24m',   ROJO,    None, 5.7),
+            ('_mort_guachera',  'crea_mort_guachera',  'Mort. guachera % — 24m',  NARANJA, None, 10),
+            ('_tasa_abortos',   'crea_tasa_abortos',   'Tasa abortos % — 24m',    ROJO,    None, 3),
+            ('Dias Lactancia',  'crea_del',            'Días en lactancia — 24m', AZUL,    150,  175),
+            ('_pct_hembras',    'crea_pct_hembras',    '% hembras nacidas — 24m', VERDE,   None, None),
+        ]
+
+        for df_col, chart_key, titulo, color, meta_lo, meta_hi in _CREA_CHRT:
+            if df_col not in df_c24.columns:
+                continue
+            serie = df_c24[['Periodo', df_col]].dropna(subset=[df_col])
+            if serie.empty:
+                continue
+            fig = go.Figure(go.Bar(
+                x=serie['Periodo'], y=serie[df_col],
+                marker_color=color,
+                hovertemplate='%{x|%b %Y}<br>%{y:.1f}<extra></extra>',
+            ))
+            if meta_lo is not None:
+                fig.add_hline(y=meta_lo, line_dash='dot', line_color=VERDE, line_width=1,
+                              annotation_text=f'{meta_lo}', annotation_font_size=9)
+            if meta_hi is not None:
+                fig.add_hline(y=meta_hi, line_dash='dot', line_color=ROJO, line_width=1,
+                              annotation_text=f'{meta_hi}', annotation_font_size=9)
+            charts[chart_key] = _mini_layout(fig, titulo)
+    except Exception:
+        pass
+
     return charts
+
+
+# ── Semáforo histórico ────────────────────────────────────────────────────────
+@st.cache_data(ttl=3600, show_spinner=False)
+def _build_semaforo_hist():
+    """
+    Devuelve (df_wide, df_vals) donde:
+      df_wide  — matriz indicadores × Periodo con valores 0/1/2/3
+                 (0=sin dato gris, 1=verde, 2=amarillo, 3=rojo)
+      df_vals  — misma forma pero con el valor numérico real para el hover
+    """
+    # Codificación: 0=sin dato, 1=verde, 2=amarillo, 3=rojo
+    def _s(val, good, warn, invert=False):
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return 0
+        if not invert:
+            if val >= good: return 1
+            if val >= warn: return 2
+            return 3
+        else:
+            if val <= good: return 1
+            if val <= warn: return 2
+            return 3
+
+    def _s_rng(val, lo_g, hi_g, lo_a, hi_a):
+        """Verde si en rango bueno, amarillo si en rango tolerable, rojo fuera."""
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return 0
+        if lo_g <= val <= hi_g: return 1
+        if lo_a <= val <= hi_a: return 2
+        return 3
+
+    rows_s = []   # status
+    rows_v = []   # valor real
+
+    # ── CREA (mensual) ──────────────────────────────────────────────────
+    try:
+        dc = _load_crea()
+        for _, r in dc.iterrows():
+            p = r['Periodo']
+
+            def _rv(col):
+                v = r.get(col)
+                return float(v) if v is not None and not pd.isna(v) else np.nan
+
+            entries = [
+                ('% VO/VT',        _rv('_pct_VO_VT'),      _s(_rv('_pct_VO_VT'),     75, 65)),
+                ('Tasa parición',  _rv('_tasa_paricion'),   _s(_rv('_tasa_paricion'), 82, 75)),
+                ('Días en leche',  _rv('Dias Lactancia'),   _s_rng(_rv('Dias Lactancia'), 150,175, 140,190)),
+                ('Mort. perinatal',_rv('_mort_perinatal'),  _s(_rv('_mort_perinatal'), 5,  8,  invert=True)),
+                ('Mort. adultas',  _rv('_mort_adultas'),    _s(_rv('_mort_adultas'),   3,  5.7,invert=True)),
+                ('Mort. guachera', _rv('_mort_guachera'),   _s(_rv('_mort_guachera'),  8,  10.3,invert=True)),
+                ('Tasa abortos',   _rv('_tasa_abortos'),    _s(_rv('_tasa_abortos'),   3,  5,  invert=True)),
+            ]
+            for lbl, val, st_ in entries:
+                rows_s.append({'Periodo': p, 'indicador': lbl, 'status': st_})
+                rows_v.append({'Periodo': p, 'indicador': lbl, 'valor':  val})
+    except Exception:
+        pass
+
+    # ── Calidad (mensual) ───────────────────────────────────────────────
+    try:
+        df_cal = _load_calidad()
+        df_cal['Periodo'] = df_cal['fecha'].dt.to_period('M').dt.to_timestamp()
+        df_cal['cs_f'] = pd.to_numeric(df_cal['celulas_somaticas'], errors='coerce').fillna(0)
+        df_mes_cal = df_cal.groupby('Periodo').agg(
+            grasa=('grasa_butirosa', 'mean'),
+            proteina=('proteina',    'mean'),
+            cs=('cs_f',             'mean'),
+        ).reset_index()
+        for _, r in df_mes_cal.iterrows():
+            p = r['Periodo']
+            entries = [
+                ('Grasa (%)',   r['grasa'],    _s(r['grasa'],    3.2, 3.0)),
+                ('Proteína (%)',r['proteina'], _s(r['proteina'], 3.3, 3.1)),
+                ('CS (k/mL)',   r['cs']/1000 if not np.isnan(r['cs']) else np.nan,
+                 _s(r['cs'], 250_000, 400_000, invert=True)),
+            ]
+            for lbl, val, st_ in entries:
+                rows_s.append({'Periodo': p, 'indicador': lbl, 'status': st_})
+                rows_v.append({'Periodo': p, 'indicador': lbl, 'valor':  val})
+    except Exception:
+        pass
+
+    # ── DairyComp (mensual, ventana 3 meses) ────────────────────────────
+    try:
+        df_ev_dc, _ = _load_dairycomp()
+        df_ev_dc['Periodo'] = df_ev_dc['Fecha'].dt.to_period('M').dt.to_timestamp()
+        max_ev_dc = df_ev_dc['Fecha'].max()
+        cutoff_dc = max_ev_dc - pd.Timedelta(days=60)
+
+        df_p_dc  = df_ev_dc[df_ev_dc['Evento']=='PARTO'  ][['ID','Fecha']].rename(columns={'Fecha':'FP'})
+        df_i_dc  = df_ev_dc[df_ev_dc['Evento']=='INSEMIN'][['ID','Fecha']].rename(columns={'Fecha':'FI'})
+        df_pr_dc = df_ev_dc[df_ev_dc['Evento']=='PREÑADA'][['ID','Fecha']].rename(columns={'Fecha':'FPrena'})
+
+        meses_dc = sorted(df_ev_dc['Periodo'].unique())
+        for mes in meses_dc:
+            win_start = mes - pd.DateOffset(months=2)
+
+            # TC (ventana 3m, sin diagnósticos recientes)
+            df_i_w = df_i_dc[(df_i_dc['FI'] >= win_start) &
+                              (df_i_dc['FI'] <= mes) &
+                              (df_i_dc['FI'] < cutoff_dc)]
+            if len(df_i_w) >= 8:
+                m = pd.merge(df_i_w, df_pr_dc, on='ID')
+                m = m[(m['FPrena']>m['FI']) & (m['FPrena']<=m['FI']+pd.Timedelta(days=90))]
+                tc_val = m.drop_duplicates(['ID','FI']).shape[0] / len(df_i_w) * 100
+                st_tc = _s(tc_val, 51, 43)
+                rows_s.append({'Periodo': mes, 'indicador': 'TC (%)', 'status': st_tc})
+                rows_v.append({'Periodo': mes, 'indicador': 'TC (%)', 'valor':  tc_val})
+
+            # Mort. rodeo mensual (solo conteo del mes puntual)
+            df_m = df_ev_dc[df_ev_dc['Periodo'] == mes]
+            n_id  = df_m['ID'].nunique()
+            n_mu  = (df_m['Evento'] == 'MUERTA').sum()
+            if n_id >= 10:
+                mort_val = n_mu / n_id * 100
+                st_mort = _s(mort_val, 0.5, 1.0, invert=True)  # umbral mensual ~<0.5%/mes
+                rows_s.append({'Periodo': mes, 'indicador': 'Mort. rodeo/mes', 'status': st_mort})
+                rows_v.append({'Periodo': mes, 'indicador': 'Mort. rodeo/mes', 'valor':  mort_val})
+    except Exception:
+        pass
+
+    if not rows_s:
+        return None, None
+
+    df_s = pd.DataFrame(rows_s)
+    df_v = pd.DataFrame(rows_v)
+
+    # Pivotar a matriz indicadores × tiempo
+    # Ordenar indicadores por categoría lógica
+    _ORDEN = [
+        '% VO/VT', 'Tasa parición', 'Días en leche',
+        'TC (%)', 'Mort. perinatal', 'Tasa abortos',
+        'Mort. adultas', 'Mort. guachera', 'Mort. rodeo/mes',
+        'Grasa (%)', 'Proteína (%)', 'CS (k/mL)',
+    ]
+    indicadores = [i for i in _ORDEN if i in df_s['indicador'].unique()]
+    # Agregar cualquier indicador no listado al final
+    extra = [i for i in df_s['indicador'].unique() if i not in indicadores]
+    indicadores += extra
+
+    periodos = sorted(df_s['Periodo'].unique())
+
+    mat_s = pd.DataFrame(0, index=indicadores, columns=periodos)
+    mat_v = pd.DataFrame(np.nan, index=indicadores, columns=periodos)
+
+    for _, row in df_s.iterrows():
+        if row['indicador'] in mat_s.index:
+            mat_s.loc[row['indicador'], row['Periodo']] = row['status']
+    for _, row in df_v.iterrows():
+        if row['indicador'] in mat_v.index:
+            mat_v.loc[row['indicador'], row['Periodo']] = row['valor']
+
+    return mat_s, mat_v
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
@@ -820,6 +1095,90 @@ with c4:
     st.empty()
 
 # ═══════════════════════════════════════════════════════════════════════
+# GRUPO 5 — GESTIÓN DEL RODEO (CREA)
+# ═══════════════════════════════════════════════════════════════════════
+ref_crea = k.get('ref_crea', '?')
+st.markdown(
+    f'<p class="kpi-group-title">📊 Gestión del rodeo — datos CREA ({ref_crea})</p>',
+    unsafe_allow_html=True,
+)
+
+if 'err_crea' in k:
+    st.warning(f"No se pudieron cargar datos CREA: {k['err_crea']}")
+else:
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        v = k.get('crea_pct_vo_vt')
+        _card("% VO / VT", _fmt(v, 1, " %"), _color(v, 75, 65) if v else 'gris',
+              "verde ≥75 · amarillo 65–75 · rojo <65 · INTA EEA Rafaela")
+        if 'crea_pct_vo_vt' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_pct_vo_vt'], use_container_width=True, key="pop_crea_vo")
+
+    with c2:
+        v = k.get('crea_tasa_paricion')
+        _card("Tasa parición (%)", _fmt(v, 1, " %"), _color(v, 82, 75) if v else 'gris',
+              "verde ≥82 · amarillo 75–82 · rojo <75 · INTA Enc. Lechera 2018-19: media 82.7%")
+        if 'crea_tasa_paricion' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_tasa_paricion'], use_container_width=True, key="pop_crea_paricion")
+
+    with c3:
+        v = k.get('crea_del')
+        if v:
+            col_del = 'verde' if 150 <= v <= 175 else ('amarillo' if 140 <= v < 150 or 175 < v <= 190 else 'rojo')
+        else:
+            col_del = 'gris'
+        _card("Días en lactancia", _fmt(v, 0, " d"), col_del,
+              "verde 150–175 d · amarillo 140–150 o 175–190 · rojo fuera · Piccardi (2014) CONICET")
+        if 'crea_del' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_del'], use_container_width=True, key="pop_crea_del")
+
+    with c4:
+        v = k.get('crea_mort_perinatal')
+        _card("Mort. perinatal (%)", _fmt(v, 1, " %"), _color(v, 5, 8, invert=True) if v else 'gris',
+              "verde <5 · amarillo 5–8 · rojo >8 · Piccardi (2014) CONICET")
+        if 'crea_mort_perinatal' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_mort_perinatal'], use_container_width=True, key="pop_crea_perinat")
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        v = k.get('crea_mort_adultas')
+        _card("Mort. adultas (%)", _fmt(v, 1, " %"), _color(v, 3, 5.7, invert=True) if v else 'gris',
+              "verde <3 · amarillo 3–5.7 · rojo >5.7 · INTA Enc. Lechera 2018-19: media 5.7%")
+        if 'crea_mort_adultas' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_mort_adultas'], use_container_width=True, key="pop_crea_mort_a")
+
+    with c2:
+        v = k.get('crea_mort_guachera')
+        _card("Mort. guachera (%)", _fmt(v, 1, " %"), _color(v, 8, 10.3, invert=True) if v else 'gris',
+              "verde <8 · amarillo 8–10.3 · rojo >10.3 · INTA Enc. Lechera 2018-19: media 10.3%")
+        if 'crea_mort_guachera' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_mort_guachera'], use_container_width=True, key="pop_crea_guach")
+
+    with c3:
+        v = k.get('crea_tasa_abortos')
+        _card("Tasa abortos CREA (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True) if v else 'gris',
+              "verde <3 · amarillo 3–5 · rojo >5 · Piccardi (2014) CONICET")
+        if 'crea_tasa_abortos' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_tasa_abortos'], use_container_width=True, key="pop_crea_abort")
+
+    with c4:
+        v = k.get('crea_pct_hembras')
+        _card("% hembras nacidas", _fmt(v, 1, " %"), 'gris',
+              "esperado ~50 % (biológico) · sin meta de manejo")
+        if 'crea_pct_hembras' in charts:
+            with st.popover("📈 ver 24m", use_container_width=True):
+                st.plotly_chart(charts['crea_pct_hembras'], use_container_width=True, key="pop_crea_hembr")
+
+# ═══════════════════════════════════════════════════════════════════════
 # Documentación de KPIs
 # ═══════════════════════════════════════════════════════════════════════
 def _doc_kpi(titulo, descripcion, formula, umbrales, referencia, fuente, chart_key=None):
@@ -840,6 +1199,121 @@ def _doc_kpi(titulo, descripcion, formula, umbrales, referencia, fuente, chart_k
                         key=f"doc_{chart_key}")
     st.divider()
 
+
+st.divider()
+
+# ═══════════════════════════════════════════════════════════════════════
+# SEMÁFORO HISTÓRICO
+# ═══════════════════════════════════════════════════════════════════════
+st.markdown('<p class="kpi-group-title">📅 Semáforo histórico — evolución de indicadores</p>',
+            unsafe_allow_html=True)
+st.caption(
+    "Cada celda muestra el estado del indicador en ese mes. "
+    "🟩 verde = dentro del objetivo · 🟨 amarillo = alerta · 🟥 rojo = fuera de rango · "
+    "⬜ gris = sin dato. "
+    "Períodos con múltiples rojos simultáneos señalan momentos de disfunción sistémica."
+)
+
+with st.spinner("Construyendo semáforo histórico..."):
+    mat_s, mat_v = _build_semaforo_hist()
+
+if mat_s is None:
+    st.info("No hay datos suficientes para construir el semáforo histórico.")
+else:
+    # Filtro de rango de fechas
+    _all_periodos = list(mat_s.columns)
+    _min_p = pd.Timestamp(_all_periodos[0])
+    _max_p = pd.Timestamp(_all_periodos[-1])
+    _col_rng, _col_gap = st.columns([3, 1])
+    with _col_rng:
+        _rng = st.slider(
+            "Período",
+            min_value=_min_p.date(), max_value=_max_p.date(),
+            value=(_min_p.date(), _max_p.date()),
+            format="MMM YYYY", key="sem_hist_rng",
+        )
+    _sel_cols = [p for p in _all_periodos
+                 if _rng[0] <= pd.Timestamp(p).date() <= _rng[1]]
+    mat_f = mat_s[_sel_cols]
+    val_f = mat_v[_sel_cols]
+
+    # Colorscale discreta: 0=gris, 1=verde, 2=amarillo, 3=rojo
+    _CS = [
+        [0.00, '#d0d0d0'], [0.249, '#d0d0d0'],   # sin dato
+        [0.25, '#28a745'], [0.499, '#28a745'],    # verde
+        [0.50, '#ffc107'], [0.749, '#ffc107'],    # amarillo
+        [0.75, '#dc3545'], [1.000, '#dc3545'],    # rojo
+    ]
+
+    # Texto para hover: valor real formateado
+    _UNITS = {
+        '% VO/VT': '%', 'Tasa parición': '%', 'Días en leche': 'd',
+        'TC (%)': '%', 'Mort. perinatal': '%', 'Tasa abortos': '%',
+        'Mort. adultas': '%', 'Mort. guachera': '%', 'Mort. rodeo/mes': '%',
+        'Grasa (%)': '%', 'Proteína (%)': '%', 'CS (k/mL)': 'k/mL',
+    }
+    hover_text = []
+    for ind in mat_f.index:
+        row_txt = []
+        unit = _UNITS.get(ind, '')
+        for p in _sel_cols:
+            v = val_f.loc[ind, p]
+            s = mat_f.loc[ind, p]
+            lbl = {0: 's/d', 1: '✓', 2: '⚠', 3: '✗'}.get(s, '')
+            if np.isnan(v):
+                row_txt.append(f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>sin dato")
+            else:
+                dec = 0 if unit == 'd' else 1
+                row_txt.append(
+                    f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>"
+                    f"{v:.{dec}f} {unit}  {lbl}"
+                )
+        hover_text.append(row_txt)
+
+    x_labels = [pd.Timestamp(p).strftime('%b %y') for p in _sel_cols]
+
+    fig_sem = go.Figure(go.Heatmap(
+        z=mat_f.values.tolist(),
+        x=x_labels,
+        y=list(mat_f.index),
+        text=hover_text,
+        hovertemplate='%{text}<extra></extra>',
+        colorscale=_CS,
+        zmin=0, zmax=3,
+        showscale=False,
+        xgap=2, ygap=2,
+    ))
+
+    # Línea separadora entre grupos de indicadores
+    _SEPARADORES = ['TC (%)', 'Grasa (%)']  # después de estos cambia de categoría
+    for sep_ind in _SEPARADORES:
+        if sep_ind in list(mat_f.index):
+            idx_sep = list(mat_f.index).index(sep_ind)
+            fig_sem.add_hline(
+                y=idx_sep + 0.5,
+                line_width=2, line_color='rgba(255,255,255,0.6)',
+                line_dash='dot',
+            )
+
+    _h = max(300, len(mat_f.index) * 38 + 80)
+    fig_sem.update_layout(
+        height=_h,
+        margin=dict(t=20, b=60, l=160, r=20),
+        xaxis=dict(side='bottom', tickangle=-45, tickfont=dict(size=10)),
+        yaxis=dict(tickfont=dict(size=11), autorange='reversed'),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+    )
+    st.plotly_chart(fig_sem, use_container_width=True, key='semaforo_hist')
+
+    # Leyenda manual (Plotly no muestra leyenda en Heatmap discreto)
+    st.caption(
+        "⬜ sin dato &nbsp;|&nbsp; "
+        '<span style="color:#28a745">■</span> verde — objetivo cumplido &nbsp;|&nbsp; '
+        '<span style="color:#ffc107">■</span> amarillo — alerta &nbsp;|&nbsp; '
+        '<span style="color:#dc3545">■</span> rojo — fuera de rango',
+        unsafe_allow_html=True,
+    )
 
 st.divider()
 with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
@@ -1006,6 +1480,100 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         chart_key='mast',
     )
 
+    # ── Gestión del rodeo (CREA) ──────────────────────────────────────────────
+    st.markdown("### 📊 Gestión del rodeo (CREA)")
+    _doc_kpi(
+        "% VO / VT — Vacas en ordeño sobre total",
+        "Proporción del rodeo efectivamente en producción. Refleja la eficiencia "
+        "reproductiva y el manejo de secado. Un valor bajo puede indicar exceso de "
+        "vacas secas, alta mortalidad o problemas de concepción.",
+        "VO / VT × 100 · dato del mes más reciente de la planilla CREA",
+        "🟢 ≥ 75 % · 🟡 65–75 % · 🔴 < 65 %",
+        "INTA EEA Rafaela — referencia de gestión para tambos del Litoral",
+        f"Planilla CREA (Google Sheets) — hasta {ref_crea}",
+        chart_key='crea_pct_vo_vt',
+    )
+    _doc_kpi(
+        "Tasa de parición (%)",
+        "% de vacas totales que parieron en el mes. Acumulada en 12 meses es el "
+        "indicador más directo de eficiencia reproductiva anual del rodeo completo. "
+        "La media nacional en la Encuesta Sectorial INTA 2018-19 fue 82.7 %.",
+        "Partos Totales / VT × 100 · dato mensual CREA",
+        "🟢 ≥ 82 % · 🟡 75–82 % · 🔴 < 75 %",
+        "Gastaldi L. et al. (2020). *Encuesta Sectorial Lechera 2018–2019.* INTA EEA Rafaela.",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_tasa_paricion',
+    )
+    _doc_kpi(
+        "Días en lactancia (DEL promedio)",
+        "Promedio de días en leche del rodeo. Refleja el estado medio de la curva de "
+        "lactancia. Un DEL muy alto indica rodeo 'envejecido' (vacas que no repiten); "
+        "muy bajo, exceso de frescas recientes. Piccardi (2014) reportó medianas de "
+        "111–171 d según tipo de tambo (baja a alta producción).",
+        "promedio campo `Dias Lactancia` de la planilla CREA",
+        "🟢 150–175 d · 🟡 140–150 d o 175–190 d · 🔴 fuera de ese rango",
+        "Piccardi M.A. (2014). *Tesis doctoral UNC/CONICET* — 291 tambos SF+Córdoba, DairyComp305.",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_del',
+    )
+    _doc_kpi(
+        "Mortalidad perinatal (%)",
+        "% de terneros nacidos muertos sobre el total de partos. Incluye tanto mortinatos "
+        "como muertes en las primeras horas. Indicador de condición corporal al parto, "
+        "manejo del preparto y distocias.",
+        "Partos Muertos / Partos Totales × 100",
+        "🟢 < 5 % · 🟡 5–8 % · 🔴 > 8 %",
+        "Piccardi M.A. (2014). *Tesis doctoral UNC/CONICET.*",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_mort_perinatal',
+    )
+    _doc_kpi(
+        "Mortalidad de adultas (%)",
+        "% de vacas muertas sobre el total del rodeo. Incluye muertes por enfermedad, "
+        "accidente o sacrificio. La media nacional (INTA 2018-19) fue 5.7 %; valores "
+        "superiores al 6 % ameritan revisión sanitaria.",
+        "Muertes / VT × 100",
+        "🟢 < 3 % · 🟡 3–5.7 % · 🔴 > 5.7 %",
+        "Gastaldi L. et al. (2020). *Encuesta Sectorial Lechera 2018–2019.* INTA EEA Rafaela. "
+        "Piccardi M.A. (2014). *Tesis doctoral UNC/CONICET* — mortalidad por tipo de tambo: 7.2–11.1 %.",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_mort_adultas',
+    )
+    _doc_kpi(
+        "Mortalidad en guachera (%)",
+        "% de terneras muertas en crianza artificial sobre las hembras nacidas. "
+        "Alta mortalidad señala problemas de calostrado, manejo sanitario de terneras "
+        "o instalaciones. La media INTA 2018-19 fue 10.3 %.",
+        "Muertes guachera / Hembras nacidas × 100",
+        "🟢 < 8 % · 🟡 8–10.3 % · 🔴 > 10.3 %",
+        "Gastaldi L. et al. (2020). *Encuesta Sectorial Lechera 2018–2019.* INTA EEA Rafaela.",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_mort_guachera',
+    )
+    _doc_kpi(
+        "Tasa de abortos — CREA (%)",
+        "% de abortos sobre el total de vacas. Complementa la tasa calculada desde "
+        "DairyComp (que usa diagnóstico por vaca). Valores elevados sostenidos justifican "
+        "serología para BVD, leptospira y neospora.",
+        "Abortos / VT × 100",
+        "🟢 < 3 % · 🟡 3–5 % · 🔴 > 5 %",
+        "Gnemmi G. & Maraboli C. (2010). *Manejo reproductivo bovino.* Merial. "
+        "Piccardi M.A. (2014). *Tesis doctoral UNC/CONICET.*",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_tasa_abortos',
+    )
+    _doc_kpi(
+        "% Hembras nacidas",
+        "Proporción de hembras sobre el total de terneros nacidos. Sin meta de manejo "
+        "— se espera ~50 % por distribución biológica. Una desviación sostenida puede "
+        "indicar errores de registro, no causas biológicas.",
+        "Hembras nacidas / Partos Totales × 100",
+        "⚪ referencia ~50 % (biológico esperado)",
+        "Valor informativo — sin umbral de gestión establecido.",
+        f"Planilla CREA — hasta {ref_crea}",
+        chart_key='crea_pct_hembras',
+    )
+
     # ── Fuentes ───────────────────────────────────────────────────────────────
     st.markdown("### 💾 Resumen de fuentes y bibliografía")
     st.markdown(f"""
@@ -1015,10 +1583,18 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
 | DairyComp eventos | CSV estático `eventos-202604.csv` | hasta {ref_ev} | Manual, exportar DairyComp |
 | DairyComp controles | CSV estático `control-202604.csv` | hasta {ref_ctrl} | Manual, exportar DairyComp |
 | Calidad de leche | CSV estático `calidad_leche.csv` | hasta {ref_cal} | Manual, PDFs laboratorio |
+| Planilla CREA | Google Sheets (privado) | hasta {ref_crea} | Manual, mensual |
 | Tipo de cambio | CSV estático `usdars.csv` | histórico 2010–2026 | Periódica |
 
 **Bibliografía de umbrales:**
-Piccardi M., Bruno O., Córdoba M., Masía G., Balzarini M. (2019). *Indicadores de eficiencia en tambos argentinos.* CONICET / Editorial Brujas. ·
-Lucy M.C. (2001). *J. Dairy Sci.* 84:1277. · Schukken Y.H. et al. (2003). *Prev. Vet. Med.* 61:75. · Stevenson J.S. (2001). *J. Dairy Sci.* 84(E. Suppl.):E128.
+
+- Piccardi M.A. (2014). *Indicadores de eficiencia productiva y reproductiva en rodeos lecheros argentinos.* Tesis doctoral, Universidad Nacional de Córdoba / CONICET. 291 tambos SF+Córdoba, DairyComp305.
+- Gastaldi L., Doménech A., Litwin G., Cappelletti M. (2020). *Encuesta Sectorial Lechera 2018–2019.* INTA EEA Rafaela, Documento de Trabajo Nº 8.
+- Lucy M.C. (2001). Reproductive loss in high-producing dairy cattle. *J. Dairy Sci.* 84:1277–1293.
+- Schukken Y.H. et al. (2003). Monitoring udder health and milk quality using somatic cell counts. *Prev. Vet. Med.* 61:75–93.
+- Stevenson J.S. (2001). Reproductive management of dairy cows in high milk-producing herds. *J. Dairy Sci.* 84(E. Suppl.):E128–E143.
+- Gnemmi G. & Maraboli C. (2010). *Manejo reproductivo bovino.* Merial Argentina.
+- Hadley G.L., Wolf C.A., Harsh S.B. (2006). Dairy cattle culling patterns, explanations, and implications. *J. Dairy Sci.* 89:2286–2296.
+- Cavestany D. & Galina C.S. (2002). *Evaluación de la eficiencia reproductiva.* INIA Uruguay.
 """)
 
