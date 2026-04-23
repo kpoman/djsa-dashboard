@@ -155,7 +155,6 @@ def _get_datos_crea():
         ('_mort_adultas',    'Muertes',           'VT'),
         ('_mort_guachera',   'Muertes guachera',  'Hembras nacidas'),
         ('_mort_recria',     'Muertes Recria',    'Hembras nacidas'),
-        ('_tasa_paricion',   'Partos Totales',    'VT'),
         ('_pct_hembras',     'Hembras nacidas',   'Partos Totales'),
         ('_tasa_abortos',    'Abortos',           'VT'),
     ]
@@ -163,6 +162,17 @@ def _get_datos_crea():
         v = _spct(num_c, den_c)
         if v is not None:
             df_clean[new_col] = v
+
+    # Tasa de parición ANUAL: suma móvil 12m de partos / VT promedio 12m × 100
+    # La referencia INTA (82.7 %) es anual — no se puede comparar contra datos mensuales.
+    if 'Partos Totales' in df_clean.columns and 'VT' in df_clean.columns:
+        _partos = pd.to_numeric(df_clean['Partos Totales'], errors='coerce')
+        _vt     = pd.to_numeric(df_clean['VT'],             errors='coerce')
+        df_clean['_tasa_paricion'] = (
+            (_partos.rolling(12, min_periods=6).sum() /
+             _vt.rolling(12, min_periods=6).mean().replace(0, np.nan) * 100)
+            .round(2)
+        )
 
     return df_clean
 

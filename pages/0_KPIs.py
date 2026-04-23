@@ -215,7 +215,6 @@ def _load_crea():
         ('_mort_perinatal', 'Partos Muertos',    'Partos Totales'),
         ('_mort_adultas',   'Muertes',           'VT'),
         ('_mort_guachera',  'Muertes guachera',  'Hembras nacidas'),
-        ('_tasa_paricion',  'Partos Totales',    'VT'),
         ('_pct_hembras',    'Hembras nacidas',   'Partos Totales'),
         ('_tasa_abortos',   'Abortos',           'VT'),
     ]:
@@ -223,7 +222,20 @@ def _load_crea():
         if v is not None:
             df[col] = v
 
-    return df.sort_values('Periodo').reset_index(drop=True)
+    # Tasa de parición ANUAL: suma móvil 12m de partos / VT promedio 12m × 100
+    # El benchmark INTA (82.7 %) es anual — la cifra mensual (partos/VT ~6–9 %)
+    # no es comparable. Se usa ventana de 12 meses para expresar en la misma unidad.
+    df = df.sort_values('Periodo').reset_index(drop=True)
+    if 'Partos Totales' in df.columns and 'VT' in df.columns:
+        _partos = pd.to_numeric(df['Partos Totales'], errors='coerce')
+        _vt     = pd.to_numeric(df['VT'],             errors='coerce')
+        df['_tasa_paricion'] = (
+            (_partos.rolling(12, min_periods=6).sum() /
+             _vt.rolling(12, min_periods=6).mean().replace(0, np.nan) * 100)
+            .round(2)
+        )
+
+    return df
 
 
 # ── Cálculo KPIs ─────────────────────────────────────────────────────────────
