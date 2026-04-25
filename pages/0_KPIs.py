@@ -915,276 +915,323 @@ st.caption(
     f"Controles hasta **{ref_ctrl}** · Eventos hasta **{ref_ev}** · "
     f"Calidad hasta **{ref_cal}** · Reproducción/Sanidad: últimos 12 meses"
 )
-st.divider()
+tab_prod, tab_cal, tab_repro, tab_san, tab_crea_kpi, tab_sem = st.tabs([
+    "🥛 Producción", "🔬 Calidad", "🐄 Reproducción", "💊 Sanidad",
+    "📊 Gestión CREA", "📅 Semáforo histórico",
+])
 
 # ═══════════════════════════════════════════════════════════════════════
-# GRUPO 1 — PRODUCCIÓN
-# ═══════════════════════════════════════════════════════════════════════
-st.markdown('<p class="kpi-group-title">🥛 Producción</p>', unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
+with tab_prod:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        v = k.get('ltvo')
+        _card("LTVO promedio (L/vc/día)", _fmt(v, 1), _color(v, 30, 26),
+              f"verde ≥30 · amarillo 26-30 · rojo <26 · parte diario, 30d hasta {ref_ctrl}")
+        if 'ltvo' in charts:
+            with st.popover("📈 ver tendencia", use_container_width=True):
+                st.plotly_chart(charts['ltvo'], use_container_width=True, key="pop_ltvo")
+    with c2:
+        v = k.get('l305e')
+        _card("Proyección L305E promedio", _fmt(v, 0, " L"), _color(v, 10000, 8500),
+              "verde ≥10.000 · amarillo 8.500-10.000 · rojo <8.500 · últimos 12m")
+        if 'l305e' in charts:
+            with st.popover("📈 ver distribución", use_container_width=True):
+                st.plotly_chart(charts['l305e'], use_container_width=True, key="pop_l305e")
+    with c3:
+        n = k.get('n_partos')
+        _card("Partos (12 meses)", _fmt(n, 0) if n else "s/d", 'gris',
+              f"total acumulado · hasta {ref_ev}")
+    with c4:
+        n = k.get('n_insemin')
+        _card("Inseminaciones (12 meses)", _fmt(n, 0) if n else "s/d", 'gris',
+              f"total acumulado · hasta {ref_ev}")
 
-with c1:
-    v = k.get('ltvo')
-    _card("LTVO promedio (L/vc/día)", _fmt(v, 1), _color(v, 30, 26),
-          f"verde ≥30 · amarillo 26-30 · rojo <26 · parte diario, 30d hasta {ref_ctrl}")
-    if 'ltvo' in charts:
-        with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['ltvo'], use_container_width=True, key="pop_ltvo")
+with tab_cal:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        v = k.get('grasa')
+        _card("Grasa butirosa (%)", _fmt(v, 2), _color(v, 3.2, 3.0),
+              f"verde ≥3.2 · amarillo 3.0-3.2 · rojo <3.0 · hasta {ref_cal}")
+        if 'grasa' in charts:
+            with st.popover("📈 ver tendencia", use_container_width=True):
+                st.plotly_chart(charts['grasa'], use_container_width=True, key="pop_grasa")
+    with c2:
+        v = k.get('proteina')
+        _card("Proteína (%)", _fmt(v, 2), _color(v, 3.3, 3.1),
+              f"verde ≥3.3 · amarillo 3.1-3.3 · rojo <3.1 · hasta {ref_cal}")
+        if 'proteina' in charts:
+            with st.popover("📈 ver tendencia", use_container_width=True):
+                st.plotly_chart(charts['proteina'], use_container_width=True, key="pop_proteina")
+    with c3:
+        v = k.get('cs')
+        cs_dias_alerta  = k.get('cs_dias_alerta', 0)
+        cs_dias_medidos = k.get('cs_dias_medidos', 0)
+        disp = f"{v/1000:.0f}k cél/mL" if v and not np.isnan(v) else "s/d"
+        cs_alerta_txt = (f"⚠️ {cs_dias_alerta} día{'s' if cs_dias_alerta != 1 else ''} >400k"
+                         if cs_dias_alerta > 0 else "✓ ningún día >400k")
+        _card("Células somáticas (SCC)", disp,
+              _color(v, 250_000, 400_000, invert=True) if v else 'gris',
+              f"verde <250k · amarillo 250-400k · rojo >400k · {cs_alerta_txt} en {cs_dias_medidos} días")
+        if 'cs' in charts:
+            with st.popover("📈 ver tendencia", use_container_width=True):
+                st.plotly_chart(charts['cs'], use_container_width=True, key="pop_cs")
+    with c4:
+        v = k.get('ufc')
+        dias_alerta  = k.get('ufc_dias_alerta', 0)
+        dias_medidos = k.get('ufc_dias_medidos', 0)
+        disp = f"{v/1000:.0f}k UFC/mL" if v and not np.isnan(v) else "s/d"
+        alerta_txt = (f"⚠️ {dias_alerta} día{'s' if dias_alerta != 1 else ''} >50k"
+                      if dias_alerta > 0 else "✓ ningún día >50k")
+        _card("Recuento bacteriano (UFC)", disp,
+              _color(v, 20_000, 50_000, invert=True) if v else 'gris',
+              f"verde <20k · amarillo 20-50k · rojo >50k · {alerta_txt} en {dias_medidos} días medidos")
+        if 'ufc' in charts:
+            with st.popover("📈 ver detalle", use_container_width=True):
+                st.plotly_chart(charts['ufc'], use_container_width=True, key="pop_ufc")
 
-with c2:
-    v = k.get('l305e')
-    _card("Proyección L305E promedio", _fmt(v, 0, " L"), _color(v, 10000, 8500),
-          "verde ≥10.000 · amarillo 8.500-10.000 · rojo <8.500 · últimos 12m")
-    if 'l305e' in charts:
-        with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['l305e'], use_container_width=True, key="pop_l305e")
+with tab_repro:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        v = k.get('tdc')
+        _card("Tasa detección de celo (collar)", _fmt(v, 1, " %"), _color(v, 90, 70),
+              "verde ≥90 · amarillo 70-90 · rojo <70")
+        if 'tdc' in charts:
+            with st.popover("📈 ver mensual", use_container_width=True):
+                st.plotly_chart(charts['tdc'], use_container_width=True, key="pop_tdc")
+    with c2:
+        v = k.get('tc')
+        _card("Tasa de concepción (%)", _fmt(v, 1, " %"), _color(v, 51, 43),
+              "verde ≥51 · amarillo 43-51 · rojo <43 · solo serv. con diagnóstico confirmado")
+        if 'tc' in charts:
+            with st.popover("📈 ver mensual", use_container_width=True):
+                st.plotly_chart(charts['tc'], use_container_width=True, key="pop_tc")
+    with c3:
+        v = k.get('nsp')
+        _card("Servicios por preñez", _fmt(v, 2), _color(v, 1.7, 2.5, invert=True),
+              "verde <1.7 · amarillo 1.7-2.5 · rojo >2.5 · promedio por vaca")
+        if 'nsp' in charts:
+            with st.popover("📈 ver distribución", use_container_width=True):
+                st.plotly_chart(charts['nsp'], use_container_width=True, key="pop_nsp")
+    with c4:
+        v = k.get('d1s')
+        _card("Días parto → 1er servicio", _fmt(v, 0, " d"), _color(v, 60, 75, invert=True),
+              "verde <60 · amarillo 60-75 · rojo >75")
+        if 'd1s' in charts:
+            with st.popover("📈 ver distribución", use_container_width=True):
+                st.plotly_chart(charts['d1s'], use_container_width=True, key="pop_d1s")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        v = k.get('dv')
+        _card("Días vacíos (estimado a concepción)", _fmt(v, 0, " d"),
+              _color(v, 110, 140, invert=True),
+              "verde <110 · amarillo 110-140 · rojo >140 · fecha PREÑADA − 42d")
+        if 'dv' in charts:
+            with st.popover("📈 ver distribución", use_container_width=True):
+                st.plotly_chart(charts['dv'], use_container_width=True, key="pop_dv")
+    with c2:
+        v = k.get('ta')
+        _card("Tasa de aborto (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True),
+              "verde <3 · amarillo 3-5 · rojo >5 · vacas únicas con ABORTO / (PREÑADA+ABORTO)")
+        if 'ta' in charts:
+            with st.popover("📈 ver mensual", use_container_width=True):
+                st.plotly_chart(charts['ta'], use_container_width=True, key="pop_ta")
+    with c3:
+        v = k.get('tm')
+        _card("Tasa de mortandad (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True),
+              "verde <3 · amarillo 3-5 · rojo >5")
+        if 'tm' in charts:
+            with st.popover("📈 ver mensual", use_container_width=True):
+                st.plotly_chart(charts['tm'], use_container_width=True, key="pop_tm")
+    with c4:
+        v = k.get('td')
+        _card("Tasa de descarte (%)", _fmt(v, 1, " %"), _color(v, 20, 30, invert=True),
+              "verde <20 · amarillo 20-30 · rojo >30")
+        if 'td' in charts:
+            with st.popover("📈 ver mensual", use_container_width=True):
+                st.plotly_chart(charts['td'], use_container_width=True, key="pop_td")
 
-with c3:
-    n = k.get('n_partos')
-    _card("Partos (12 meses)", _fmt(n, 0) if n else "s/d", 'gris',
-          f"total acumulado · hasta {ref_ev}")
+with tab_san:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        v = k.get('mast')
+        _card("Incidencia mastitis (% vacas)", _fmt(v, 1, " %"), _color(v, 15, 25, invert=True),
+              "verde <15 · amarillo 15-25 · rojo >25")
+        if 'mast' in charts:
+            with st.popover("📈 ver mensual", use_container_width=True):
+                st.plotly_chart(charts['mast'], use_container_width=True, key="pop_mast")
+    with c2:
+        v = k.get('cs')
+        disp = f"{v/1000:.0f}k" if v and not np.isnan(v) else "s/d"
+        _card("Células somáticas (SCC prom.)", disp,
+              _color(v, 250_000, 400_000, invert=True) if v else 'gris',
+              "verde <250k · amarillo 250-400k · rojo >400k")
+        if 'cs' in charts:
+            with st.popover("📈 ver tendencia", use_container_width=True):
+                st.plotly_chart(charts['cs'], use_container_width=True, key="pop_cs_2")
 
-with c4:
-    n = k.get('n_insemin')
-    _card("Inseminaciones (12 meses)", _fmt(n, 0) if n else "s/d", 'gris',
-          f"total acumulado · hasta {ref_ev}")
-
-# ═══════════════════════════════════════════════════════════════════════
-# GRUPO 2 — CALIDAD DE LECHE
-# ═══════════════════════════════════════════════════════════════════════
-st.markdown('<p class="kpi-group-title">🔬 Calidad de leche (últimos 30 días)</p>', unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    v = k.get('grasa')
-    _card("Grasa butirosa (%)", _fmt(v, 2), _color(v, 3.2, 3.0),
-          f"verde ≥3.2 · amarillo 3.0-3.2 · rojo <3.0 · hasta {ref_cal}")
-    if 'grasa' in charts:
-        with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['grasa'], use_container_width=True, key="pop_grasa")
-
-with c2:
-    v = k.get('proteina')
-    _card("Proteína (%)", _fmt(v, 2), _color(v, 3.3, 3.1),
-          f"verde ≥3.3 · amarillo 3.1-3.3 · rojo <3.1 · hasta {ref_cal}")
-    if 'proteina' in charts:
-        with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['proteina'], use_container_width=True, key="pop_proteina")
-
-with c3:
-    v = k.get('cs')
-    cs_dias_alerta  = k.get('cs_dias_alerta', 0)
-    cs_dias_medidos = k.get('cs_dias_medidos', 0)
-    disp = f"{v/1000:.0f}k cél/mL" if v and not np.isnan(v) else "s/d"
-    cs_alerta_txt = (f"⚠️ {cs_dias_alerta} día{'s' if cs_dias_alerta != 1 else ''} >400k"
-                     if cs_dias_alerta > 0 else "✓ ningún día >400k")
-    _card("Células somáticas (SCC)", disp,
-          _color(v, 250_000, 400_000, invert=True) if v else 'gris',
-          f"verde <250k · amarillo 250-400k · rojo >400k · {cs_alerta_txt} en {cs_dias_medidos} días")
-    if 'cs' in charts:
-        with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['cs'], use_container_width=True, key="pop_cs")
-
-with c4:
-    v = k.get('ufc')
-    dias_alerta = k.get('ufc_dias_alerta', 0)
-    dias_medidos = k.get('ufc_dias_medidos', 0)
-    disp = f"{v/1000:.0f}k UFC/mL" if v and not np.isnan(v) else "s/d"
-    alerta_txt = (f"⚠️ {dias_alerta} día{'s' if dias_alerta != 1 else ''} >50k"
-                  if dias_alerta > 0 else "✓ ningún día >50k")
-    _card("Recuento bacteriano (UFC)", disp,
-          _color(v, 20_000, 50_000, invert=True) if v else 'gris',
-          f"verde <20k · amarillo 20-50k · rojo >50k · {alerta_txt} en {dias_medidos} días medidos")
-    if 'ufc' in charts:
-        with st.popover("📈 ver detalle", use_container_width=True):
-            st.plotly_chart(charts['ufc'], use_container_width=True, key="pop_ufc")
-
-# ═══════════════════════════════════════════════════════════════════════
-# GRUPO 3 — REPRODUCCIÓN
-# ═══════════════════════════════════════════════════════════════════════
-st.markdown('<p class="kpi-group-title">🐄 Reproducción (últimos 12 meses)</p>', unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    v = k.get('tdc')
-    _card("Tasa detección de celo (collar)", _fmt(v, 1, " %"), _color(v, 90, 70),
-          "verde ≥90 · amarillo 70-90 · rojo <70")
-    if 'tdc' in charts:
-        with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['tdc'], use_container_width=True, key="pop_tdc")
-
-with c2:
-    v = k.get('tc')
-    _card("Tasa de concepción (%)", _fmt(v, 1, " %"), _color(v, 51, 43),
-          "verde ≥51 · amarillo 43-51 · rojo <43 · solo serv. con diagnóstico confirmado")
-    if 'tc' in charts:
-        with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['tc'], use_container_width=True, key="pop_tc")
-
-with c3:
-    v = k.get('nsp')
-    _card("Servicios por preñez", _fmt(v, 2), _color(v, 1.7, 2.5, invert=True),
-          "verde <1.7 · amarillo 1.7-2.5 · rojo >2.5 · promedio por vaca")
-    if 'nsp' in charts:
-        with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['nsp'], use_container_width=True, key="pop_nsp")
-
-with c4:
-    v = k.get('d1s')
-    _card("Días parto → 1er servicio", _fmt(v, 0, " d"), _color(v, 60, 75, invert=True),
-          "verde <60 · amarillo 60-75 · rojo >75")
-    if 'd1s' in charts:
-        with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['d1s'], use_container_width=True, key="pop_d1s")
-
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    v = k.get('dv')
-    _card("Días vacíos (estimado a concepción)", _fmt(v, 0, " d"),
-          _color(v, 110, 140, invert=True),
-          "verde <110 · amarillo 110-140 · rojo >140 · fecha PREÑADA − 42d")
-    if 'dv' in charts:
-        with st.popover("📈 ver distribución", use_container_width=True):
-            st.plotly_chart(charts['dv'], use_container_width=True, key="pop_dv")
-
-with c2:
-    v = k.get('ta')
-    _card("Tasa de aborto (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True),
-          "verde <3 · amarillo 3-5 · rojo >5 · vacas únicas con ABORTO / (PREÑADA+ABORTO)")
-    if 'ta' in charts:
-        with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['ta'], use_container_width=True, key="pop_ta")
-
-with c3:
-    v = k.get('tm')
-    _card("Tasa de mortandad (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True),
-          "verde <3 · amarillo 3-5 · rojo >5")
-    if 'tm' in charts:
-        with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['tm'], use_container_width=True, key="pop_tm")
-
-with c4:
-    v = k.get('td')
-    _card("Tasa de descarte (%)", _fmt(v, 1, " %"), _color(v, 20, 30, invert=True),
-          "verde <20 · amarillo 20-30 · rojo >30")
-    if 'td' in charts:
-        with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['td'], use_container_width=True, key="pop_td")
-
-# ═══════════════════════════════════════════════════════════════════════
-# GRUPO 4 — SANIDAD
-# ═══════════════════════════════════════════════════════════════════════
-st.markdown('<p class="kpi-group-title">💊 Sanidad (últimos 12 meses)</p>', unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    v = k.get('mast')
-    _card("Incidencia mastitis (% vacas)", _fmt(v, 1, " %"), _color(v, 15, 25, invert=True),
-          "verde <15 · amarillo 15-25 · rojo >25")
-    if 'mast' in charts:
-        with st.popover("📈 ver mensual", use_container_width=True):
-            st.plotly_chart(charts['mast'], use_container_width=True, key="pop_mast")
-
-with c2:
-    v = k.get('cs')
-    disp = f"{v/1000:.0f}k" if v and not np.isnan(v) else "s/d"
-    _card("Células somáticas (SCC prom.)", disp,
-          _color(v, 250_000, 400_000, invert=True) if v else 'gris',
-          "verde <250k · amarillo 250-400k · rojo >400k")
-    if 'cs' in charts:
-        with st.popover("📈 ver tendencia", use_container_width=True):
-            st.plotly_chart(charts['cs'], use_container_width=True, key="pop_cs_2")
-
-with c3:
-    st.empty()
-
-with c4:
-    st.empty()
-
-# ═══════════════════════════════════════════════════════════════════════
-# GRUPO 5 — GESTIÓN DEL RODEO (CREA)
-# ═══════════════════════════════════════════════════════════════════════
 ref_crea = k.get('ref_crea', '?')
-st.markdown(
-    f'<p class="kpi-group-title">📊 Gestión del rodeo — datos CREA ({ref_crea})</p>',
-    unsafe_allow_html=True,
-)
+with tab_crea_kpi:
+    if 'err_crea' in k:
+        st.warning(f"No se pudieron cargar datos CREA: {k['err_crea']}")
+    else:
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            v = k.get('crea_pct_vo_vt')
+            _card("% VO / VT", _fmt(v, 1, " %"), _color(v, 75, 65) if v else 'gris',
+                  "verde ≥75 · amarillo 65–75 · rojo <65 · INTA EEA Rafaela")
+            if 'crea_pct_vo_vt' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_pct_vo_vt'], use_container_width=True, key="pop_crea_vo")
+        with c2:
+            v = k.get('crea_tasa_paricion')
+            _card("Tasa parición (%)", _fmt(v, 1, " %"), _color(v, 82, 75) if v else 'gris',
+                  "verde ≥82 · amarillo 75–82 · rojo <75 · INTA Enc. Lechera 2018-19: media 82.7%")
+            if 'crea_tasa_paricion' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_tasa_paricion'], use_container_width=True, key="pop_crea_paricion")
+        with c3:
+            v = k.get('crea_del')
+            if v:
+                col_del = 'verde' if 150 <= v <= 175 else ('amarillo' if 140 <= v < 150 or 175 < v <= 190 else 'rojo')
+            else:
+                col_del = 'gris'
+            _card("Días en lactancia", _fmt(v, 0, " d"), col_del,
+                  "verde 150–175 d · amarillo 140–150 o 175–190 · rojo fuera · Piccardi (2014) CONICET")
+            if 'crea_del' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_del'], use_container_width=True, key="pop_crea_del")
+        with c4:
+            v = k.get('crea_mort_perinatal')
+            _card("Mort. perinatal (%)", _fmt(v, 1, " %"), _color(v, 5, 8, invert=True) if v else 'gris',
+                  "verde <5 · amarillo 5–8 · rojo >8 · Piccardi (2014) CONICET")
+            if 'crea_mort_perinatal' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_mort_perinatal'], use_container_width=True, key="pop_crea_perinat")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            v = k.get('crea_mort_adultas')
+            _card("Mort. adultas (%)", _fmt(v, 1, " %"), _color(v, 3, 5.7, invert=True) if v else 'gris',
+                  "verde <3 · amarillo 3–5.7 · rojo >5.7 · INTA Enc. Lechera 2018-19: media 5.7%")
+            if 'crea_mort_adultas' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_mort_adultas'], use_container_width=True, key="pop_crea_mort_a")
+        with c2:
+            v = k.get('crea_mort_guachera')
+            _card("Mort. guachera (%)", _fmt(v, 1, " %"), _color(v, 8, 10.3, invert=True) if v else 'gris',
+                  "verde <8 · amarillo 8–10.3 · rojo >10.3 · INTA Enc. Lechera 2018-19: media 10.3%")
+            if 'crea_mort_guachera' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_mort_guachera'], use_container_width=True, key="pop_crea_guach")
+        with c3:
+            v = k.get('crea_tasa_abortos')
+            _card("Tasa abortos CREA (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True) if v else 'gris',
+                  "verde <3 · amarillo 3–5 · rojo >5 · Piccardi (2014) CONICET")
+            if 'crea_tasa_abortos' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_tasa_abortos'], use_container_width=True, key="pop_crea_abort")
+        with c4:
+            v = k.get('crea_pct_hembras')
+            _card("% hembras nacidas", _fmt(v, 1, " %"), 'gris',
+                  "esperado ~50 % (biológico) · sin meta de manejo")
+            if 'crea_pct_hembras' in charts:
+                with st.popover("📈 ver 24m", use_container_width=True):
+                    st.plotly_chart(charts['crea_pct_hembras'], use_container_width=True, key="pop_crea_hembr")
 
-if 'err_crea' in k:
-    st.warning(f"No se pudieron cargar datos CREA: {k['err_crea']}")
-else:
-    c1, c2, c3, c4 = st.columns(4)
+with tab_sem:
+    st.caption(
+        "Cada celda muestra el estado del indicador en ese mes. "
+        "Períodos con múltiples rojos simultáneos señalan momentos de disfunción sistémica."
+    )
+    with st.spinner("Construyendo semáforo histórico..."):
+        mat_s, mat_v = _build_semaforo_hist()
 
-    with c1:
-        v = k.get('crea_pct_vo_vt')
-        _card("% VO / VT", _fmt(v, 1, " %"), _color(v, 75, 65) if v else 'gris',
-              "verde ≥75 · amarillo 65–75 · rojo <65 · INTA EEA Rafaela")
-        if 'crea_pct_vo_vt' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_pct_vo_vt'], use_container_width=True, key="pop_crea_vo")
+    if mat_s is None:
+        st.info("No hay datos suficientes para construir el semáforo histórico.")
+    else:
+        _all_periodos = list(mat_s.columns)
+        _min_p = pd.Timestamp(_all_periodos[0])
+        _max_p = pd.Timestamp(_all_periodos[-1])
+        _col_rng, _ = st.columns([3, 1])
+        with _col_rng:
+            _rng = st.slider(
+                "Período",
+                min_value=_min_p.date(), max_value=_max_p.date(),
+                value=(_min_p.date(), _max_p.date()),
+                format="MMM YYYY", key="sem_hist_rng",
+            )
+        _sel_cols = [p for p in _all_periodos
+                     if _rng[0] <= pd.Timestamp(p).date() <= _rng[1]]
+        mat_f = mat_s[_sel_cols]
+        val_f = mat_v[_sel_cols]
 
-    with c2:
-        v = k.get('crea_tasa_paricion')
-        _card("Tasa parición (%)", _fmt(v, 1, " %"), _color(v, 82, 75) if v else 'gris',
-              "verde ≥82 · amarillo 75–82 · rojo <75 · INTA Enc. Lechera 2018-19: media 82.7%")
-        if 'crea_tasa_paricion' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_tasa_paricion'], use_container_width=True, key="pop_crea_paricion")
+        _CS = [
+            [0.00, '#27ae60'],
+            [0.35, '#f1c40f'],
+            [0.65, '#e67e22'],
+            [1.00, '#c0392b'],
+        ]
+        _UNITS = {
+            '% VO/VT': '%', 'Tasa parición': '%', 'Días en leche': 'd',
+            'TC (%)': '%', 'Mort. perinatal': '%', 'Tasa abortos': '%',
+            'Mort. adultas': '%', 'Mort. guachera': '%', 'Mort. rodeo/mes': '%',
+            'Grasa (%)': '%', 'Proteína (%)': '%', 'CS (k/mL)': 'k/mL',
+        }
+        hover_text = []
+        for ind in mat_f.index:
+            row_txt = []
+            unit = _UNITS.get(ind, '')
+            for p in _sel_cols:
+                v  = val_f.loc[ind, p]
+                sc = mat_f.loc[ind, p]
+                if np.isnan(v) or np.isnan(sc):
+                    row_txt.append(f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>sin dato")
+                else:
+                    dec = 0 if unit == 'd' else 1
+                    pct_meta = int((1 - sc) * 100)
+                    row_txt.append(
+                        f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>"
+                        f"valor: {v:.{dec}f} {unit}<br>cercanía a meta: {pct_meta} %"
+                    )
+            hover_text.append(row_txt)
 
-    with c3:
-        v = k.get('crea_del')
-        if v:
-            col_del = 'verde' if 150 <= v <= 175 else ('amarillo' if 140 <= v < 150 or 175 < v <= 190 else 'rojo')
-        else:
-            col_del = 'gris'
-        _card("Días en lactancia", _fmt(v, 0, " d"), col_del,
-              "verde 150–175 d · amarillo 140–150 o 175–190 · rojo fuera · Piccardi (2014) CONICET")
-        if 'crea_del' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_del'], use_container_width=True, key="pop_crea_del")
+        x_labels = [pd.Timestamp(p).strftime('%b %y') for p in _sel_cols]
+        z_vals   = mat_f.where(mat_f.notna(), other=None).values.tolist()
 
-    with c4:
-        v = k.get('crea_mort_perinatal')
-        _card("Mort. perinatal (%)", _fmt(v, 1, " %"), _color(v, 5, 8, invert=True) if v else 'gris',
-              "verde <5 · amarillo 5–8 · rojo >8 · Piccardi (2014) CONICET")
-        if 'crea_mort_perinatal' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_mort_perinatal'], use_container_width=True, key="pop_crea_perinat")
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        v = k.get('crea_mort_adultas')
-        _card("Mort. adultas (%)", _fmt(v, 1, " %"), _color(v, 3, 5.7, invert=True) if v else 'gris',
-              "verde <3 · amarillo 3–5.7 · rojo >5.7 · INTA Enc. Lechera 2018-19: media 5.7%")
-        if 'crea_mort_adultas' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_mort_adultas'], use_container_width=True, key="pop_crea_mort_a")
-
-    with c2:
-        v = k.get('crea_mort_guachera')
-        _card("Mort. guachera (%)", _fmt(v, 1, " %"), _color(v, 8, 10.3, invert=True) if v else 'gris',
-              "verde <8 · amarillo 8–10.3 · rojo >10.3 · INTA Enc. Lechera 2018-19: media 10.3%")
-        if 'crea_mort_guachera' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_mort_guachera'], use_container_width=True, key="pop_crea_guach")
-
-    with c3:
-        v = k.get('crea_tasa_abortos')
-        _card("Tasa abortos CREA (%)", _fmt(v, 1, " %"), _color(v, 3, 5, invert=True) if v else 'gris',
-              "verde <3 · amarillo 3–5 · rojo >5 · Piccardi (2014) CONICET")
-        if 'crea_tasa_abortos' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_tasa_abortos'], use_container_width=True, key="pop_crea_abort")
-
-    with c4:
-        v = k.get('crea_pct_hembras')
-        _card("% hembras nacidas", _fmt(v, 1, " %"), 'gris',
-              "esperado ~50 % (biológico) · sin meta de manejo")
-        if 'crea_pct_hembras' in charts:
-            with st.popover("📈 ver 24m", use_container_width=True):
-                st.plotly_chart(charts['crea_pct_hembras'], use_container_width=True, key="pop_crea_hembr")
+        fig_sem = go.Figure(go.Heatmap(
+            z=z_vals, x=x_labels, y=list(mat_f.index),
+            text=hover_text, hovertemplate='%{text}<extra></extra>',
+            colorscale=_CS, zmin=0, zmax=1, showscale=True,
+            colorbar=dict(
+                title=dict(text='← meta / lejos →'),
+                tickvals=[0, 0.5, 1],
+                ticktext=['en meta', 'alerta', 'crítico'],
+                len=0.6,
+            ),
+            xgap=2, ygap=2,
+        ))
+        for sep_ind in ['TC (%)', 'Grasa (%)']:
+            if sep_ind in list(mat_f.index):
+                fig_sem.add_hline(
+                    y=list(mat_f.index).index(sep_ind) + 0.5,
+                    line_width=2, line_color='rgba(255,255,255,0.5)', line_dash='dot',
+                )
+        fig_sem.update_layout(
+            height=max(320, len(mat_f.index) * 40 + 80),
+            margin=dict(t=20, b=60, l=160, r=120),
+            xaxis=dict(side='bottom', tickangle=-45, tickfont=dict(size=10)),
+            yaxis=dict(tickfont=dict(size=11), autorange='reversed'),
+            plot_bgcolor='rgba(128,128,128,0.08)',
+            paper_bgcolor='rgba(0,0,0,0)',
+        )
+        st.plotly_chart(fig_sem, use_container_width=True, key='semaforo_hist')
+        st.caption(
+            "⬜ gris = sin dato · "
+            '<span style="color:#27ae60">■</span> verde = en meta · '
+            '<span style="color:#f1c40f">■</span> amarillo = alerta · '
+            '<span style="color:#e67e22">■</span> naranja = alejándose · '
+            '<span style="color:#c0392b">■</span> rojo = crítico',
+            unsafe_allow_html=True,
+        )
 
 # ═══════════════════════════════════════════════════════════════════════
 # Documentación de KPIs
@@ -1207,132 +1254,6 @@ def _doc_kpi(titulo, descripcion, formula, umbrales, referencia, fuente, chart_k
                         key=f"doc_{chart_key}")
     st.divider()
 
-
-st.divider()
-
-# ═══════════════════════════════════════════════════════════════════════
-# SEMÁFORO HISTÓRICO
-# ═══════════════════════════════════════════════════════════════════════
-st.markdown('<p class="kpi-group-title">📅 Semáforo histórico — evolución de indicadores</p>',
-            unsafe_allow_html=True)
-st.caption(
-    "Cada celda muestra el estado del indicador en ese mes. "
-    "🟩 verde = dentro del objetivo · 🟨 amarillo = alerta · 🟥 rojo = fuera de rango · "
-    "⬜ gris = sin dato. "
-    "Períodos con múltiples rojos simultáneos señalan momentos de disfunción sistémica."
-)
-
-with st.spinner("Construyendo semáforo histórico..."):
-    mat_s, mat_v = _build_semaforo_hist()
-
-if mat_s is None:
-    st.info("No hay datos suficientes para construir el semáforo histórico.")
-else:
-    # Filtro de rango de fechas
-    _all_periodos = list(mat_s.columns)
-    _min_p = pd.Timestamp(_all_periodos[0])
-    _max_p = pd.Timestamp(_all_periodos[-1])
-    _col_rng, _col_gap = st.columns([3, 1])
-    with _col_rng:
-        _rng = st.slider(
-            "Período",
-            min_value=_min_p.date(), max_value=_max_p.date(),
-            value=(_min_p.date(), _max_p.date()),
-            format="MMM YYYY", key="sem_hist_rng",
-        )
-    _sel_cols = [p for p in _all_periodos
-                 if _rng[0] <= pd.Timestamp(p).date() <= _rng[1]]
-    mat_f = mat_s[_sel_cols]
-    val_f = mat_v[_sel_cols]
-
-    # Colorscale continua verde→amarillo→naranja→rojo (zmin=0, zmax=1)
-    _CS = [
-        [0.00, '#27ae60'],  # verde puro  — en meta
-        [0.35, '#f1c40f'],  # amarillo    — zona de alerta
-        [0.65, '#e67e22'],  # naranja     — alejándose
-        [1.00, '#c0392b'],  # rojo oscuro — muy lejos de meta
-    ]
-
-    # Hover con valor real
-    _UNITS = {
-        '% VO/VT': '%', 'Tasa parición': '%', 'Días en leche': 'd',
-        'TC (%)': '%', 'Mort. perinatal': '%', 'Tasa abortos': '%',
-        'Mort. adultas': '%', 'Mort. guachera': '%', 'Mort. rodeo/mes': '%',
-        'Grasa (%)': '%', 'Proteína (%)': '%', 'CS (k/mL)': 'k/mL',
-    }
-    hover_text = []
-    for ind in mat_f.index:
-        row_txt = []
-        unit = _UNITS.get(ind, '')
-        for p in _sel_cols:
-            v   = val_f.loc[ind, p]
-            sc  = mat_f.loc[ind, p]
-            if np.isnan(v) or np.isnan(sc):
-                row_txt.append(f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>sin dato")
-            else:
-                dec = 0 if unit == 'd' else 1
-                pct_meta = int((1 - sc) * 100)
-                row_txt.append(
-                    f"<b>{ind}</b><br>{pd.Timestamp(p).strftime('%b %Y')}<br>"
-                    f"valor: {v:.{dec}f} {unit}<br>"
-                    f"cercanía a meta: {pct_meta} %"
-                )
-        hover_text.append(row_txt)
-
-    x_labels = [pd.Timestamp(p).strftime('%b %y') for p in _sel_cols]
-
-    # Reemplazar NaN por None para que Plotly los muestre en gris
-    z_vals = mat_f.where(mat_f.notna(), other=None).values.tolist()
-
-    fig_sem = go.Figure(go.Heatmap(
-        z=z_vals,
-        x=x_labels,
-        y=list(mat_f.index),
-        text=hover_text,
-        hovertemplate='%{text}<extra></extra>',
-        colorscale=_CS,
-        zmin=0, zmax=1,
-        showscale=True,
-        colorbar=dict(
-            title=dict(text='← meta / lejos →'),
-            tickvals=[0, 0.5, 1],
-            ticktext=['en meta', 'alerta', 'crítico'],
-            len=0.6,
-        ),
-        xgap=2, ygap=2,
-    ))
-
-    # Separadores visuales entre grupos
-    _SEPARADORES = ['TC (%)', 'Grasa (%)']
-    for sep_ind in _SEPARADORES:
-        if sep_ind in list(mat_f.index):
-            idx_sep = list(mat_f.index).index(sep_ind)
-            fig_sem.add_hline(
-                y=idx_sep + 0.5,
-                line_width=2, line_color='rgba(255,255,255,0.5)',
-                line_dash='dot',
-            )
-
-    _h = max(320, len(mat_f.index) * 40 + 80)
-    fig_sem.update_layout(
-        height=_h,
-        margin=dict(t=20, b=60, l=160, r=120),
-        xaxis=dict(side='bottom', tickangle=-45, tickfont=dict(size=10)),
-        yaxis=dict(tickfont=dict(size=11), autorange='reversed'),
-        plot_bgcolor='rgba(128,128,128,0.08)',
-        paper_bgcolor='rgba(0,0,0,0)',
-    )
-    st.plotly_chart(fig_sem, use_container_width=True, key='semaforo_hist')
-
-    st.caption(
-        "⬜ gris = sin dato · "
-        '<span style="color:#27ae60">■</span> verde = en meta · '
-        '<span style="color:#f1c40f">■</span> amarillo = alerta · '
-        '<span style="color:#e67e22">■</span> naranja = alejándose · '
-        '<span style="color:#c0392b">■</span> rojo = crítico — '
-        'el color es proporcional a la distancia al objetivo, no un umbral fijo',
-        unsafe_allow_html=True,
-    )
 
 st.divider()
 with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
