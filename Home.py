@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.title("🐄 Dashboard DJSA")
-st.subheader("Don Jacinto San Antonio — La Merced")
+st.subheader("Don Jacinto Sociedad Anónima — La Merced")
 
 st.markdown("---")
 
