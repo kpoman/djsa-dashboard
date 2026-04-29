@@ -1518,8 +1518,9 @@ with tab_dairycomp:
             # ── Estado de cada animal ───────────────────────────────────────
             _ev_sets   = df_ev.groupby('ID')['Evento'].apply(set)
             _ev_counts = df_ev.groupby('ID')['Evento'].count()
-            _ev_first  = df_ev.groupby('ID')['Fecha'].min()
-            _ev_last   = df_ev.groupby('ID')['Fecha'].max()
+            # Fecha del último SECA y del último PARTO por animal
+            _df_seca  = df_ev[df_ev['Evento'] == 'SECA' ].groupby('ID')['Fecha'].max()
+            _df_parto = df_ev[df_ev['Evento'] == 'PARTO'].groupby('ID')['Fecha'].max()
             # Eventos que marcan inicio de vida productiva (primera inseminación)
             _EVENTOS_INICIO_PROD = {'INSEMIN', 'DIB'}
             # Eventos que NO son de nacimiento/muerte para distinguir vida productiva
@@ -1527,14 +1528,16 @@ with tab_dairycomp:
                              'MAST', 'RENGA', 'RETPLAC', 'ENFERMA', 'TRATADA',
                              'METRIT', 'ENDOMET', 'ABORTO', 'CELO'}
             def _estado_animal(row):
-                evs = row['evs']
+                evs, animal_id_ = row['evs'], row.name
                 if 'MUERTA' in evs:
-                    if evs & _EVENTOS_PROD:
-                        return 'MUERTA'
-                    else:
-                        return 'NATIMUERTA'
+                    return 'MUERTA' if evs & _EVENTOS_PROD else 'NATIMUERTA'
                 if 'VENDIDA' in evs: return 'VENDIDA'
-                if 'SECA' in evs and 'PARTO' not in evs: return 'SECA'
+                # SECA: tuvo SECA y su último SECA es más reciente que su último PARTO
+                if 'SECA' in evs:
+                    _ult_seca  = _df_seca.get(animal_id_)
+                    _ult_parto = _df_parto.get(animal_id_)
+                    if pd.notna(_ult_seca) and (pd.isna(_ult_parto) or _ult_seca > _ult_parto):
+                        return 'SECA'
                 # REPO: nunca tuvo INSEMIN ni DIB → aún no entró en fase productiva
                 if not (evs & _EVENTOS_INICIO_PROD):
                     return 'REPO'
