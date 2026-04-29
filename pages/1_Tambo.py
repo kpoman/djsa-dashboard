@@ -1520,12 +1520,12 @@ with tab_dairycomp:
             _ev_counts = df_ev.groupby('ID')['Evento'].count()
             _ev_first  = df_ev.groupby('ID')['Fecha'].min()
             _ev_last   = df_ev.groupby('ID')['Fecha'].max()
-            _MESES_REPO = 12  # umbral en meses para considerar reposición
+            # Eventos que marcan inicio de vida productiva (primera inseminación)
+            _EVENTOS_INICIO_PROD = {'INSEMIN', 'DIB'}
             # Eventos que NO son de nacimiento/muerte para distinguir vida productiva
-            _EVENTOS_PROD = {'PARTO', 'INSEMIN', 'PREÑADA', 'VACIA', 'SECA',
+            _EVENTOS_PROD = {'PARTO', 'INSEMIN', 'DIB', 'PREÑADA', 'VACIA', 'SECA',
                              'MAST', 'RENGA', 'RETPLAC', 'ENFERMA', 'TRATADA',
                              'METRIT', 'ENDOMET', 'ABORTO', 'CELO'}
-            _hoy = pd.Timestamp.today()
             def _estado_animal(row):
                 evs = row['evs']
                 if 'MUERTA' in evs:
@@ -1535,19 +1535,13 @@ with tab_dairycomp:
                         return 'NATIMUERTA'
                 if 'VENDIDA' in evs: return 'VENDIDA'
                 if 'SECA' in evs and 'PARTO' not in evs: return 'SECA'
-                # ACTIVA: distinguir reposición (< 12 meses) de productiva
-                _primer = row['first']
-                _ref    = row['last'] if pd.notna(row['last']) else _hoy
-                if pd.notna(_primer):
-                    _meses = (_ref - _primer).days / 30.44
-                    if _meses < _MESES_REPO and not (evs & _EVENTOS_PROD):
-                        return 'REPO'
+                # REPO: nunca tuvo INSEMIN ni DIB → aún no entró en fase productiva
+                if not (evs & _EVENTOS_INICIO_PROD):
+                    return 'REPO'
                 return 'ACTIVA'
             _ev_df = pd.DataFrame({
-                'evs':   _ev_sets,
-                'n':     _ev_counts,
-                'first': _ev_first,
-                'last':  _ev_last,
+                'evs': _ev_sets,
+                'n':   _ev_counts,
             })
             _estado_map = _ev_df.apply(_estado_animal, axis=1)
 
