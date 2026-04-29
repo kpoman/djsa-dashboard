@@ -87,13 +87,13 @@ def _fmt(val, dec=1, suffix="", fallback="s/d"):
 @st.cache_data(show_spinner=False)
 def _load_dairycomp():
     df_ev = pd.read_csv(
-        os.path.join(BASE_DATA, 'eventos-202604.csv'),
+        os.path.join(BASE_DATA, 'eventos-202605.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['Fecha'], date_format='%d/%m/%y', dayfirst=True,
     )
     df_ev['Evento'] = df_ev['Evento'].str.strip()
     df_ctrl = pd.read_csv(
-        os.path.join(BASE_DATA, 'control-202604.csv'),
+        os.path.join(BASE_DATA, 'control-202605.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['FechaCtr', 'FPART', 'FSECA'], date_format='%d/%m/%y', dayfirst=True,
     )
@@ -1278,7 +1278,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "promedio campo `305E` en controles DairyComp — últimos 12m",
         "🟢 ≥ 10.000 L · 🟡 8.500–10.000 L · 🔴 < 8.500 L",
         "Piccardi et al. (2019), CONICET / Editorial Brujas",
-        "`control-202604.csv` — exportación estática de DairyComp",
+        "`control-202605.csv` — exportación estática de DairyComp",
         chart_key='l305e',
     )
 
@@ -1337,7 +1337,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "vacas únicas con CELO / vacas únicas con PARTO en 12m × 100",
         "🟢 ≥ 90 % · 🟡 70–90 % · 🔴 < 70 %",
         "Cavestany & Galina (2002); benchmarks CREA",
-        f"`eventos-202604.csv` — DairyComp (collares) — hasta {ref_ev}",
+        f"`eventos-202605.csv` — DairyComp (collares) — hasta {ref_ev}",
         chart_key='tdc',
     )
     _doc_kpi(
@@ -1348,7 +1348,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "serv. con PREÑADA en 90d / total serv. elegibles (excl. últimos 60d) × 100",
         "🟢 ≥ 51 % · 🟡 43–51 % · 🔴 < 43 %",
         "Piccardi et al. (2019); Lucy (2001) J. Dairy Sci.",
-        f"`eventos-202604.csv` — hasta {ref_ev}",
+        f"`eventos-202605.csv` — hasta {ref_ev}",
         chart_key='tc',
     )
     _doc_kpi(
@@ -1359,7 +1359,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "promedio de INSEMIN entre PARTO y primera PREÑADA, por vaca, en partos de 12m",
         "🟢 < 1.7 · 🟡 1.7–2.5 · 🔴 > 2.5",
         "Piccardi et al. (2019)",
-        f"`eventos-202604.csv` — hasta {ref_ev}",
+        f"`eventos-202605.csv` — hasta {ref_ev}",
         chart_key='nsp',
     )
     _doc_kpi(
@@ -1370,7 +1370,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "fecha 1er INSEMIN − fecha PARTO, por vaca, partos en 12m",
         "🟢 < 60 d · 🟡 60–75 d · 🔴 > 75 d",
         "Risco & Melendez (2011); Piccardi et al. (2019)",
-        f"`eventos-202604.csv` — hasta {ref_ev}",
+        f"`eventos-202605.csv` — hasta {ref_ev}",
         chart_key='d1s',
     )
     _doc_kpi(
@@ -1381,7 +1381,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "(fecha PREÑADA − 42d) − fecha PARTO · primera PREÑADA por vaca en 12m",
         "🟢 < 110 d · 🟡 110–140 d · 🔴 > 140 d",
         "Stevenson (2001); benchmarks CREA Litoral",
-        f"`eventos-202604.csv` — hasta {ref_ev}",
+        f"`eventos-202605.csv` — hasta {ref_ev}",
         chart_key='dv',
     )
     _doc_kpi(
@@ -1392,7 +1392,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "vacas únicas con ABORTO / (vacas únicas PREÑADA + ABORTO) × 100 · 12m",
         "🟢 < 3 % · 🟡 3–5 % · 🔴 > 5 %",
         "Gnemmi & Maraboli (2010); Piccardi et al. (2019)",
-        f"`eventos-202604.csv` — hasta {ref_ev}",
+        f"`eventos-202605.csv` — hasta {ref_ev}",
         chart_key='ta',
     )
     _doc_kpi(
@@ -1403,7 +1403,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "vacas únicas MUERTA (o VENDIDA) / vacas únicas activas × 100 · 12m",
         "TM 🟢 < 3% · 🟡 3–5% · 🔴 > 5% | TD 🟢 < 20% · 🟡 20–30% · 🔴 > 30%",
         "Hadley et al. (2006); Piccardi et al. (2019)",
-        f"`eventos-202604.csv` — hasta {ref_ev}",
+        f"`eventos-202605.csv` — hasta {ref_ev}",
     )
 
     # ── Sanidad ───────────────────────────────────────────────────────────────
@@ -1416,7 +1416,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "vacas únicas con MAST / vacas únicas activas × 100 · 12m",
         "🟢 < 15 % · 🟡 15–25 % · 🔴 > 25 %",
         "Schukken et al. (2003); Piccardi et al. (2019)",
-        f"`eventos-202604.csv` — DairyComp, registros de tratamientos — hasta {ref_ev}",
+        f"`eventos-202605.csv` — DairyComp, registros de tratamientos — hasta {ref_ev}",
         chart_key='mast',
     )
 
@@ -1520,8 +1520,8 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
 | Fuente | Tipo | Cobertura | Actualización |
 |---|---|---|---|
 | Parte Diario | Google Sheets (público) | hasta {ref_ctrl} | Manual, diaria |
-| DairyComp eventos | CSV estático `eventos-202604.csv` | hasta {ref_ev} | Manual, exportar DairyComp |
-| DairyComp controles | CSV estático `control-202604.csv` | hasta {ref_ctrl} | Manual, exportar DairyComp |
+| DairyComp eventos | CSV estático `eventos-202605.csv` | hasta {ref_ev} | Manual, exportar DairyComp |
+| DairyComp controles | CSV estático `control-202605.csv` | hasta {ref_ctrl} | Manual, exportar DairyComp |
 | Calidad de leche | CSV estático `calidad_leche.csv` | hasta {ref_cal} | Manual, PDFs laboratorio |
 | Planilla CREA | Google Sheets (privado) | hasta {ref_crea} | Manual, mensual |
 | Tipo de cambio | CSV estático `usdars.csv` | histórico 2010–2026 | Periódica |

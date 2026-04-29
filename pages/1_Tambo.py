@@ -182,7 +182,7 @@ def _get_dairycomp():
     import os
     base = os.path.join(os.path.dirname(__file__), '..', 'data')
     df_ev = pd.read_csv(
-        os.path.join(base, 'eventos-202604.csv'),
+        os.path.join(base, 'eventos-202605.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['Fecha'], date_format='%d/%m/%y', dayfirst=True,
     )
@@ -198,7 +198,7 @@ def _get_dairycomp():
         lambda x: 'salud' if x in salud else ('repro' if x in repro else 'noclasif')
     )
     df_ctrl = pd.read_csv(
-        os.path.join(base, 'control-202604.csv'),
+        os.path.join(base, 'control-202605.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['FechaCtr', 'FPART', 'FSECA'],
         date_format='%d/%m/%y', dayfirst=True,
