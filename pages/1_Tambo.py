@@ -1546,7 +1546,7 @@ with tab_dairycomp:
                 )
             _estados_sel = [e for e, v in _filtros.items() if v]
             if not _estados_sel:
-                _estados_sel = [e for e, _ in _estados_posibles]  # si nada seleccionado, mostrar todos
+                _estados_sel = [e for e, _i, _c in _estados_posibles]  # si nada seleccionado, mostrar todos
 
             todos_ids = [i for i in _todos_ids_full if _estado_map.get(i, 'ACTIVA') in _estados_sel]
 
