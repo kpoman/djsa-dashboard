@@ -1515,14 +1515,48 @@ with tab_dairycomp:
                 if ev in _SALUD:   return 'salud'
                 return 'manejo'
 
+            # ── Estado de cada animal ───────────────────────────────────────
+            _ev_ult = df_ev.groupby('ID')['Evento'].apply(set)
+            def _estado_animal(evs):
+                if 'MUERTA'  in evs: return 'MUERTA'
+                if 'VENDIDA' in evs: return 'VENDIDA'
+                if 'SECA'    in evs and 'PARTO' not in evs: return 'SECA'
+                return 'ACTIVA'
+            _estado_map = _ev_ult.apply(_estado_animal)
+
+            _todos_ids_full = sorted(df_ev['ID'].dropna().unique())
+            _conteos = _estado_map.value_counts()
+
+            # ── Filtros por estado ──────────────────────────────────────────
+            st.markdown("**Filtrar por estado:**")
+            _fcol1, _fcol2, _fcol3, _fcol4 = st.columns(4)
+            _estados_posibles = [
+                ('ACTIVA',  '🟢', _fcol1),
+                ('VENDIDA', '🟡', _fcol2),
+                ('MUERTA',  '🔴', _fcol3),
+                ('SECA',    '🔵', _fcol4),
+            ]
+            _filtros = {}
+            for _est, _ico, _col in _estados_posibles:
+                _n = _conteos.get(_est, 0)
+                _filtros[_est] = _col.checkbox(
+                    f"{_ico} {_est} ({_n})",
+                    value=(_est == 'ACTIVA'),
+                    key=f"flt_{_est.lower()}",
+                )
+            _estados_sel = [e for e, v in _filtros.items() if v]
+            if not _estados_sel:
+                _estados_sel = [e for e, _ in _estados_posibles]  # si nada seleccionado, mostrar todos
+
+            todos_ids = [i for i in _todos_ids_full if _estado_map.get(i, 'ACTIVA') in _estados_sel]
+
             # ── Selector de animal ──────────────────────────────────────────
-            todos_ids = sorted(df_ev['ID'].dropna().unique())
             col_srch, col_info = st.columns([2, 3])
             with col_srch:
                 animal_id = st.selectbox(
-                    "Seleccioná un animal (ID)",
+                    f"Seleccioná un animal (ID) — {len(todos_ids)} animales",
                     options=todos_ids,
-                    format_func=lambda x: f"#{int(x)}",
+                    format_func=lambda x: f"#{int(x)} [{_estado_map.get(x, '?')}]",
                     key="animal_id",
                 )
 
