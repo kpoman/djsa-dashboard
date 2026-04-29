@@ -1518,22 +1518,37 @@ with tab_dairycomp:
             # ── Estado de cada animal ───────────────────────────────────────
             _ev_sets   = df_ev.groupby('ID')['Evento'].apply(set)
             _ev_counts = df_ev.groupby('ID')['Evento'].count()
+            _ev_first  = df_ev.groupby('ID')['Fecha'].min()
+            _ev_last   = df_ev.groupby('ID')['Fecha'].max()
+            _MESES_REPO = 12  # umbral en meses para considerar reposición
             # Eventos que NO son de nacimiento/muerte para distinguir vida productiva
             _EVENTOS_PROD = {'PARTO', 'INSEMIN', 'PREÑADA', 'VACIA', 'SECA',
                              'MAST', 'RENGA', 'RETPLAC', 'ENFERMA', 'TRATADA',
                              'METRIT', 'ENDOMET', 'ABORTO', 'CELO'}
+            _hoy = pd.Timestamp.today()
             def _estado_animal(row):
-                evs, n_total = row['evs'], row['n']
+                evs = row['evs']
                 if 'MUERTA' in evs:
-                    # Si tuvo eventos productivos además de MUERTA → murió adulta
                     if evs & _EVENTOS_PROD:
                         return 'MUERTA'
                     else:
                         return 'NATIMUERTA'
                 if 'VENDIDA' in evs: return 'VENDIDA'
-                if 'SECA'    in evs and 'PARTO' not in evs: return 'SECA'
+                if 'SECA' in evs and 'PARTO' not in evs: return 'SECA'
+                # ACTIVA: distinguir reposición (< 12 meses) de productiva
+                _primer = row['first']
+                _ref    = row['last'] if pd.notna(row['last']) else _hoy
+                if pd.notna(_primer):
+                    _meses = (_ref - _primer).days / 30.44
+                    if _meses < _MESES_REPO and not (evs & _EVENTOS_PROD):
+                        return 'REPO'
                 return 'ACTIVA'
-            _ev_df = pd.DataFrame({'evs': _ev_sets, 'n': _ev_counts})
+            _ev_df = pd.DataFrame({
+                'evs':   _ev_sets,
+                'n':     _ev_counts,
+                'first': _ev_first,
+                'last':  _ev_last,
+            })
             _estado_map = _ev_df.apply(_estado_animal, axis=1)
 
             _todos_ids_full = sorted(df_ev['ID'].dropna().unique())
@@ -1541,13 +1556,14 @@ with tab_dairycomp:
 
             # ── Filtros por estado ──────────────────────────────────────────
             st.markdown("**Filtrar por estado:**")
-            _fcol1, _fcol2, _fcol3, _fcol4, _fcol5 = st.columns(5)
+            _fcol1, _fcol2, _fcol3, _fcol4, _fcol5, _fcol6 = st.columns(6)
             _estados_posibles = [
                 ('ACTIVA',     '🟢', _fcol1),
-                ('VENDIDA',    '🟡', _fcol2),
-                ('MUERTA',     '🔴', _fcol3),
-                ('NATIMUERTA', '⚫', _fcol4),
-                ('SECA',       '🔵', _fcol5),
+                ('REPO', '🟣', _fcol2),
+                ('VENDIDA',    '🟡', _fcol3),
+                ('MUERTA',     '🔴', _fcol4),
+                ('NATIMUERTA', '⚫', _fcol5),
+                ('SECA',       '🔵', _fcol6),
             ]
             _filtros = {}
             for _est, _ico, _col in _estados_posibles:
@@ -1580,12 +1596,7 @@ with tab_dairycomp:
                 ev_animal['Categoria'] = ev_animal['Evento'].apply(_clasificar)
                 n_partos = (ev_animal['Evento'] == 'PARTO').sum()
                 ultimo_ev = ev_animal['Fecha'].max()
-                estado = 'ACTIVA'
-                if (ev_animal['Evento'] == 'MUERTA').any():
-                    _tuvo_prod = bool(set(ev_animal['Evento'].tolist()) & _EVENTOS_PROD)
-                    estado = 'MUERTA' if _tuvo_prod else 'NATIMUERTA'
-                elif (ev_animal['Evento'] == 'VENDIDA').any():
-                    estado = 'VENDIDA'
+                estado = _estado_map.get(animal_id, 'ACTIVA')
 
                 with col_info:
                     c1, c2, c3, c4 = st.columns(4)
