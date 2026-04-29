@@ -1516,25 +1516,38 @@ with tab_dairycomp:
                 return 'manejo'
 
             # ── Estado de cada animal ───────────────────────────────────────
-            _ev_ult = df_ev.groupby('ID')['Evento'].apply(set)
-            def _estado_animal(evs):
-                if 'MUERTA'  in evs: return 'MUERTA'
+            _ev_sets   = df_ev.groupby('ID')['Evento'].apply(set)
+            _ev_counts = df_ev.groupby('ID')['Evento'].count()
+            # Eventos que NO son de nacimiento/muerte para distinguir vida productiva
+            _EVENTOS_PROD = {'PARTO', 'INSEMIN', 'PREÑADA', 'VACIA', 'SECA',
+                             'MAST', 'RENGA', 'RETPLAC', 'ENFERMA', 'TRATADA',
+                             'METRIT', 'ENDOMET', 'ABORTO', 'CELO'}
+            def _estado_animal(row):
+                evs, n_total = row['evs'], row['n']
+                if 'MUERTA' in evs:
+                    # Si tuvo eventos productivos además de MUERTA → murió adulta
+                    if evs & _EVENTOS_PROD:
+                        return 'MUERTA'
+                    else:
+                        return 'NATIMUERTA'
                 if 'VENDIDA' in evs: return 'VENDIDA'
                 if 'SECA'    in evs and 'PARTO' not in evs: return 'SECA'
                 return 'ACTIVA'
-            _estado_map = _ev_ult.apply(_estado_animal)
+            _ev_df = pd.DataFrame({'evs': _ev_sets, 'n': _ev_counts})
+            _estado_map = _ev_df.apply(_estado_animal, axis=1)
 
             _todos_ids_full = sorted(df_ev['ID'].dropna().unique())
             _conteos = _estado_map.value_counts()
 
             # ── Filtros por estado ──────────────────────────────────────────
             st.markdown("**Filtrar por estado:**")
-            _fcol1, _fcol2, _fcol3, _fcol4 = st.columns(4)
+            _fcol1, _fcol2, _fcol3, _fcol4, _fcol5 = st.columns(5)
             _estados_posibles = [
-                ('ACTIVA',  '🟢', _fcol1),
-                ('VENDIDA', '🟡', _fcol2),
-                ('MUERTA',  '🔴', _fcol3),
-                ('SECA',    '🔵', _fcol4),
+                ('ACTIVA',     '🟢', _fcol1),
+                ('VENDIDA',    '🟡', _fcol2),
+                ('MUERTA',     '🔴', _fcol3),
+                ('NATIMUERTA', '⚫', _fcol4),
+                ('SECA',       '🔵', _fcol5),
             ]
             _filtros = {}
             for _est, _ico, _col in _estados_posibles:
@@ -1569,7 +1582,8 @@ with tab_dairycomp:
                 ultimo_ev = ev_animal['Fecha'].max()
                 estado = 'ACTIVA'
                 if (ev_animal['Evento'] == 'MUERTA').any():
-                    estado = 'MUERTA'
+                    _tuvo_prod = bool(set(ev_animal['Evento'].tolist()) & _EVENTOS_PROD)
+                    estado = 'MUERTA' if _tuvo_prod else 'NATIMUERTA'
                 elif (ev_animal['Evento'] == 'VENDIDA').any():
                     estado = 'VENDIDA'
 
