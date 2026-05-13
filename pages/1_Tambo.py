@@ -100,7 +100,22 @@ def _get_partediario():
     df_total['roll'] = df_total['diaria_total'].rolling(7).mean()
     df_total['ltvo_roll'] = df_total['diaria_ltvo'].rolling(7).mean()
 
-    return {'rodeos': df_rodeos, 'total': df_total}
+    # ── Leche no comercializable ─────────────────────────────────────────────
+    df_mastitis = _rodeo('Mastitis').assign(date=dates if False else None)
+    df_mastitis = df[df['cat'] == 'Mastitis'].assign(date=dates).reset_index()
+    df_mastitis['diaria_total'] = pd.to_numeric(df_mastitis['diaria_total'], errors='coerce').fillna(0)
+    df_mastitis['roll'] = df_mastitis['diaria_total'].rolling(7).mean()
+
+    df_guachera = df[df['cat'] == 'Guachera'].assign(date=dates).reset_index()
+    df_guachera['diaria_total'] = pd.to_numeric(df_guachera['diaria_total'], errors='coerce').fillna(0)
+    df_guachera['roll'] = df_guachera['diaria_total'].rolling(7).mean()
+
+    return {
+        'rodeos':    df_rodeos,
+        'total':     df_total,
+        'mastitis':  df_mastitis,
+        'guachera':  df_guachera,
+    }
 
 
 @st.cache_data(ttl=3600, show_spinner="Cargando datos CREA...")
@@ -316,6 +331,95 @@ with tab_prod:
             df_prod_dl = df_total[['date', 'diaria_total']].rename(columns={'date': 'Fecha', 'diaria_total': 'Produccion_total'})
             st.download_button("Descargar producción diaria (CSV)", df_prod_dl.to_csv(index=False).encode('utf-8'),
                                file_name='produccion_diaria.csv', mime='text/csv', key='dl_prod')
+
+            # ── Leche no comercializable ─────────────────────────────────
+            st.divider()
+            st.subheader("🚨 Leche no comercializable — destino y pérdida económica")
+
+            df_mast = data_pd['mastitis']
+            df_guach = data_pd['guachera']
+
+            # Métricas del último día con datos
+            _ult_mast  = df_mast[df_mast['diaria_total'] > 0]['diaria_total'].iloc[-1] if not df_mast[df_mast['diaria_total'] > 0].empty else 0
+            _ult_guach = df_guach[df_guach['diaria_total'] > 0]['diaria_total'].iloc[-1] if not df_guach[df_guach['diaria_total'] > 0].empty else 0
+            _ult_total = df_total['diaria_total'].iloc[-1] if not df_total.empty else 1
+
+            mc1, mc2, mc3 = st.columns(3)
+            mc1.metric(
+                "🔴 Mastitis (descarte hoy)",
+                f"{int(_ult_mast):,} L",
+                f"{_ult_mast/_ult_total*100:.1f}% de la producción" if _ult_total else None,
+                delta_color="inverse",
+            )
+            mc2.metric(
+                "🟢 Guachera (hoy)",
+                f"{int(_ult_guach):,} L",
+                f"{_ult_guach/_ult_total*100:.1f}% de la producción" if _ult_total else None,
+            )
+            mc3.metric(
+                "📦 Entregado a LB (hoy)",
+                f"{int(_ult_total - _ult_mast - _ult_guach):,} L",
+            )
+
+            # Gráfico de barras apiladas: destino de la leche diaria (media móvil 7d)
+            _df_dest = pd.DataFrame({
+                'date':    df_total['date'],
+                'Entregado a LB': (df_total['diaria_total'] - df_mast['diaria_total'].values - df_guach['diaria_total'].values).clip(lower=0),
+                'Guachera':        df_guach['diaria_total'].values,
+                'Mastitis (descarte)': df_mast['diaria_total'].values,
+            }).dropna(subset=['date'])
+            _df_dest_m = _df_dest.copy()
+            _df_dest_m['Entregado a LB'] = _df_dest_m['Entregado a LB'].rolling(7).mean()
+            _df_dest_m['Guachera']       = _df_dest_m['Guachera'].rolling(7).mean()
+            _df_dest_m['Mastitis (descarte)'] = _df_dest_m['Mastitis (descarte)'].rolling(7).mean()
+
+            _df_long = _df_dest_m.melt(id_vars='date', var_name='Destino', value_name='Litros')
+            fig_dest = px.area(
+                _df_long, x='date', y='Litros', color='Destino',
+                title='Destino diario de la leche (media móvil 7d)',
+                labels={'date': 'Fecha'},
+                color_discrete_map={
+                    'Entregado a LB':     '#27ae60',
+                    'Guachera':            '#3498db',
+                    'Mastitis (descarte)': '#e74c3c',
+                },
+                category_orders={'Destino': ['Entregado a LB', 'Guachera', 'Mastitis (descarte)']},
+            )
+            fig_dest.update_layout(hovermode='x unified')
+            st.plotly_chart(fig_dest, use_container_width=True)
+
+            # Gráfico de barras: litros mastitis vs guachera diarios
+            fig_nc = go.Figure()
+            fig_nc.add_trace(go.Bar(
+                x=df_mast['date'], y=df_mast['diaria_total'],
+                name='Mastitis (descarte)', marker_color='#e74c3c', opacity=0.85,
+            ))
+            fig_nc.add_trace(go.Bar(
+                x=df_guach['date'], y=df_guach['diaria_total'],
+                name='Guachera', marker_color='#3498db', opacity=0.85,
+            ))
+            fig_nc.add_trace(go.Scatter(
+                x=df_mast['date'], y=df_mast['roll'],
+                name='Mastitis MM7', line=dict(color='#c0392b', width=2, dash='dot'),
+            ))
+            fig_nc.add_trace(go.Scatter(
+                x=df_guach['date'], y=df_guach['roll'],
+                name='Guachera MM7', line=dict(color='#2980b9', width=2, dash='dot'),
+            ))
+            fig_nc.update_layout(
+                title='Leche mastitis y guachera — litros diarios',
+                barmode='group',
+                xaxis_title='Fecha', yaxis_title='Litros',
+                hovermode='x unified',
+                height=380,
+                annotations=[dict(
+                    text='⚠️ Leche mastitis actualmente en descarte total (pérdida económica)',
+                    xref='paper', yref='paper', x=0, y=1.07,
+                    showarrow=False, font=dict(color='#e74c3c', size=12),
+                )],
+            )
+            st.plotly_chart(fig_nc, use_container_width=True)
+            st.caption("💡 Futuro: incorporar destino 'Guachera con pasteurización' para leche mastitis, reduciendo el descarte a pérdida cero.")
 
     with sub_hist:
         df_hist = _get_datos_prod()
