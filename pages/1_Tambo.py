@@ -395,34 +395,29 @@ with tab_prod:
                 return float(fil['diaria_total'].iloc[-1]) if not fil.empty else 0.0
             _ult_mast  = _ult(df_mast)
             _ult_guach = _ult(df_guach)
-            _ult_taxi  = _ult(df_taxi) if _tiene_taxi else 0.0
+            _ult_taxi  = _ult(df_taxi)   # 0.0 si no hay TaxiMachos aún
             _ult_total = float(df_total['diaria_total'].iloc[-1]) if not df_total.empty else 1.0
             _ult_desc  = max(0.0, _ult_mast - _ult_taxi)
             _ult_supl  = max(0.0, _ult_taxi - _ult_mast)
             _ult_aprov = (_ult_taxi / _ult_mast * 100) if _ult_mast > 0 else 0.0
 
-            if _tiene_taxi:
-                mc1, mc2, mc3, mc4, mc5 = st.columns(5)
-                mc1.metric("🔴 Mastitis total", f"{int(_ult_mast):,} L",
-                           f"{_ult_mast/_ult_total*100:.1f}% producción", delta_color="inverse")
-                mc2.metric("🟠 TaxiMachos (pasteurizado)", f"{int(_ult_taxi):,} L")
-                mc3.metric("🔴 Descarte real", f"{int(_ult_desc):,} L",
-                           delta_color="inverse")
-                mc4.metric("🟡 Suplemento producción", f"{int(_ult_supl):,} L",
-                           help="Litros de leche normal usados cuando TaxiMachos > Mastitis",
-                           delta_color="inverse")
-                mc5.metric("✅ Aprovechamiento mastitis", f"{_ult_aprov:.0f}%")
-            else:
-                mc1, mc2, mc3 = st.columns(3)
-                mc1.metric("🔴 Mastitis (descarte total)", f"{int(_ult_mast):,} L",
-                           f"{_ult_mast/_ult_total*100:.1f}% producción", delta_color="inverse")
-                mc2.metric("🔵 Guachera", f"{int(_ult_guach):,} L",
-                           f"{_ult_guach/_ult_total*100:.1f}% producción")
-                mc3.metric("📦 Entregado a LB", f"{int(_ult_total - _ult_mast - _ult_guach):,} L")
-                st.info("🔜 Cuando se registre **TaxiMachos** en el parte diario, aparecerá aquí el balance de aprovechamiento de leche mastitis.")
+            # Siempre mostramos el balance completo — sin TaxiMachos taxi=0 → descarte=100%
+            mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+            mc1.metric("🔴 Mastitis total", f"{int(_ult_mast):,} L",
+                       f"{_ult_mast/_ult_total*100:.1f}% producción", delta_color="inverse")
+            mc2.metric("🔵 Guachera", f"{int(_ult_guach):,} L",
+                       f"{_ult_guach/_ult_total*100:.1f}% producción")
+            mc3.metric("🟠 TaxiMachos", f"{int(_ult_taxi):,} L",
+                       "sin datos aún" if not _tiene_taxi else None)
+            mc4.metric("🔴 Descarte mastitis", f"{int(_ult_desc):,} L",
+                       delta_color="inverse")
+            mc5.metric("✅ Aprovechamiento mastitis", f"{_ult_aprov:.0f}%",
+                       help="TaxiMachos / Mastitis × 100. 100% = sin descarte.")
+            if _ult_supl > 0:
+                st.warning(f"⚠️ TaxiMachos ({int(_ult_taxi):,} L) supera la leche mastitis disponible ({int(_ult_mast):,} L) — se están usando **{int(_ult_supl):,} L de leche de producción**.")
 
             # ── Gráfico balance mastitis: aprovechado / descarte / suplemento ──
-            if not df_bal.empty and _tiene_taxi:
+            if not df_bal.empty:
                 fig_bal = go.Figure()
                 fig_bal.add_trace(go.Bar(
                     x=df_bal['date'], y=df_bal['aprovechado'],
