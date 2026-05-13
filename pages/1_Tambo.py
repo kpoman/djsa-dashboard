@@ -70,10 +70,27 @@ def _get_partediario():
     )
     keys = list(df_all.keys())
     tabs = []
+    _mast_rows  = []
+    _guach_rows = []
     for i in range(len(keys)):
         tab_name = keys[len(keys) - i - 1]
-        if len(tab_name.split('-')) == 2:
-            tabs.append(df_all[tab_name])
+        if len(tab_name.split('-')) != 2:
+            continue
+        tab = df_all[tab_name]
+        tabs.append(tab)
+        # Fecha de este tab (fila La Merced, columna diaria_total)
+        _date_vals = tab[tab['cat'] == 'La Merced']['diaria_total'].values
+        if not len(_date_vals):
+            continue
+        _tab_date = _date_vals[0]
+        # Mastitis y Guachera — filas opcionales (pueden no existir en tabs viejos)
+        for _cat, _lst in [('Mastitis', _mast_rows), ('Guachera', _guach_rows)]:
+            _row = tab[tab['cat'] == _cat]
+            if not _row.empty:
+                _d = _row.iloc[0].to_dict()
+                _d['date'] = _tab_date
+                _lst.append(_d)
+
     if not tabs:
         return None
     df = pd.concat(tabs)
@@ -100,15 +117,15 @@ def _get_partediario():
     df_total['roll'] = df_total['diaria_total'].rolling(7).mean()
     df_total['ltvo_roll'] = df_total['diaria_ltvo'].rolling(7).mean()
 
-    # ── Leche no comercializable ─────────────────────────────────────────────
-    df_mastitis = _rodeo('Mastitis').assign(date=dates if False else None)
-    df_mastitis = df[df['cat'] == 'Mastitis'].assign(date=dates).reset_index()
+    # ── Leche no comercializable — extraída tab a tab para manejar filas nuevas ──
+    _empty_cols = ['date', 'diaria_total', 'tarde_tanque', 'maniana_tanque',
+                   'tarde_vo', 'maniana_vo', 'diaria_ltvo']
+    df_mastitis = pd.DataFrame(_mast_rows) if _mast_rows else pd.DataFrame(columns=_empty_cols)
+    df_guachera = pd.DataFrame(_guach_rows) if _guach_rows else pd.DataFrame(columns=_empty_cols)
     df_mastitis['diaria_total'] = pd.to_numeric(df_mastitis['diaria_total'], errors='coerce').fillna(0)
-    df_mastitis['roll'] = df_mastitis['diaria_total'].rolling(7).mean()
-
-    df_guachera = df[df['cat'] == 'Guachera'].assign(date=dates).reset_index()
     df_guachera['diaria_total'] = pd.to_numeric(df_guachera['diaria_total'], errors='coerce').fillna(0)
-    df_guachera['roll'] = df_guachera['diaria_total'].rolling(7).mean()
+    df_mastitis['roll'] = df_mastitis['diaria_total'].rolling(7).mean()
+    df_guachera['roll']  = df_guachera['diaria_total'].rolling(7).mean()
 
     return {
         'rodeos':    df_rodeos,
