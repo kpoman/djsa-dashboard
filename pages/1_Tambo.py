@@ -72,6 +72,7 @@ def _get_partediario():
     tabs = []
     _mast_rows  = []
     _guach_rows = []
+    _taxi_rows  = []   # TaxiMachos: leche mastitis pasteurizada para machos
     for i in range(len(keys)):
         tab_name = keys[len(keys) - i - 1]
         if len(tab_name.split('-')) != 2:
@@ -83,8 +84,12 @@ def _get_partediario():
         if not len(_date_vals):
             continue
         _tab_date = _date_vals[0]
-        # Mastitis y Guachera — filas opcionales (pueden no existir en tabs viejos)
-        for _cat, _lst in [('Mastitis', _mast_rows), ('Guachera', _guach_rows)]:
+        # Filas opcionales (pueden no existir en tabs viejos)
+        for _cat, _lst in [
+            ('Mastitis',   _mast_rows),
+            ('Guachera',   _guach_rows),
+            ('TaxiMachos', _taxi_rows),   # aún no existe, se activa solo cuando aparezca
+        ]:
             _row = tab[tab['cat'] == _cat]
             if not _row.empty:
                 _d = _row.iloc[0].to_dict()
@@ -120,18 +125,43 @@ def _get_partediario():
     # ── Leche no comercializable — extraída tab a tab para manejar filas nuevas ──
     _empty_cols = ['date', 'diaria_total', 'tarde_tanque', 'maniana_tanque',
                    'tarde_vo', 'maniana_vo', 'diaria_ltvo']
-    df_mastitis = pd.DataFrame(_mast_rows) if _mast_rows else pd.DataFrame(columns=_empty_cols)
-    df_guachera = pd.DataFrame(_guach_rows) if _guach_rows else pd.DataFrame(columns=_empty_cols)
-    df_mastitis['diaria_total'] = pd.to_numeric(df_mastitis['diaria_total'], errors='coerce').fillna(0)
-    df_guachera['diaria_total'] = pd.to_numeric(df_guachera['diaria_total'], errors='coerce').fillna(0)
-    df_mastitis['roll'] = df_mastitis['diaria_total'].rolling(7).mean()
-    df_guachera['roll']  = df_guachera['diaria_total'].rolling(7).mean()
+    def _build_df(rows):
+        df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=_empty_cols)
+        df['diaria_total'] = pd.to_numeric(df['diaria_total'], errors='coerce').fillna(0)
+        df['roll'] = df['diaria_total'].rolling(7).mean()
+        return df
+
+    df_mastitis  = _build_df(_mast_rows)
+    df_guachera  = _build_df(_guach_rows)
+    df_taxi      = _build_df(_taxi_rows)   # vacío hasta que aparezca TaxiMachos
+
+    # ── Balance mastitis: aprovechamiento vs descarte ────────────────────────
+    # Se construye alineando por fecha — TaxiMachos puede tener menos filas
+    _bal = df_mastitis[['date', 'diaria_total']].rename(columns={'diaria_total': 'mastitis'}).copy()
+    if not df_taxi.empty:
+        _bal = _bal.merge(
+            df_taxi[['date', 'diaria_total']].rename(columns={'diaria_total': 'taxi'}),
+            on='date', how='left',
+        )
+    else:
+        _bal['taxi'] = 0.0
+    _bal['taxi']           = _bal['taxi'].fillna(0)
+    _bal['aprovechado']    = _bal[['mastitis', 'taxi']].min(axis=1)       # min(M, T)
+    _bal['descarte']       = (_bal['mastitis'] - _bal['taxi']).clip(lower=0)
+    _bal['suplemento']     = (_bal['taxi'] - _bal['mastitis']).clip(lower=0)  # taxi > mastitis → suplemento
+    _bal['pct_aprovech']   = np.where(
+        _bal['mastitis'] > 0,
+        (_bal['aprovechado'] / _bal['mastitis'] * 100).round(1),
+        np.nan,
+    )
 
     return {
         'rodeos':    df_rodeos,
         'total':     df_total,
         'mastitis':  df_mastitis,
         'guachera':  df_guachera,
+        'taxi':      df_taxi,
+        'balance':   _bal,
     }
 
 
@@ -353,64 +383,134 @@ with tab_prod:
             st.divider()
             st.subheader("🚨 Leche no comercializable — destino y pérdida económica")
 
-            df_mast = data_pd['mastitis']
+            df_mast  = data_pd['mastitis']
             df_guach = data_pd['guachera']
+            df_taxi  = data_pd['taxi']
+            df_bal   = data_pd['balance']
+            _tiene_taxi = not df_taxi.empty
 
-            # Métricas del último día con datos
-            _ult_mast  = df_mast[df_mast['diaria_total'] > 0]['diaria_total'].iloc[-1] if not df_mast[df_mast['diaria_total'] > 0].empty else 0
-            _ult_guach = df_guach[df_guach['diaria_total'] > 0]['diaria_total'].iloc[-1] if not df_guach[df_guach['diaria_total'] > 0].empty else 0
-            _ult_total = df_total['diaria_total'].iloc[-1] if not df_total.empty else 1
+            # ── Métricas del último día con datos ────────────────────────
+            def _ult(df_):
+                fil = df_[df_['diaria_total'] > 0]
+                return float(fil['diaria_total'].iloc[-1]) if not fil.empty else 0.0
+            _ult_mast  = _ult(df_mast)
+            _ult_guach = _ult(df_guach)
+            _ult_taxi  = _ult(df_taxi) if _tiene_taxi else 0.0
+            _ult_total = float(df_total['diaria_total'].iloc[-1]) if not df_total.empty else 1.0
+            _ult_desc  = max(0.0, _ult_mast - _ult_taxi)
+            _ult_supl  = max(0.0, _ult_taxi - _ult_mast)
+            _ult_aprov = (_ult_taxi / _ult_mast * 100) if _ult_mast > 0 else 0.0
 
-            mc1, mc2, mc3 = st.columns(3)
-            mc1.metric(
-                "🔴 Mastitis (descarte hoy)",
-                f"{int(_ult_mast):,} L",
-                f"{_ult_mast/_ult_total*100:.1f}% de la producción" if _ult_total else None,
-                delta_color="inverse",
+            if _tiene_taxi:
+                mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+                mc1.metric("🔴 Mastitis total", f"{int(_ult_mast):,} L",
+                           f"{_ult_mast/_ult_total*100:.1f}% producción", delta_color="inverse")
+                mc2.metric("🟠 TaxiMachos (pasteurizado)", f"{int(_ult_taxi):,} L")
+                mc3.metric("🔴 Descarte real", f"{int(_ult_desc):,} L",
+                           delta_color="inverse")
+                mc4.metric("🟡 Suplemento producción", f"{int(_ult_supl):,} L",
+                           help="Litros de leche normal usados cuando TaxiMachos > Mastitis",
+                           delta_color="inverse")
+                mc5.metric("✅ Aprovechamiento mastitis", f"{_ult_aprov:.0f}%")
+            else:
+                mc1, mc2, mc3 = st.columns(3)
+                mc1.metric("🔴 Mastitis (descarte total)", f"{int(_ult_mast):,} L",
+                           f"{_ult_mast/_ult_total*100:.1f}% producción", delta_color="inverse")
+                mc2.metric("🔵 Guachera", f"{int(_ult_guach):,} L",
+                           f"{_ult_guach/_ult_total*100:.1f}% producción")
+                mc3.metric("📦 Entregado a LB", f"{int(_ult_total - _ult_mast - _ult_guach):,} L")
+                st.info("🔜 Cuando se registre **TaxiMachos** en el parte diario, aparecerá aquí el balance de aprovechamiento de leche mastitis.")
+
+            # ── Gráfico balance mastitis: aprovechado / descarte / suplemento ──
+            if not df_bal.empty and _tiene_taxi:
+                fig_bal = go.Figure()
+                fig_bal.add_trace(go.Bar(
+                    x=df_bal['date'], y=df_bal['aprovechado'],
+                    name='Aprovechado (TaxiMachos)', marker_color='#27ae60', opacity=0.85,
+                ))
+                fig_bal.add_trace(go.Bar(
+                    x=df_bal['date'], y=df_bal['descarte'],
+                    name='Descarte (exceso mastitis)', marker_color='#e74c3c', opacity=0.85,
+                ))
+                fig_bal.add_trace(go.Bar(
+                    x=df_bal['date'], y=df_bal['suplemento'],
+                    name='Suplemento producción (exceso machos)', marker_color='#f39c12', opacity=0.85,
+                ))
+                fig_bal.add_trace(go.Scatter(
+                    x=df_bal['date'], y=df_bal['pct_aprovech'],
+                    name='% Aprovechamiento', yaxis='y2',
+                    line=dict(color='#2c3e50', width=2),
+                    mode='lines',
+                ))
+                fig_bal.update_layout(
+                    title='Balance leche mastitis — aprovechamiento vs descarte',
+                    barmode='stack',
+                    xaxis_title='Fecha', yaxis_title='Litros',
+                    yaxis2=dict(title='% Aprovechamiento', overlaying='y', side='right',
+                                range=[0, 110], ticksuffix='%'),
+                    hovermode='x unified', height=420,
+                )
+                st.plotly_chart(fig_bal, use_container_width=True)
+
+            # ── Gráfico de área apilada: destino total de la leche ────────
+            _df_dest = df_total[['date']].copy()
+            _df_dest = _df_dest.merge(
+                df_mast[['date', 'diaria_total']].rename(columns={'diaria_total': 'mastitis_total'}),
+                on='date', how='left',
+            ).merge(
+                df_guach[['date', 'diaria_total']].rename(columns={'diaria_total': 'guachera'}),
+                on='date', how='left',
             )
-            mc2.metric(
-                "🟢 Guachera (hoy)",
-                f"{int(_ult_guach):,} L",
-                f"{_ult_guach/_ult_total*100:.1f}% de la producción" if _ult_total else None,
-            )
-            mc3.metric(
-                "📦 Entregado a LB (hoy)",
-                f"{int(_ult_total - _ult_mast - _ult_guach):,} L",
-            )
+            if _tiene_taxi:
+                _df_dest = _df_dest.merge(
+                    df_bal[['date', 'aprovechado', 'descarte']],
+                    on='date', how='left',
+                )
+                _df_dest['Mastitis → TaxiMachos'] = _df_dest['aprovechado'].fillna(0)
+                _df_dest['Mastitis → Descarte']   = _df_dest['descarte'].fillna(0)
+            else:
+                _df_dest['mastitis_total'] = _df_dest['mastitis_total'].fillna(0)
+                _df_dest['Mastitis → Descarte'] = _df_dest['mastitis_total']
+                _df_dest['Mastitis → TaxiMachos'] = 0.0
+            _df_dest['guachera'] = _df_dest['guachera'].fillna(0)
+            _df_dest['Entregado a LB'] = (
+                df_total['diaria_total'].values
+                - _df_dest['Mastitis → Descarte']
+                - _df_dest['Mastitis → TaxiMachos']
+                - _df_dest['guachera']
+            ).clip(lower=0)
+            _df_dest.rename(columns={'guachera': 'Guachera'}, inplace=True)
 
-            # Gráfico de barras apiladas: destino de la leche diaria (media móvil 7d)
-            _df_dest = pd.DataFrame({
-                'date':    df_total['date'],
-                'Entregado a LB': (df_total['diaria_total'] - df_mast['diaria_total'].values - df_guach['diaria_total'].values).clip(lower=0),
-                'Guachera':        df_guach['diaria_total'].values,
-                'Mastitis (descarte)': df_mast['diaria_total'].values,
-            }).dropna(subset=['date'])
-            _df_dest_m = _df_dest.copy()
-            _df_dest_m['Entregado a LB'] = _df_dest_m['Entregado a LB'].rolling(7).mean()
-            _df_dest_m['Guachera']       = _df_dest_m['Guachera'].rolling(7).mean()
-            _df_dest_m['Mastitis (descarte)'] = _df_dest_m['Mastitis (descarte)'].rolling(7).mean()
-
-            _df_long = _df_dest_m.melt(id_vars='date', var_name='Destino', value_name='Litros')
+            _cols_dest = ['Entregado a LB', 'Guachera', 'Mastitis → TaxiMachos', 'Mastitis → Descarte']
+            for _c in _cols_dest:
+                _df_dest[_c] = _df_dest[_c].rolling(7).mean()
+            _df_long = _df_dest[['date'] + _cols_dest].melt(id_vars='date', var_name='Destino', value_name='Litros')
             fig_dest = px.area(
-                _df_long, x='date', y='Litros', color='Destino',
+                _df_long.dropna(), x='date', y='Litros', color='Destino',
                 title='Destino diario de la leche (media móvil 7d)',
                 labels={'date': 'Fecha'},
                 color_discrete_map={
-                    'Entregado a LB':     '#27ae60',
-                    'Guachera':            '#3498db',
-                    'Mastitis (descarte)': '#e74c3c',
+                    'Entregado a LB':           '#27ae60',
+                    'Guachera':                 '#3498db',
+                    'Mastitis → TaxiMachos':    '#f39c12',
+                    'Mastitis → Descarte':      '#e74c3c',
                 },
-                category_orders={'Destino': ['Entregado a LB', 'Guachera', 'Mastitis (descarte)']},
+                category_orders={'Destino': _cols_dest},
             )
             fig_dest.update_layout(hovermode='x unified')
             st.plotly_chart(fig_dest, use_container_width=True)
 
-            # Gráfico de barras: litros mastitis vs guachera diarios
+            # ── Detalle mastitis + guachera diario ────────────────────────
             fig_nc = go.Figure()
             fig_nc.add_trace(go.Bar(
                 x=df_mast['date'], y=df_mast['diaria_total'],
-                name='Mastitis (descarte)', marker_color='#e74c3c', opacity=0.85,
+                name='Mastitis total', marker_color='#e74c3c', opacity=0.7,
             ))
+            if _tiene_taxi:
+                fig_nc.add_trace(go.Bar(
+                    x=df_taxi['date'], y=df_taxi['diaria_total'],
+                    name='TaxiMachos (pasteurizado)', marker_color='#f39c12', opacity=0.85,
+                ))
             fig_nc.add_trace(go.Bar(
                 x=df_guach['date'], y=df_guach['diaria_total'],
                 name='Guachera', marker_color='#3498db', opacity=0.85,
@@ -419,24 +519,23 @@ with tab_prod:
                 x=df_mast['date'], y=df_mast['roll'],
                 name='Mastitis MM7', line=dict(color='#c0392b', width=2, dash='dot'),
             ))
-            fig_nc.add_trace(go.Scatter(
-                x=df_guach['date'], y=df_guach['roll'],
-                name='Guachera MM7', line=dict(color='#2980b9', width=2, dash='dot'),
-            ))
+            _ann_text = (
+                '✅ TaxiMachos activo — balance aprovechamiento visible arriba'
+                if _tiene_taxi else
+                '⚠️ Leche mastitis en descarte total — sin TaxiMachos aún'
+            )
             fig_nc.update_layout(
                 title='Leche mastitis y guachera — litros diarios',
                 barmode='group',
                 xaxis_title='Fecha', yaxis_title='Litros',
-                hovermode='x unified',
-                height=380,
+                hovermode='x unified', height=380,
                 annotations=[dict(
-                    text='⚠️ Leche mastitis actualmente en descarte total (pérdida económica)',
-                    xref='paper', yref='paper', x=0, y=1.07,
-                    showarrow=False, font=dict(color='#e74c3c', size=12),
+                    text=_ann_text, xref='paper', yref='paper',
+                    x=0, y=1.07, showarrow=False,
+                    font=dict(color='#27ae60' if _tiene_taxi else '#e74c3c', size=12),
                 )],
             )
             st.plotly_chart(fig_nc, use_container_width=True)
-            st.caption("💡 Futuro: incorporar destino 'Guachera con pasteurización' para leche mastitis, reduciendo el descarte a pérdida cero.")
 
     with sub_hist:
         df_hist = _get_datos_prod()
