@@ -107,6 +107,8 @@ def _get_partediario():
         else:
             mask = df['cat'] == nombre
         r = df[mask].assign(date=dates).copy()
+        r['diaria_ltvo']  = pd.to_numeric(r['diaria_ltvo'],  errors='coerce')
+        r['diaria_total'] = pd.to_numeric(r['diaria_total'], errors='coerce')
         r['roll_ltvo'] = r['diaria_ltvo'].rolling(7).mean()
         return r
 
@@ -447,89 +449,37 @@ with tab_prod:
                 )
                 st.plotly_chart(fig_bal, use_container_width=True)
 
-            # ── Gráfico de área apilada: destino total de la leche ────────
-            _df_dest = df_total[['date']].copy()
-            _df_dest = _df_dest.merge(
-                df_mast[['date', 'diaria_total']].rename(columns={'diaria_total': 'mastitis_total'}),
-                on='date', how='left',
-            ).merge(
-                df_guach[['date', 'diaria_total']].rename(columns={'diaria_total': 'guachera'}),
-                on='date', how='left',
-            )
-            if _tiene_taxi:
-                _df_dest = _df_dest.merge(
-                    df_bal[['date', 'aprovechado', 'descarte']],
-                    on='date', how='left',
-                )
-                _df_dest['Mastitis → TaxiMachos'] = _df_dest['aprovechado'].fillna(0)
-                _df_dest['Mastitis → Descarte']   = _df_dest['descarte'].fillna(0)
-            else:
-                _df_dest['mastitis_total'] = _df_dest['mastitis_total'].fillna(0)
-                _df_dest['Mastitis → Descarte'] = _df_dest['mastitis_total']
-                _df_dest['Mastitis → TaxiMachos'] = 0.0
-            _df_dest['guachera'] = _df_dest['guachera'].fillna(0)
-            _df_dest['Entregado a LB'] = (
-                df_total['diaria_total'].values
-                - _df_dest['Mastitis → Descarte']
-                - _df_dest['Mastitis → TaxiMachos']
-                - _df_dest['guachera']
-            ).clip(lower=0)
-            _df_dest.rename(columns={'guachera': 'Guachera'}, inplace=True)
+            # Normalizar date a datetime antes de usar
+            for _dfx in [df_mast, df_guach, df_taxi, df_bal]:
+                if 'date' in _dfx.columns:
+                    _dfx['date'] = pd.to_datetime(_dfx['date'], errors='coerce')
 
-            _cols_dest = ['Entregado a LB', 'Guachera', 'Mastitis → TaxiMachos', 'Mastitis → Descarte']
-            for _c in _cols_dest:
-                _df_dest[_c] = _df_dest[_c].rolling(7).mean()
-            _df_long = _df_dest[['date'] + _cols_dest].melt(id_vars='date', var_name='Destino', value_name='Litros')
-            fig_dest = px.area(
-                _df_long.dropna(), x='date', y='Litros', color='Destino',
-                title='Destino diario de la leche (media móvil 7d)',
+            # ── Único gráfico: Leche no comercializable detalle diario (MM7) ──
+            fig_nc = go.Figure()
+            # Stacked area chart — leche mastitis + guachera (MM7)
+            _nc_data = {'date': df_mast['date']}
+            _nc_data['Guachera'] = df_guach['diaria_total'].reindex(df_mast.index).fillna(0).rolling(7).mean()
+            if _tiene_taxi:
+                _nc_data['Mastitis → TaxiMachos'] = df_taxi['diaria_total'].reindex(df_mast.index).fillna(0).rolling(7).mean()
+                _nc_data['Mastitis → Descarte']   = (df_mast['diaria_total'] - df_taxi['diaria_total'].reindex(df_mast.index).fillna(0)).clip(lower=0).rolling(7).mean()
+            else:
+                _nc_data['Mastitis → TaxiMachos'] = 0.0
+                _nc_data['Mastitis → Descarte']   = df_mast['diaria_total'].rolling(7).mean()
+            _df_nc = pd.DataFrame(_nc_data)
+            _cols_nc = ['Guachera', 'Mastitis → TaxiMachos', 'Mastitis → Descarte']
+            _df_nc_long = _df_nc.melt(id_vars='date', value_vars=_cols_nc, var_name='Destino', value_name='Litros')
+            fig_nc = px.area(
+                _df_nc_long.dropna(), x='date', y='Litros', color='Destino',
+                title='Leche no comercializable — detalle diario (MM7)',
                 labels={'date': 'Fecha'},
                 color_discrete_map={
-                    'Entregado a LB':           '#27ae60',
                     'Guachera':                 '#3498db',
-                    'Mastitis → TaxiMachos':    '#f39c12',
+                    'Mastitis → TaxiMachos':    '#27ae60',
                     'Mastitis → Descarte':      '#e74c3c',
                 },
-                category_orders={'Destino': _cols_dest},
+                category_orders={'Destino': _cols_nc},
             )
-            fig_dest.update_layout(hovermode='x unified')
-            st.plotly_chart(fig_dest, use_container_width=True)
-
-            # ── Detalle mastitis + guachera diario ────────────────────────
-            fig_nc = go.Figure()
-            fig_nc.add_trace(go.Bar(
-                x=df_mast['date'], y=df_mast['diaria_total'],
-                name='Mastitis total', marker_color='#e74c3c', opacity=0.7,
-            ))
-            if _tiene_taxi:
-                fig_nc.add_trace(go.Bar(
-                    x=df_taxi['date'], y=df_taxi['diaria_total'],
-                    name='TaxiMachos (pasteurizado)', marker_color='#f39c12', opacity=0.85,
-                ))
-            fig_nc.add_trace(go.Bar(
-                x=df_guach['date'], y=df_guach['diaria_total'],
-                name='Guachera', marker_color='#3498db', opacity=0.85,
-            ))
-            fig_nc.add_trace(go.Scatter(
-                x=df_mast['date'], y=df_mast['roll'],
-                name='Mastitis MM7', line=dict(color='#c0392b', width=2, dash='dot'),
-            ))
-            _ann_text = (
-                '✅ TaxiMachos activo — balance aprovechamiento visible arriba'
-                if _tiene_taxi else
-                '⚠️ Leche mastitis en descarte total — sin TaxiMachos aún'
-            )
-            fig_nc.update_layout(
-                title='Leche mastitis y guachera — litros diarios',
-                barmode='group',
-                xaxis_title='Fecha', yaxis_title='Litros',
-                hovermode='x unified', height=380,
-                annotations=[dict(
-                    text=_ann_text, xref='paper', yref='paper',
-                    x=0, y=1.07, showarrow=False,
-                    font=dict(color='#27ae60' if _tiene_taxi else '#e74c3c', size=12),
-                )],
-            )
+            fig_nc.update_layout(hovermode='x unified', height=380)
             st.plotly_chart(fig_nc, use_container_width=True)
 
     with sub_hist:
