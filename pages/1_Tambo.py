@@ -41,7 +41,7 @@ _PROD = {
 }
 
 
-def _get_datos_prod():
+def _get_datos_prod(df_partediario_total=None):
     rows = []
     for anio_str, bloque in _PROD.items():
         anio = int(anio_str)
@@ -51,9 +51,35 @@ def _get_datos_prod():
             ltvo = float(partes[1].replace(',', '.'))
             rows.append({'Ano': anio, 'Mes': mes, 'VO': vo, 'LTVO': ltvo})
     df = pd.DataFrame(rows)
+
+    # Completar con promedios mensuales del parte diario para meses no hardcodeados
+    if df_partediario_total is not None and not df_partediario_total.empty:
+        _pd = df_partediario_total.copy()
+        _pd['date'] = pd.to_datetime(_pd['date'], errors='coerce')
+        _pd['Ano'] = _pd['date'].dt.year
+        _pd['Mes'] = _pd['date'].dt.month
+        _pd['diaria_ltvo']  = pd.to_numeric(_pd['diaria_ltvo'],  errors='coerce')
+        _pd['diaria_total'] = pd.to_numeric(_pd['diaria_total'], errors='coerce')
+        # VO promedio mensual: promedio de tarde_vo + maniana_vo si existen, sino ltvo proxy
+        if 'tarde_vo' in _pd.columns and 'maniana_vo' in _pd.columns:
+            _pd['_vo_dia'] = (pd.to_numeric(_pd['tarde_vo'], errors='coerce').fillna(0) +
+                              pd.to_numeric(_pd['maniana_vo'], errors='coerce').fillna(0)) / 2
+        else:
+            _pd['_vo_dia'] = _pd['diaria_total'] / _pd['diaria_ltvo'].replace(0, np.nan)
+        _mensual = _pd.groupby(['Ano', 'Mes']).agg(
+            VO   = ('_vo_dia',    'mean'),
+            LTVO = ('diaria_ltvo','mean'),
+        ).reset_index().dropna()
+
+        # Solo agregar los meses que no están ya en _PROD
+        _existing = set(zip(df['Ano'], df['Mes']))
+        _nuevos = _mensual[~_mensual.apply(lambda r: (r.Ano, r.Mes) in _existing, axis=1)]
+        if not _nuevos.empty:
+            df = pd.concat([df, _nuevos], ignore_index=True)
+
     df['Prod'] = df['VO'] * df['LTVO']
     df['Date'] = df.apply(lambda r: datetime.datetime(int(r.Ano), int(r.Mes), 1), axis=1)
-    return df
+    return df.sort_values('Date').reset_index(drop=True)
 
 
 # ── Carga datos remotos con caché ───────────────────────────────────────────
@@ -498,8 +524,10 @@ with tab_prod:
             st.plotly_chart(fig_nc, use_container_width=True)
 
     with sub_hist:
-        df_hist = _get_datos_prod()
-        st.subheader("Histórico producción + VO (2015–2025)")
+        _pd_total = data_pd['total'] if data_pd else None
+        df_hist = _get_datos_prod(df_partediario_total=_pd_total)
+        _anio_max = df_hist['Ano'].max()
+        st.subheader(f"Histórico producción + VO (2015–{_anio_max})")
         fig_h = go.Figure()
         fig_h.add_trace(go.Scatter(x=df_hist['Date'], y=df_hist['Prod'],
                                    name='Producción Total', yaxis='y1'))
@@ -687,8 +715,8 @@ with tab_prod:
             st.subheader("Grasa butirosa vs Producción (LTVO)")
             st.caption("Relación entre % grasa, litros por vaca y kg de grasa producidos · datos mensuales")
 
-            # LTVO mensual histórico desde _PROD
-            df_prod_hist = _get_datos_prod()
+            # LTVO mensual histórico desde _PROD + parte diario
+            df_prod_hist = _get_datos_prod(df_partediario_total=data_pd['total'] if data_pd else None)
             df_prod_hist['mes'] = df_prod_hist['Date'].dt.to_period('M')
             ltvo_mes = df_prod_hist[['mes', 'LTVO']].copy()
 
