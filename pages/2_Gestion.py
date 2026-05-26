@@ -112,22 +112,27 @@ try:
                              horizontal=True, key="evol_color")
 
         df_evo = df_f.groupby(['Date', 'Campaña', col_color])[metrica].agg(_agg).reset_index()
+        df_evo = df_evo.sort_values('Date')
+        _camp_order = df_evo.drop_duplicates('Campaña').sort_values('Date')['Campaña'].tolist()
 
         fig_evo = px.bar(
             df_evo, x='Campaña', y=metrica, color=col_color,
             title=f'Evolución {metrica}',
             barmode='group',
+            category_orders={'Campaña': _camp_order},
         )
         fig_evo.update_layout(height=500, xaxis_tickangle=-45)
         st.plotly_chart(fig_evo, use_container_width=True)
 
         # Línea de evolución
         df_acum = df_f.groupby(['Date', 'Campaña'])[metrica].agg(_agg).reset_index()
+        df_acum = df_acum.sort_values('Date')
         _evol_title = f'Evolución {"promedio" if _es_prom else "total"} {metrica}'
         fig_linea = px.line(
             df_acum, x='Campaña', y=metrica,
             title=_evol_title,
             markers=True,
+            category_orders={'Campaña': _camp_order},
         )
         fig_linea.update_layout(height=400)
         st.plotly_chart(fig_linea, use_container_width=True)
@@ -179,10 +184,12 @@ try:
         st.subheader("Comparación entre establecimientos")
 
         df_sede = df_f.groupby(['Campaña', 'Establecimiento'])[metrica].agg(_agg).reset_index()
+        df_sede = df_sede.merge(df_f[['Campaña','Date']].drop_duplicates(), on='Campaña').sort_values('Date')
         fig_sede = px.bar(
             df_sede, x='Campaña', y=metrica, color='Establecimiento',
             barmode='group',
             title=f'{metrica} por establecimiento',
+            category_orders={'Campaña': _camp_order},
         )
         fig_sede.update_layout(height=450, xaxis_tickangle=-45)
         st.plotly_chart(fig_sede, use_container_width=True)
@@ -191,10 +198,12 @@ try:
         for est in sorted(df_f['Establecimiento'].unique()):
             df_est = df_f[df_f['Establecimiento'] == est]
             df_est_g = df_est.groupby(['Campaña', 'Rubro'])[metrica].agg(_agg).reset_index()
+            df_est_g = df_est_g.merge(df_f[['Campaña','Date']].drop_duplicates(), on='Campaña').sort_values('Date')
             fig_est = px.bar(
                 df_est_g, x='Campaña', y=metrica, color='Rubro',
                 title=f'{est} — {metrica} por rubro',
                 barmode='stack',
+                category_orders={'Campaña': _camp_order},
             )
             fig_est.update_layout(height=400, xaxis_tickangle=-45)
             st.plotly_chart(fig_est, use_container_width=True)
