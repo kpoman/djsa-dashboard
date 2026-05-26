@@ -59,8 +59,19 @@ def _get_datos_prod():
 # ── Carga datos remotos con caché ───────────────────────────────────────────
 @st.cache_data(ttl=3600, show_spinner="Cargando parte diario...")
 def _get_partediario():
+    import time, urllib.request, io
+    _excel_bytes = None
+    for _intento in range(4):
+        try:
+            with urllib.request.urlopen(URL_PARTE_DIARIO, timeout=30) as _r:
+                _excel_bytes = _r.read()
+            break
+        except Exception:
+            if _intento == 3:
+                raise
+            time.sleep(2 ** _intento)
     df_all = pd.read_excel(
-        URL_PARTE_DIARIO,
+        io.BytesIO(_excel_bytes),
         header=None,
         usecols=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
         names=['cat', 'tarde_vo', 'tarde_tanque', 'tarde_prod',
@@ -77,20 +88,22 @@ def _get_partediario():
         tab_name = keys[len(keys) - i - 1]
         if len(tab_name.split('-')) != 2:
             continue
-        tab = df_all[tab_name]
+        tab = df_all[tab_name].copy()
+        # Normalizar columna cat: strip + lowercase para comparaciones robustas
+        tab['_cat_norm'] = tab['cat'].astype(str).str.strip().str.lower()
         tabs.append(tab)
         # Fecha de este tab (fila La Merced, columna diaria_total)
-        _date_vals = tab[tab['cat'] == 'La Merced']['diaria_total'].values
+        _date_vals = tab[tab['_cat_norm'] == 'la merced']['diaria_total'].values
         if not len(_date_vals):
             continue
         _tab_date = _date_vals[0]
         # Filas opcionales (pueden no existir en tabs viejos)
-        for _cat, _lst in [
-            ('Mastitis',   _mast_rows),
-            ('Guachera',   _guach_rows),
-            ('TaxiMachos', _taxi_rows),   # aún no existe, se activa solo cuando aparezca
+        for _cat_key, _lst in [
+            ('mastitis',   _mast_rows),
+            ('guachera',   _guach_rows),
+            ('taximachos', _taxi_rows),
         ]:
-            _row = tab[tab['cat'] == _cat]
+            _row = tab[tab['_cat_norm'] == _cat_key]
             if not _row.empty:
                 _d = _row.iloc[0].to_dict()
                 _d['date'] = _tab_date
@@ -99,13 +112,13 @@ def _get_partediario():
     if not tabs:
         return None
     df = pd.concat(tabs)
-    dates = df[df['cat'] == 'La Merced']['diaria_total'].to_list()
+    dates = df[df['_cat_norm'] == 'la merced']['diaria_total'].to_list()
 
     def _rodeo(nombre, df=df, dates=dates):
         if isinstance(nombre, list):
-            mask = df['cat'].isin(nombre)
+            mask = df['_cat_norm'].isin([n.lower().strip() for n in nombre])
         else:
-            mask = df['cat'] == nombre
+            mask = df['_cat_norm'] == nombre.lower().strip()
         r = df[mask].assign(date=dates).copy()
         r['diaria_ltvo']  = pd.to_numeric(r['diaria_ltvo'],  errors='coerce')
         r['diaria_total'] = pd.to_numeric(r['diaria_total'], errors='coerce')
@@ -119,9 +132,11 @@ def _get_partediario():
     df_rodeos = pd.concat([df_r1, df_r2, df_r3, df_r0]).reset_index()
     df_rodeos = df_rodeos[df_rodeos['diaria_total'] > 0]
 
-    df_total = df[df['cat'] == 'Total'].assign(date=dates).reset_index()
+    df_total = df[df['_cat_norm'] == 'total'].assign(date=dates).reset_index()
+    df_total['diaria_total'] = pd.to_numeric(df_total['diaria_total'], errors='coerce')
+    df_total['diaria_ltvo']  = pd.to_numeric(df_total['diaria_ltvo'],  errors='coerce')
     df_total = df_total[df_total['diaria_total'] > 0]
-    df_total['roll'] = df_total['diaria_total'].rolling(7).mean()
+    df_total['roll']      = df_total['diaria_total'].rolling(7).mean()
     df_total['ltvo_roll'] = df_total['diaria_ltvo'].rolling(7).mean()
 
     # ── Leche no comercializable — extraída tab a tab para manejar filas nuevas ──
