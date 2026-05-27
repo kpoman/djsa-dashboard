@@ -578,7 +578,7 @@ with tab_prod:
         else:
             from statsmodels.tsa.seasonal import seasonal_decompose
 
-            result = seasonal_decompose(df_dec[col_name], model=model_type, period=12)
+            result = seasonal_decompose(df_dec[col_name], model=model_type, period=12, extrapolate_trend='freq')
 
             components = [
                 ("Observado", result.observed),
