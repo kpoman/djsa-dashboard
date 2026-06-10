@@ -459,69 +459,64 @@ with tab_prod:
             if _ult_supl > 0:
                 st.warning(f"⚠️ TaxiMachos ({int(_ult_taxi):,} L) supera la leche mastitis disponible ({int(_ult_mast):,} L) — se están usando **{int(_ult_supl):,} L de leche de producción**.")
 
-            # ── Gráfico balance mastitis: aprovechado / descarte / suplemento ──
-            if not df_bal.empty:
-                fig_bal = go.Figure()
-                fig_bal.add_trace(go.Bar(
-                    x=df_bal['date'], y=df_bal['aprovechado'],
-                    name='Aprovechado (TaxiMachos)', marker_color='#27ae60', opacity=0.85,
-                ))
-                fig_bal.add_trace(go.Bar(
-                    x=df_bal['date'], y=df_bal['descarte'],
-                    name='Descarte (exceso mastitis)', marker_color='#e74c3c', opacity=0.85,
-                ))
-                fig_bal.add_trace(go.Bar(
-                    x=df_bal['date'], y=df_bal['suplemento'],
-                    name='Suplemento producción (exceso machos)', marker_color='#f39c12', opacity=0.85,
-                ))
-                fig_bal.add_trace(go.Scatter(
-                    x=df_bal['date'], y=df_bal['pct_aprovech'],
-                    name='% Aprovechamiento', yaxis='y2',
-                    line=dict(color='#2c3e50', width=2),
-                    mode='lines',
-                ))
-                fig_bal.update_layout(
-                    title='Balance leche mastitis — aprovechamiento vs descarte',
-                    barmode='stack',
-                    xaxis_title='Fecha', yaxis_title='Litros',
-                    yaxis2=dict(title='% Aprovechamiento', overlaying='y', side='right',
-                                range=[0, 110], ticksuffix='%'),
-                    hovermode='x unified', height=420,
-                )
-                st.plotly_chart(fig_bal, use_container_width=True)
-
-            # Normalizar date a datetime antes de usar
+            # Normalizar date a datetime
             for _dfx in [df_mast, df_guach, df_taxi, df_bal]:
                 if 'date' in _dfx.columns:
                     _dfx['date'] = pd.to_datetime(_dfx['date'], errors='coerce')
 
-            # ── Único gráfico: Leche no comercializable detalle diario (MM7) ──
-            fig_nc = go.Figure()
-            # Stacked area chart — leche mastitis + guachera (MM7)
-            _nc_data = {'date': df_mast['date']}
-            _nc_data['Guachera'] = df_guach['diaria_total'].reindex(df_mast.index).fillna(0).rolling(7).mean()
-            if _tiene_taxi:
-                _nc_data['Mastitis → TaxiMachos'] = df_taxi['diaria_total'].reindex(df_mast.index).fillna(0).rolling(7).mean()
-                _nc_data['Mastitis → Descarte']   = (df_mast['diaria_total'] - df_taxi['diaria_total'].reindex(df_mast.index).fillna(0)).clip(lower=0).rolling(7).mean()
-            else:
-                _nc_data['Mastitis → TaxiMachos'] = 0.0
-                _nc_data['Mastitis → Descarte']   = df_mast['diaria_total'].rolling(7).mean()
-            _df_nc = pd.DataFrame(_nc_data)
-            _cols_nc = ['Guachera', 'Mastitis → TaxiMachos', 'Mastitis → Descarte']
-            _df_nc_long = _df_nc.melt(id_vars='date', value_vars=_cols_nc, var_name='Destino', value_name='Litros')
-            fig_nc = px.area(
-                _df_nc_long.dropna(), x='date', y='Litros', color='Destino',
-                title='Leche no comercializable — detalle diario (MM7)',
+            # ── Gráfico único unificado (MM7, stacked area) ──────────────
+            # Base: índice de fechas del parte diario total
+            _base_dates = pd.to_datetime(df_total['date'], errors='coerce')
+
+            def _mm7_aligned(src_df, col='diaria_total'):
+                """Alinea src_df por fecha con la base y aplica MM7."""
+                if src_df.empty:
+                    return pd.Series(0.0, index=_base_dates.index)
+                _s = (src_df.set_index('date')[col]
+                            .reindex(_base_dates.values)
+                            .fillna(0))
+                _s.index = _base_dates.index
+                return pd.to_numeric(_s, errors='coerce').fillna(0).rolling(7).mean()
+
+            _mast_vals  = _mm7_aligned(df_mast)
+            _guach_vals = _mm7_aligned(df_guach)
+            _taxi_vals  = _mm7_aligned(df_taxi)
+
+            # Componentes del balance (MM7 ya aplicado por separado)
+            _taxi_vs_mast  = _taxi_vals.rolling(1).mean()   # ya es MM7
+            _aprovechado   = pd.concat([_mast_vals, _taxi_vs_mast], axis=1).min(axis=1)
+            _desc_mast     = (_mast_vals - _taxi_vs_mast).clip(lower=0)   # exceso mastitis → descarte
+            _supl_prod     = (_taxi_vs_mast - _mast_vals).clip(lower=0)   # taxi > mastitis → suplemento
+
+            _df_uni = pd.DataFrame({
+                'date':                          _base_dates.values,
+                'Guachera':                      _guach_vals.values,
+                'Mastitis → TaxiMachos':         _aprovechado.values,
+                'Mastitis → Descarte':           _desc_mast.values,
+                'Suplemento producción (machos)':_supl_prod.values,
+            })
+            _cols_uni = [
+                'Guachera',
+                'Mastitis → TaxiMachos',
+                'Mastitis → Descarte',
+                'Suplemento producción (machos)',
+            ]
+            _df_uni_long = _df_uni.melt(id_vars='date', value_vars=_cols_uni,
+                                        var_name='Destino', value_name='Litros')
+            fig_uni = px.area(
+                _df_uni_long.dropna(), x='date', y='Litros', color='Destino',
+                title='Leche no comercializable — balance diario (MM7)',
                 labels={'date': 'Fecha'},
                 color_discrete_map={
-                    'Guachera':                 '#3498db',
-                    'Mastitis → TaxiMachos':    '#27ae60',
-                    'Mastitis → Descarte':      '#e74c3c',
+                    'Guachera':                          '#3498db',
+                    'Mastitis → TaxiMachos':             '#27ae60',
+                    'Mastitis → Descarte':               '#e74c3c',
+                    'Suplemento producción (machos)':    '#f39c12',
                 },
-                category_orders={'Destino': _cols_nc},
+                category_orders={'Destino': _cols_uni},
             )
-            fig_nc.update_layout(hovermode='x unified', height=380)
-            st.plotly_chart(fig_nc, use_container_width=True)
+            fig_uni.update_layout(hovermode='x unified', height=420)
+            st.plotly_chart(fig_uni, use_container_width=True)
 
     with sub_hist:
         _pd_total = data_pd['total'] if data_pd else None
