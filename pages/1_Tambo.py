@@ -109,31 +109,30 @@ def _get_partediario():
     tabs = []
     _mast_rows  = []
     _guach_rows = []
-    _taxi_rows  = []   # TaxiMachos: leche mastitis pasteurizada para machos
+    _taxi_rows  = []
+    _lst_by_cat = {
+        'mastitis':   _mast_rows,
+        'guachera':   _guach_rows,
+        'taximachos': _taxi_rows,
+    }
     for i in range(len(keys)):
         tab_name = keys[len(keys) - i - 1]
         if len(tab_name.split('-')) != 2:
             continue
         tab = df_all[tab_name].copy()
-        # Normalizar columna cat: strip + lowercase para comparaciones robustas
         tab['_cat_norm'] = tab['cat'].astype(str).str.strip().str.lower()
         tabs.append(tab)
-        # Fecha de este tab (fila La Merced, columna diaria_total)
-        _date_vals = tab[tab['_cat_norm'] == 'la merced']['diaria_total'].values
-        if not len(_date_vals):
-            continue
-        _tab_date = _date_vals[0]
-        # Filas opcionales (pueden no existir en tabs viejos)
-        for _cat_key, _lst in [
-            ('mastitis',   _mast_rows),
-            ('guachera',   _guach_rows),
-            ('taximachos', _taxi_rows),
-        ]:
-            _row = tab[tab['_cat_norm'] == _cat_key]
-            if not _row.empty:
-                _d = _row.iloc[0].to_dict()
-                _d['date'] = _tab_date
-                _lst.append(_d)
+        # Cada hoja puede tener MÚLTIPLES bloques (1 por día). Recorremos en orden,
+        # trackeando la fecha del último 'La Merced' encontrado.
+        _current_date = None
+        for _, row in tab.iterrows():
+            cat = row['_cat_norm']
+            if cat == 'la merced':
+                _current_date = row['diaria_total']
+            elif cat in _lst_by_cat and _current_date is not None:
+                _d = row.to_dict()
+                _d['date'] = _current_date
+                _lst_by_cat[cat].append(_d)
 
     if not tabs:
         return None
@@ -165,38 +164,29 @@ def _get_partediario():
     df_total['roll']      = df_total['diaria_total'].rolling(7).mean()
     df_total['ltvo_roll'] = df_total['diaria_ltvo'].rolling(7).mean()
 
-    # ── Leche no comercializable — extraída tab a tab para manejar filas nuevas ──
-    _empty_cols = ['date', 'diaria_total', 'tarde_tanque', 'maniana_tanque',
-                   'tarde_vo', 'maniana_vo', 'diaria_ltvo']
-    def _build_df(rows):
-        df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=_empty_cols)
-        df['diaria_total'] = pd.to_numeric(df['diaria_total'], errors='coerce').fillna(0)
-        df['roll'] = df['diaria_total'].rolling(7).mean()
-        return df
+    # ── Leche no comercializable: merge a df_total para tener granularidad diaria ──
+    def _build_df_aligned(rows, base_df):
+        """Construye un df con una fila por cada fecha de base_df, rellenando con 0.
+        Si hay múltiples filas con la misma fecha (varios bloques en una hoja),
+        se suman antes del merge para evitar duplicados."""
+        _base = base_df[['date']].copy()
+        _base['date'] = pd.to_datetime(_base['date'], errors='coerce')
+        if rows:
+            _src = pd.DataFrame(rows)[['date', 'diaria_total']].copy()
+            _src['date'] = pd.to_datetime(_src['date'], errors='coerce')
+            _src['diaria_total'] = pd.to_numeric(_src['diaria_total'], errors='coerce').fillna(0)
+            _src = _src.dropna(subset=['date']).groupby('date', as_index=False)['diaria_total'].sum()
+        else:
+            _src = pd.DataFrame({'date': pd.Series(dtype='datetime64[ns]'),
+                                 'diaria_total': pd.Series(dtype='float64')})
+        _out = _base.drop_duplicates('date').merge(_src, on='date', how='left')
+        _out['diaria_total'] = _out['diaria_total'].fillna(0)
+        _out['roll'] = _out['diaria_total'].rolling(7).mean()
+        return _out.reset_index(drop=True)
 
-    df_mastitis  = _build_df(_mast_rows)
-    df_guachera  = _build_df(_guach_rows)
-    df_taxi      = _build_df(_taxi_rows)   # vacío hasta que aparezca TaxiMachos
-
-    # ── Balance mastitis: aprovechamiento vs descarte ────────────────────────
-    # Se construye alineando por fecha — TaxiMachos puede tener menos filas
-    _bal = df_mastitis[['date', 'diaria_total']].rename(columns={'diaria_total': 'mastitis'}).copy()
-    if not df_taxi.empty:
-        _bal = _bal.merge(
-            df_taxi[['date', 'diaria_total']].rename(columns={'diaria_total': 'taxi'}),
-            on='date', how='left',
-        )
-    else:
-        _bal['taxi'] = 0.0
-    _bal['taxi']           = _bal['taxi'].fillna(0)
-    _bal['aprovechado']    = _bal[['mastitis', 'taxi']].min(axis=1)       # min(M, T)
-    _bal['descarte']       = (_bal['mastitis'] - _bal['taxi']).clip(lower=0)
-    _bal['suplemento']     = (_bal['taxi'] - _bal['mastitis']).clip(lower=0)  # taxi > mastitis → suplemento
-    _bal['pct_aprovech']   = np.where(
-        _bal['mastitis'] > 0,
-        (_bal['aprovechado'] / _bal['mastitis'] * 100).round(1),
-        np.nan,
-    )
+    df_mastitis = _build_df_aligned(_mast_rows,  df_total)
+    df_guachera = _build_df_aligned(_guach_rows, df_total)
+    df_taxi     = _build_df_aligned(_taxi_rows,  df_total)
 
     return {
         'rodeos':    df_rodeos,
@@ -204,7 +194,6 @@ def _get_partediario():
         'mastitis':  df_mastitis,
         'guachera':  df_guachera,
         'taxi':      df_taxi,
-        'balance':   _bal,
     }
 
 
@@ -429,8 +418,7 @@ with tab_prod:
             df_mast  = data_pd['mastitis']
             df_guach = data_pd['guachera']
             df_taxi  = data_pd['taxi']
-            df_bal   = data_pd['balance']
-            _tiene_taxi = not df_taxi.empty
+            _tiene_taxi = (df_taxi['diaria_total'] > 0).any()
 
             # ── Métricas del último día con datos ────────────────────────
             def _ult(df_):
@@ -438,13 +426,12 @@ with tab_prod:
                 return float(fil['diaria_total'].iloc[-1]) if not fil.empty else 0.0
             _ult_mast  = _ult(df_mast)
             _ult_guach = _ult(df_guach)
-            _ult_taxi  = _ult(df_taxi)   # 0.0 si no hay TaxiMachos aún
+            _ult_taxi  = _ult(df_taxi)
             _ult_total = float(df_total['diaria_total'].iloc[-1]) if not df_total.empty else 1.0
             _ult_desc  = max(0.0, _ult_mast - _ult_taxi)
             _ult_supl  = max(0.0, _ult_taxi - _ult_mast)
             _ult_aprov = (_ult_taxi / _ult_mast * 100) if _ult_mast > 0 else 0.0
 
-            # Siempre mostramos el balance completo — sin TaxiMachos taxi=0 → descarte=100%
             mc1, mc2, mc3, mc4, mc5 = st.columns(5)
             mc1.metric("🔴 Mastitis total", f"{int(_ult_mast):,} L",
                        f"{_ult_mast/_ult_total*100:.1f}% producción", delta_color="inverse")
@@ -459,53 +446,52 @@ with tab_prod:
             if _ult_supl > 0:
                 st.warning(f"⚠️ TaxiMachos ({int(_ult_taxi):,} L) supera la leche mastitis disponible ({int(_ult_mast):,} L) — se están usando **{int(_ult_supl):,} L de leche de producción**.")
 
-            # Normalizar date a datetime
-            for _dfx in [df_mast, df_guach, df_taxi, df_bal]:
-                if 'date' in _dfx.columns:
-                    _dfx['date'] = pd.to_datetime(_dfx['date'], errors='coerce')
+            # ── Stacked area semanal: agrupar por semana, interpolar y graficar ──
+            _df_raw = pd.DataFrame({
+                'date':     pd.to_datetime(df_mast['date'].values, errors='coerce'),
+                'mastitis': pd.to_numeric(df_mast['diaria_total'].values, errors='coerce').astype(float),
+                'guachera': pd.to_numeric(df_guach['diaria_total'].values, errors='coerce').astype(float),
+                'taxi':     pd.to_numeric(df_taxi['diaria_total'].values,  errors='coerce').astype(float),
+            }).dropna(subset=['date'])
 
-            # ── Gráfico único unificado (MM7, stacked area) ──────────────
-            # Base: índice de fechas del parte diario total
-            _base_dates = pd.to_datetime(df_total['date'], errors='coerce')
+            # Reemplazar 0 por NaN para que mean ignore días sin reporte y no diluya el promedio
+            for _c in ['mastitis', 'guachera', 'taxi']:
+                _df_raw.loc[_df_raw[_c] == 0, _c] = np.nan
 
-            def _mm7_aligned(src_df, col='diaria_total'):
-                """Alinea src_df por fecha con la base y aplica MM7."""
-                if src_df.empty:
-                    return pd.Series(0.0, index=_base_dates.index)
-                _s = (src_df.set_index('date')[col]
-                            .reindex(_base_dates.values)
-                            .fillna(0))
-                _s.index = _base_dates.index
-                return pd.to_numeric(_s, errors='coerce').fillna(0).rolling(7).mean()
+            # Agrupar por semana (lunes) — promedio diario en cada semana
+            _df_sem = (_df_raw.set_index('date')
+                              .resample('W-MON', label='left', closed='left')
+                              .mean()
+                              .reset_index())
 
-            _mast_vals  = _mm7_aligned(df_mast)
-            _guach_vals = _mm7_aligned(df_guach)
-            _taxi_vals  = _mm7_aligned(df_taxi)
+            # Restringir al rango donde realmente hay datos (primera semana con cualquier valor)
+            _df_sem['has_data'] = _df_sem[['mastitis','guachera','taxi']].notna().any(axis=1)
+            if _df_sem['has_data'].any():
+                _first = _df_sem[_df_sem['has_data']].index[0]
+                _last  = _df_sem[_df_sem['has_data']].index[-1]
+                _df_sem = _df_sem.loc[_first:_last].drop(columns='has_data')
 
-            # Componentes del balance (MM7 ya aplicado por separado)
-            _taxi_vs_mast  = _taxi_vals.rolling(1).mean()   # ya es MM7
-            _aprovechado   = pd.concat([_mast_vals, _taxi_vs_mast], axis=1).min(axis=1)
-            _desc_mast     = (_mast_vals - _taxi_vs_mast).clip(lower=0)   # exceso mastitis → descarte
-            _supl_prod     = (_taxi_vs_mast - _mast_vals).clip(lower=0)   # taxi > mastitis → suplemento
+                # Interpolar huecos intermedios y rellenar extremos con 0
+                for _c in ['mastitis', 'guachera', 'taxi']:
+                    _df_sem[_c] = _df_sem[_c].interpolate(method='linear').fillna(0)
 
-            _df_uni = pd.DataFrame({
-                'date':                          _base_dates.values,
-                'Guachera':                      _guach_vals.values,
-                'Mastitis → TaxiMachos':         _aprovechado.values,
-                'Mastitis → Descarte':           _desc_mast.values,
-                'Suplemento producción (machos)':_supl_prod.values,
-            })
-            _cols_uni = [
-                'Guachera',
-                'Mastitis → TaxiMachos',
-                'Mastitis → Descarte',
-                'Suplemento producción (machos)',
-            ]
-            _df_uni_long = _df_uni.melt(id_vars='date', value_vars=_cols_uni,
-                                        var_name='Destino', value_name='Litros')
+                # Balance semanal
+                _df_sem['Guachera']                       = _df_sem['guachera']
+                _df_sem['Mastitis → TaxiMachos']          = _df_sem[['mastitis','taxi']].min(axis=1)
+                _df_sem['Mastitis → Descarte']            = (_df_sem['mastitis'] - _df_sem['taxi']).clip(lower=0)
+                _df_sem['Suplemento producción (machos)'] = (_df_sem['taxi'] - _df_sem['mastitis']).clip(lower=0)
+            else:
+                _df_sem = pd.DataFrame(columns=['date','Guachera','Mastitis → TaxiMachos',
+                                                'Mastitis → Descarte','Suplemento producción (machos)'])
+
+            _cols_uni = ['Guachera','Mastitis → TaxiMachos',
+                         'Mastitis → Descarte','Suplemento producción (machos)']
+            _df_uni_long = _df_sem[['date'] + _cols_uni].melt(
+                id_vars='date', var_name='Destino', value_name='Litros')
+
             fig_uni = px.area(
-                _df_uni_long.dropna(), x='date', y='Litros', color='Destino',
-                title='Leche no comercializable — balance diario (MM7)',
+                _df_uni_long, x='date', y='Litros', color='Destino',
+                title='Leche no comercializable — balance semanal (promedio diario por semana)',
                 labels={'date': 'Fecha'},
                 color_discrete_map={
                     'Guachera':                          '#3498db',
