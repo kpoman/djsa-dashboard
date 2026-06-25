@@ -301,7 +301,7 @@ def _get_dairycomp():
     return {'eventos': df_ev, 'controles': df_ctrl}
 
 
-@st.cache_data(show_spinner="Cargando calidad de leche...")
+@st.cache_data(ttl=3600, show_spinner="Cargando calidad de leche...")
 def _get_calidad_leche():
     import os
     path = os.path.join(os.path.dirname(__file__), '..', 'data', 'calidad_leche.csv')
@@ -899,9 +899,11 @@ with tab_alim:
         df_dietas, df_produccion, rodeo_cols_dieta = _get_alimentacion()
 
         # Agregar TC a dietas y produccion por fecha
-        df_dietas = df_dietas.merge(df_tc, left_on='Fecha', right_index=True, how='left')
+        df_dietas = df_dietas.sort_values('Fecha').merge(df_tc, left_on='Fecha', right_index=True, how='left')
+        df_dietas['TC'] = df_dietas['TC'].ffill()
         df_dietas['Precio (U$D)'] = df_dietas['Precio ($)'] / df_dietas['TC']
-        df_produccion = df_produccion.merge(df_tc, left_on='Fecha', right_index=True, how='left')
+        df_produccion = df_produccion.sort_values('Fecha').merge(df_tc, left_on='Fecha', right_index=True, how='left')
+        df_produccion['TC'] = df_produccion['TC'].ffill()
         df_produccion['Precio_USD'] = df_produccion['Precio'] / df_produccion['TC']
 
         # Rodeos que están en ambas tablas
