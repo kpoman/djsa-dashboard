@@ -9,6 +9,12 @@ st.set_page_config(page_title="Patrimonio — DJSA", page_icon="🏦", layout="w
 st.title("🏦 Patrimonio")
 st.markdown("Evolución patrimonial — valores convertidos a USD al tipo de cambio del 31 de diciembre de cada año.")
 
+URL_PATRIMONIO = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vQlld86JegRoZHrKhWkWcb4kwt5etllP3W7bN57mqKRIP8jyMd8uW-4kjDZZMMe54BRL7PDtDUkYtY4"
+    "/pub?output=csv"
+)
+
 # TC aproximado para años previos al CSV histórico (pre-2010)
 _TC_MANUAL = {
     2004: 2.97,
@@ -20,11 +26,11 @@ _TC_MANUAL = {
 }
 
 
-@st.cache_data(show_spinner="Cargando datos patrimoniales...")
+@st.cache_data(ttl=3600, show_spinner="Cargando datos patrimoniales...")
 def _get_patrimonio():
     base = os.path.dirname(__file__)
 
-    df = pd.read_csv(os.path.join(base, '..', 'data', 'patrimonio.csv'))
+    df = pd.read_csv(URL_PATRIMONIO)
     df['Tipo'] = df['Tipo'].str.strip().str.lower()
     df['Item'] = df['Item'].str.strip().str.lower()
 
