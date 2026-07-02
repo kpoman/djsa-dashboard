@@ -26,11 +26,16 @@ _TC_MANUAL = {
 }
 
 
-@st.cache_data(ttl=3600, show_spinner="Cargando datos patrimoniales...")
+@st.cache_data(show_spinner="Cargando datos patrimoniales...")
 def _get_patrimonio():
     base = os.path.dirname(__file__)
+    local_csv = os.path.join(base, '..', 'data', 'patrimonio.csv')
 
-    df = pd.read_csv(URL_PATRIMONIO)
+    # Lee del CSV local (caché en repo). Si no existe, baja de Google Sheets.
+    if os.path.exists(local_csv):
+        df = pd.read_csv(local_csv)
+    else:
+        df = pd.read_csv(URL_PATRIMONIO)
     df['Tipo'] = df['Tipo'].str.strip().str.lower()
     df['Item'] = df['Item'].str.strip().str.lower()
 

@@ -81,6 +81,34 @@ pasivo corriente,2009,cargas fiscales,2839.72
 pasivo corriente,2009,otros pasivos,748851.53
 pasivo no corriente,2009,otros pasivos,0.06
 patrimonio neto,2009,segun estado respectivo,8443935.78
+activo corriente,2010,caja y bancos,207501.86
+activo corriente,2010,inversiones temporarias,395024.57
+activo corriente,2010,creditos por ventas,950049.1
+activo corriente,2010,otros creditos,613757.14
+activo corriente,2010,bienes de cambio,9499287
+activo corriente,2010,otros activos,29500
+activo no corriente,2010,bienes de uso,2688500.57
+pasivo corriente,2010,cuentas a pagar,1631834.37
+pasivo corriente,2010,prestamos bancarios,0
+pasivo corriente,2010,remuneraciones y cargas sociales,57350.8
+pasivo corriente,2010,cargas fiscales,57799.6
+pasivo corriente,2010,otros pasivos,711647.8
+pasivo no corriente,2010,otros pasivos,0.06
+patrimonio neto,2010,segun estado respectivo,11924987.61
+activo corriente,2011,caja y bancos,123440.2
+activo corriente,2011,inversiones temporarias,123716.44
+activo corriente,2011,creditos por ventas,1020448.63
+activo corriente,2011,otros creditos,1152142.44
+activo corriente,2011,bienes de cambio,11874778.43
+activo corriente,2011,otros activos,29500
+activo no corriente,2011,bienes de uso,2907459.54
+pasivo corriente,2011,cuentas a pagar,2125428.85
+pasivo corriente,2011,prestamos bancarios,203811.1
+pasivo corriente,2011,remuneraciones y cargas sociales,62578
+pasivo corriente,2011,cargas fiscales,137819.65
+pasivo corriente,2011,otros pasivos,805642.27
+pasivo no corriente,2011,otros pasivos,0.06
+patrimonio neto,2011,segun estado respectivo,13896205.75
 activo corriente,2012,caja y bancos,567432.85
 activo corriente,2012,inversiones temporarias,1346217.51
 activo corriente,2012,creditos por ventas,1211144
@@ -161,6 +189,35 @@ pasivo corriente,2017,cargas fiscales,2467405.29
 pasivo corriente,2017,otros pasivos,0
 pasivo no corriente,2017,otros pasivos,0.06
 patrimonio neto,2017,segun estado respectivo,33129816.72
+activo corriente,2018,caja y bancos,1751994.92
+activo corriente,2018,inversiones temporarias,13062038.15
+activo corriente,2018,creditos por ventas,2569682.59
+activo corriente,2018,otros creditos,1943684.56
+activo corriente,2018,bienes de cambio,44727264.3
+activo corriente,2018,otros activos,0
+activo no corriente,2018,bienes de uso,23300179.86
+pasivo corriente,2018,cuentas a pagar,9117647.8
+pasivo corriente,2018,prestamos bancarios,3130831.73
+pasivo corriente,2018,remuneraciones y cargas sociales,629236.59
+pasivo corriente,2018,cargas fiscales,2245562.88
+pasivo corriente,2018,otros pasivos,1947250.97
+pasivo no corriente,2018,otros pasivos,0
+patrimonio neto,2018,segun estado respectivo,70284314.41
+activo corriente,2019,caja y bancos,10536281.81
+activo corriente,2019,inversiones temporarias,38891195.27
+activo corriente,2019,creditos por ventas,7597649.59
+activo corriente,2019,otros creditos,3922675.41
+activo corriente,2019,bienes de cambio,6404514.31
+activo corriente,2019,activos biologicos,79597904.27
+activo no corriente,2019,bienes de uso,33337802.24
+activo no corriente,2019,activos biologicos,1921128.56
+pasivo corriente,2019,cuentas a pagar,32244607.02
+pasivo corriente,2019,prestamos bancarios,1157748.58
+pasivo corriente,2019,remuneraciones y cargas sociales,751597.21
+pasivo corriente,2019,cargas fiscales,9042866.28
+pasivo corriente,2019,otros pasivos,4306198.91
+pasivo no corriente,2019,otros pasivos,0
+patrimonio neto,2019,segun estado respectivo,134705954.6
 activo corriente,2020,caja y bancos,10181997.45
 activo corriente,2020,inversiones temporarias,37231373.99
 activo corriente,2020,creditos por ventas,4928120.12
@@ -236,3 +293,19 @@ pasivo corriente,2024,cargas fiscales,247192574.9
 pasivo corriente,2024,otros pasivos,182293915.6
 pasivo no corriente,2024,cargas fiscales,48351367.96
 patrimonio neto,2024,segun estado respectivo,5522811696
+activo corriente,2025,caja y bancos,941827497
+activo corriente,2025,inversiones temporarias,1068308997
+activo corriente,2025,cuentas por cobrar a clientes,172980768.2
+activo corriente,2025,creditos impositivos,119958694.7
+activo corriente,2025,otras cuentas a cobrar,21057788.78
+activo corriente,2025,bienes de cambio,722994435.5
+activo corriente,2025,activos biologicos,5201993039
+activo no corriente,2025,bienes de uso,2205174996
+activo no corriente,2025,activos biologicos,31020611.49
+pasivo corriente,2025,proveedores de bienes y servicios,1123377021
+pasivo corriente,2025,prestamos y otros pasivos financieros,3055009.55
+pasivo corriente,2025,deudas laborales y previsionales,49891405.01
+pasivo corriente,2025,deudas fiscales,153402818.8
+pasivo corriente,2025,deudas en moneda con partes relacionadas,353841877.3
+pasivo no corriente,2025,deudas fiscales,57775254.48
+patrimonio neto,2025,segun estado respectivo,8743973350
