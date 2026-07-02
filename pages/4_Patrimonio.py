@@ -176,6 +176,70 @@ try:
         )
         st.plotly_chart(fig_lev, use_container_width=True)
 
+        # ── Detalle por sub-ítem ─────────────────────────────────────────────────
+        st.divider()
+        st.subheader("Evolución por sub-ítem")
+
+        categorias_disp = sorted(df[~df['Tipo'].str.startswith('patrimonio')]['Tipo'].unique())
+        cats_sel = st.multiselect(
+            "Categoría(s)",
+            options=categorias_disp,
+            default=[categorias_disp[0]] if categorias_disp else [],
+            format_func=str.title,
+            key='evol_cats',
+        )
+
+        if cats_sel:
+            df_items = df[df['Tipo'].isin(cats_sel)].copy()
+            df_items['Item_label'] = df_items['Item'].str.title()
+
+            # Agregar por año e ítem (suma si hay duplicados)
+            df_items_agg = (
+                df_items
+                .groupby(['Anio', 'Item_label'])['Monto_USD']
+                .sum()
+                .reset_index()
+                .sort_values('Anio')
+            )
+
+            # Stacked bar por ítem a lo largo del tiempo
+            fig_items = px.bar(
+                df_items_agg,
+                x='Anio', y='Monto_USD',
+                color='Item_label',
+                title=f'Evolución de ítems — {", ".join(t.title() for t in cats_sel)}',
+                labels={'Monto_USD': 'USD', 'Anio': 'Año', 'Item_label': 'Ítem'},
+                barmode='stack',
+            )
+            fig_items.update_layout(
+                xaxis=dict(type='category'),
+                yaxis_title='USD',
+                height=480,
+                hovermode='x unified',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+            )
+            fig_items.update_traces(hovertemplate='%{y:,.0f}')
+            st.plotly_chart(fig_items, use_container_width=True)
+
+            # Stacked area para ver tendencia continua
+            fig_area = px.area(
+                df_items_agg,
+                x='Anio', y='Monto_USD',
+                color='Item_label',
+                title='Tendencia (área apilada)',
+                labels={'Monto_USD': 'USD', 'Anio': 'Año', 'Item_label': 'Ítem'},
+            )
+            fig_area.update_layout(
+                xaxis=dict(type='category'),
+                yaxis_title='USD',
+                height=380,
+                hovermode='x unified',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+            )
+            st.plotly_chart(fig_area, use_container_width=True)
+        else:
+            st.info("Seleccioná al menos una categoría para ver el detalle.")
+
     # ── Tab Composición ──────────────────────────────────────────────────────────
     with tab_comp:
         anio_sel = st.selectbox("Año", sorted(df['Anio'].unique(), reverse=True))
