@@ -43,21 +43,21 @@ try:
     df = _get_gestion()
 
     # ── Filtros principales ──────────────────────────────────────────────────
-    col_est, col_rub, col_sub, col_act, col_camp = st.columns(5)
+    col_est, col_rub, col_act, col_sub, col_camp = st.columns(5)
     with col_est:
         establecimientos = sorted(df['Establecimiento'].dropna().unique())
         sel_est = st.multiselect("Establecimiento", establecimientos, default=establecimientos)
     with col_rub:
         rubros = sorted(df['Rubro'].dropna().unique())
         sel_rubro = st.multiselect("Rubro", rubros, default=rubros)
-    with col_sub:
-        _df_sub = df[df['Rubro'].isin(sel_rubro)] if sel_rubro else df
-        subcats = sorted(_df_sub['Subcategoria'].dropna().unique()) if 'Subcategoria' in df.columns else []
-        sel_sub = st.multiselect("Subcategoría", subcats, default=subcats)
     with col_act:
         _df_act = df[df['Rubro'].isin(sel_rubro)] if sel_rubro else df
         acts_disp = sorted(_df_act['Actividad'].dropna().unique())
         sel_act = st.multiselect("Actividad", acts_disp, default=acts_disp)
+    with col_sub:
+        _df_sub = df[df['Actividad'].isin(sel_act)] if sel_act else df
+        subcats = sorted(_df_sub['Subcategoria'].dropna().unique()) if 'Subcategoria' in df.columns else []
+        sel_sub = st.multiselect("Subcategoría", subcats, default=subcats)
     with col_camp:
         campanas = sorted(df['Campaña'].unique())
         sel_camp = st.multiselect("Campaña(s)", campanas, default=campanas[-5:])
