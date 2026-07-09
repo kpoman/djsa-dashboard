@@ -43,16 +43,20 @@ try:
     df = _get_gestion()
 
     # ── Filtros principales ──────────────────────────────────────────────────
-    col_est, col_rub, col_act, col_camp = st.columns(4)
+    col_est, col_rub, col_sub, col_act, col_camp = st.columns(5)
     with col_est:
         establecimientos = sorted(df['Establecimiento'].dropna().unique())
         sel_est = st.multiselect("Establecimiento", establecimientos, default=establecimientos)
     with col_rub:
         rubros = sorted(df['Rubro'].dropna().unique())
         sel_rubro = st.multiselect("Rubro", rubros, default=rubros)
+    with col_sub:
+        _df_sub = df[df['Rubro'].isin(sel_rubro)] if sel_rubro else df
+        subcats = sorted(_df_sub['Subcategoria'].dropna().unique()) if 'Subcategoria' in df.columns else []
+        sel_sub = st.multiselect("Subcategoría", subcats, default=subcats)
     with col_act:
-        # Actividades filtradas por rubros seleccionados
-        acts_disp = sorted(df[df['Rubro'].isin(sel_rubro)]['Actividad'].dropna().unique()) if sel_rubro else sorted(df['Actividad'].dropna().unique())
+        _df_act = df[df['Rubro'].isin(sel_rubro)] if sel_rubro else df
+        acts_disp = sorted(_df_act['Actividad'].dropna().unique())
         sel_act = st.multiselect("Actividad", acts_disp, default=acts_disp)
     with col_camp:
         campanas = sorted(df['Campaña'].unique())
@@ -64,6 +68,8 @@ try:
         df_f = df_f[df_f['Establecimiento'].isin(sel_est)]
     if sel_rubro:
         df_f = df_f[df_f['Rubro'].isin(sel_rubro)]
+    if sel_sub and 'Subcategoria' in df_f.columns:
+        df_f = df_f[df_f['Subcategoria'].isin(sel_sub)]
     if sel_act:
         df_f = df_f[df_f['Actividad'].isin(sel_act)]
     if sel_camp:
