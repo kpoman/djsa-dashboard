@@ -7,7 +7,11 @@ import os
 st.set_page_config(page_title="Patrimonio — DJSA", page_icon="🏦", layout="wide")
 
 st.title("🏦 Patrimonio")
-st.markdown("Evolución patrimonial — valores convertidos a USD al tipo de cambio del 31 de diciembre de cada año.")
+col_title, col_refresh = st.columns([8, 1])
+col_title.markdown("Evolución patrimonial — valores convertidos a USD al tipo de cambio del 31 de diciembre de cada año.")
+if col_refresh.button("🔄 Actualizar", help="Limpiar cache y recargar datos"):
+    _get_patrimonio.clear()
+    st.rerun()
 
 URL_PATRIMONIO = (
     "https://docs.google.com/spreadsheets/d/e/"

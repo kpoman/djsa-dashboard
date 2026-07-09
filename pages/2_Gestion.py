@@ -33,7 +33,11 @@ def _get_gestion():
 
 # ── UI ───────────────────────────────────────────────────────────────────────
 st.title("📊 Gestión")
-st.markdown("Márgenes brutos por campaña, establecimiento, rubro y actividad.")
+col_title, col_refresh = st.columns([8, 1])
+col_title.markdown("Márgenes brutos por campaña, establecimiento, rubro y actividad.")
+if col_refresh.button("🔄 Actualizar", help="Limpiar cache y recargar datos"):
+    _get_gestion.clear()
+    st.rerun()
 
 try:
     df = _get_gestion()
