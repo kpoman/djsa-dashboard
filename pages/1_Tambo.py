@@ -363,6 +363,19 @@ def _calcular_metricas_merito(df_ev, df_ctrl):
     return df_m.reset_index()
 
 
+@st.cache_data(show_spinner="Calculando edad aproximada...")
+def _calcular_edad_meses(df_ev):
+    """Edad aproximada = tiempo desde el primer evento registrado por vaca.
+    DairyComp no tiene evento de nacimiento en este set, pero el primer evento
+    de la mayoría de las vacas es de recría (MOVER/VACCRIA): la mediana de
+    tiempo desde ahí hasta el primer parto es ~22 meses, en línea con la edad
+    típica al primer parto — valida el proxy. Subestima la edad real en vacas
+    que entraron al rodeo ya adultas (compradas preñadas, etc.)."""
+    fecha_hoy = df_ev['Fecha'].max()
+    primer_ev = df_ev.groupby('ID')['Fecha'].min()
+    return (fecha_hoy - primer_ev).dt.days / 30.44
+
+
 # ── Modelo de riesgo de mortalidad ───────────────────────────────────────────
 # Entrenado por caso-control: vacas muertas (con parto previo) vs. sobrevivientes,
 # usando presencia de eventos de riesgo en ventanas de 60 días. Validado con
@@ -2315,6 +2328,7 @@ with tab_dairycomp:
 
             df_merito = _calcular_metricas_merito(df_ev, df_ctrl)
             df_merito['Estado'] = df_merito['ID'].map(_estado_map).fillna('ACTIVA')
+            df_merito['Edad_meses'] = df_merito['ID'].map(_calcular_edad_meses(df_ev))
 
             col_f1, col_f2 = st.columns([1, 3])
             with col_f1:
@@ -2381,25 +2395,38 @@ with tab_dairycomp:
 
                 with col_grafico:
                     n_top = st.slider("Top / Bottom N", 5, 50, 15, key='merito_n_top')
-                    top_n = df_merito.head(n_top)[['ID', 'Score']].copy()
-                    top_n['ID'] = top_n['ID'].astype(int).astype(str)
-                    fig_top = px.bar(
-                        top_n.sort_values('Score'), x='Score', y='ID', orientation='h',
-                        title=f'Top {n_top} — mejor mérito', height=350,
+                    # Score (mérito) en el eje vertical, Edad aproximada (proxy: tiempo
+                    # desde el primer evento registrado) en el horizontal — el ID como tal
+                    # es solo un identificador, no una magnitud, así que va como etiqueta
+                    # de cada punto, no como eje.
+                    top_n = df_merito.head(n_top)[['ID', 'Score', 'Edad_meses']].copy()
+                    top_n['Vaca'] = '#' + top_n['ID'].astype(int).astype(str)
+                    fig_top = px.scatter(
+                        top_n, x='Edad_meses', y='Score', text='Vaca',
+                        title=f'Top {n_top} — mejor mérito', height=380,
                         color='Score', color_continuous_scale='Greens',
+                        labels={'Edad_meses': 'Edad aproximada (meses)', 'Score': 'Score'},
                     )
-                    fig_top.update_layout(coloraxis_showscale=False, yaxis_title='ID')
+                    fig_top.update_traces(textposition='top center', marker=dict(size=11))
+                    fig_top.update_layout(coloraxis_showscale=False)
                     st.plotly_chart(fig_top, use_container_width=True)
 
-                    bottom_n = df_merito.tail(n_top)[['ID', 'Score']].copy()
-                    bottom_n['ID'] = bottom_n['ID'].astype(int).astype(str)
-                    fig_bot = px.bar(
-                        bottom_n.sort_values('Score'), x='Score', y='ID', orientation='h',
-                        title=f'Bottom {n_top} — candidatas a revisar/descarte', height=350,
+                    bottom_n = df_merito.tail(n_top)[['ID', 'Score', 'Edad_meses']].copy()
+                    bottom_n['Vaca'] = '#' + bottom_n['ID'].astype(int).astype(str)
+                    fig_bot = px.scatter(
+                        bottom_n, x='Edad_meses', y='Score', text='Vaca',
+                        title=f'Bottom {n_top} — candidatas a revisar/descarte', height=380,
                         color='Score', color_continuous_scale='Reds_r',
+                        labels={'Edad_meses': 'Edad aproximada (meses)', 'Score': 'Score'},
                     )
-                    fig_bot.update_layout(coloraxis_showscale=False, yaxis_title='ID')
+                    fig_bot.update_traces(textposition='top center', marker=dict(size=11))
+                    fig_bot.update_layout(coloraxis_showscale=False)
                     st.plotly_chart(fig_bot, use_container_width=True)
+                    st.caption(
+                        "Edad aproximada: tiempo desde el primer evento registrado por vaca "
+                        "(recría), no la fecha de nacimiento real (que DairyComp no guarda en "
+                        "este set). Subestima la edad de vacas que entraron al rodeo ya adultas."
+                    )
 
                 st.divider()
                 st.subheader("🔻 Candidatas a descarte")
