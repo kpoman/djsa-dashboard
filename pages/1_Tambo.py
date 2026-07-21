@@ -309,6 +309,13 @@ _SALUD_MERITO = {'MAST', 'RENGA', 'RETPLAC', 'ENFERMA', 'CAIDA', 'ANESTRO',
                  'HIPOCAL', 'UBRE', 'DIARREA', 'UTERO', 'METRIT', 'QUISTE',
                  'ENDOMET', 'TRATADA'}
 _IEP_OPTIMO = 385  # días — intervalo entre partos de referencia (~12-13 meses)
+# Curva de repago de la recría: una vaquillona demora ~24 meses en llegar a parir
+# (puro costo, sin ingreso). Si sobrevive una sola lactancia no alcanza a pagar ese
+# costo de llegada — recién a partir de la 2da-3ra lactancia empieza a ser rentable.
+# Por eso la longevidad se puntúa con una curva de saturación sobre LACT en vez de
+# un percentil relativo al rodeo (un percentil no distingue "cuesta abajo" de
+# "recién arrancando" si la mayoría del rodeo es joven).
+_LACT_CURVA_K = 0.5
 
 
 @st.cache_data(show_spinner="Calculando métricas de mérito...")
@@ -348,8 +355,10 @@ def _calcular_metricas_merito(df_ev, df_ctrl):
     df_m['eventos_salud_x_lact'] = df_m['n_eventos_salud'] / df_m['LACT'].clip(lower=1)
     df_m['pct_sanidad'] = df_m['eventos_salud_x_lact'].rank(pct=True, ascending=False) * 100
 
-    # ── Longevidad ──────────────────────────────────────────────────────────
-    df_m['pct_longevidad'] = df_m['LACT'].rank(pct=True) * 100
+    # ── Longevidad: repago del costo de recría, no percentil del rodeo ──────
+    # score = 100 · (1 − e^(−k·(LACT−1))) → 0 en LACT=1 (no pagó su costo de
+    # llegada), satura cerca de 100 a partir de LACT≈6-7.
+    df_m['pct_longevidad'] = (100 * (1 - np.exp(-_LACT_CURVA_K * (df_m['LACT'] - 1)))).clip(0, 100)
 
     return df_m.reset_index()
 
@@ -2392,12 +2401,49 @@ with tab_dairycomp:
                     fig_bot.update_layout(coloraxis_showscale=False, yaxis_title='ID')
                     st.plotly_chart(fig_bot, use_container_width=True)
 
+                st.divider()
+                st.subheader("🔻 Candidatas a descarte")
+                st.caption(
+                    "Vacas por debajo del umbral elegido, ordenadas de peor a mejor. "
+                    "**Motivo principal** marca el componente más bajo de cada una — el punto "
+                    "de partida para decidir si conviene venderla."
+                )
+                col_u1, col_u2 = st.columns([1, 3])
+                with col_u1:
+                    umbral_pct = st.slider(
+                        "Umbral de descarte (percentil inferior del ranking)",
+                        5, 50, 15, step=5, key='merito_umbral_descarte',
+                    )
+                score_corte = df_merito['Score'].quantile(umbral_pct / 100)
+                df_descarte = df_merito[df_merito['Score'] <= score_corte].sort_values('Score').copy()
+
+                _componentes_motivo = {
+                    'pct_prod': 'Baja producción', 'pct_repro': 'Reproducción deficiente',
+                    'pct_sanidad': 'Problemas de sanidad', 'pct_longevidad': 'Pocas lactancias (no repagó recría)',
+                }
+                df_descarte['Motivo principal'] = df_descarte[list(_componentes_motivo)].idxmin(axis=1).map(_componentes_motivo)
+
+                with col_u2:
+                    st.metric(f"Vacas candidatas a descarte (percentil ≤{umbral_pct}%)", len(df_descarte))
+
+                cols_descarte = ['Ranking', 'ID', 'Estado', 'LACT', '305E', 'Score', 'Motivo principal']
+                df_descarte_show = df_descarte[cols_descarte].round(1)
+                st.dataframe(df_descarte_show, use_container_width=True, hide_index=True, height=350)
+                st.download_button(
+                    "⬇️ Descargar candidatas a descarte (CSV)",
+                    df_descarte_show.to_csv(index=False).encode('utf-8'),
+                    file_name='vacas_candidatas_descarte.csv', mime='text/csv', key='dl_descarte',
+                )
+
                 st.caption(
                     "**Pct. Producción**: percentil de 305E dentro de vacas de igual n° de lactancia. "
                     "**Pct. Reproducción**: combina cercanía del intervalo entre partos a "
                     f"{_IEP_OPTIMO} días, servicios por preñez y ausencia de abortos. "
                     "**Pct. Sanidad**: menor cantidad de eventos de salud por lactancia = mejor. "
-                    "**Pct. Longevidad**: percentil de n° de lactancias alcanzado."
+                    "**Pct. Longevidad**: curva de repago de recría — 0 en la 1ª lactancia (aún no "
+                    "cubrió el costo de llegar a producir), satura cerca de 100 desde la 6ª-7ª. No es "
+                    "un percentil del rodeo: una vaca de 1ª lactancia puntúa igual de bajo aunque la "
+                    "mitad del rodeo también sea de 1ª lactancia."
                 )
 
         # ── Sub-tab Riesgo de Mortalidad ──────────────────────────────────────
