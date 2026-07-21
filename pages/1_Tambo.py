@@ -376,40 +376,54 @@ def _calcular_edad_meses(df_ev):
     return (fecha_hoy - primer_ev).dt.days / 30.44
 
 
-# ── Modelo de riesgo de mortalidad ───────────────────────────────────────────
-# Entrenado por caso-control: vacas muertas (con parto previo) vs. sobrevivientes,
-# usando presencia de eventos de riesgo en ventanas de 60 días. Validado con
-# literatura veterinaria (retención de placenta, hipocalcemia/vaca caída y
-# renguera son causas documentadas de mortalidad/descarte involuntario en bovinos
-# lecheros — ver Necropsy-based study on dairy cow mortality, J. Dairy Sci. 2023;
-# MSD Veterinary Manual, "Interactions Between Health and Production").
-_RIESGO_MUERTE_EVENTOS = ['CAIDA', 'TRATADA', 'HIPOCAL', 'ENFERMA', 'RETPLAC', 'MAST', 'RENGA']
-_RIESGO_MUERTE_WIN = 60
+# ── Modelo de riesgo de descarte (RECHAZO o MUERTA) ─────────────────────────
+# RECHAZO es la decisión manual de los especialistas del tambo — el primer paso
+# antes de salir del rodeo (venta, muerte, baja aptitud). De 994 vacas con
+# RECHAZO en el historial, 87.9% terminan saliendo (80.7% venta, 7.3% muerte;
+# mediana 14 días hasta la muerte cuando ocurre). Por eso el modelo se entrena
+# contra RECHAZO∪MUERTA (lo que ocurra primero) en vez de solo MUERTA — mucho
+# más señal (1082 vs 308 casos) y AUC muy superior (0.79 vs 0.68 en validación).
+# Fundamento veterinario de los eventos de salud: retención de placenta,
+# hipocalcemia/vaca caída y renguera son causas documentadas de mortalidad/
+# descarte involuntario (Necropsy-based study on dairy cow mortality, J. Dairy
+# Sci. 2023; MSD Veterinary Manual, "Interactions Between Health and Production").
+_RIESGO_EVENTOS_FLAG = ['CAIDA', 'TRATADA', 'HIPOCAL', 'ENFERMA', 'RETPLAC',
+                        'MAST', 'RENGA', 'VACIA', 'ANESTRO', 'RECK']
+_RIESGO_EVENTOS_CONTEO = ['INSEMIN', 'PREÑADA']  # más servicios/preñeces = protector
+_RIESGO_FEATURE_COLS = _RIESGO_EVENTOS_FLAG + ['n_insemin', 'n_prenada']
+_RIESGO_WIN = 90
 
 
-@st.cache_data(show_spinner="Entrenando modelo de riesgo de mortalidad...")
+@st.cache_data(show_spinner="Entrenando modelo de riesgo de descarte...")
 def _entrenar_modelo_mortalidad(df_ev):
     from sklearn.linear_model import LogisticRegression
     rng = np.random.RandomState(42)
 
     partos  = df_ev[df_ev['Evento'] == 'PARTO'][['ID', 'Fecha']].rename(columns={'Fecha': 'Fecha_parto'})
-    muertas = df_ev[df_ev['Evento'] == 'MUERTA'][['ID', 'Fecha']].rename(columns={'Fecha': 'Fecha_muerte'})
+    rechazo = df_ev[df_ev['Evento'] == 'RECHAZO'].groupby('ID')['Fecha'].min().rename('F_rechazo')
+    muerta  = df_ev[df_ev['Evento'] == 'MUERTA'].groupby('ID')['Fecha'].min().rename('F_muerta')
+    salida = pd.concat([rechazo, muerta], axis=1)
+    salida['Fecha_salida'] = salida[['F_rechazo', 'F_muerta']].min(axis=1)
+    salida = salida.dropna(subset=['Fecha_salida']).reset_index()[['ID', 'Fecha_salida']]
 
-    m = muertas.merge(partos, on='ID', how='inner')
-    m = m[m['Fecha_parto'] <= m['Fecha_muerte']]
+    m = salida.merge(partos, on='ID', how='inner')
+    m = m[m['Fecha_parto'] <= m['Fecha_salida']]
     casos = m.sort_values('Fecha_parto').groupby('ID').last().reset_index()
     case_ids = set(casos['ID'])
 
     def _features_ventana(id_, fecha_fin):
         sub = df_ev[(df_ev['ID'] == id_) &
-                    (df_ev['Fecha'] > fecha_fin - pd.Timedelta(days=_RIESGO_MUERTE_WIN)) &
+                    (df_ev['Fecha'] > fecha_fin - pd.Timedelta(days=_RIESGO_WIN)) &
                     (df_ev['Fecha'] <= fecha_fin)]
         counts = sub['Evento'].value_counts()
-        return {ev: int(counts.get(ev, 0) > 0) for ev in _RIESGO_MUERTE_EVENTOS}
+        feats = {ev: int(counts.get(ev, 0) > 0) for ev in _RIESGO_EVENTOS_FLAG}
+        feats['n_insemin'] = counts.get('INSEMIN', 0)
+        feats['n_prenada'] = counts.get('PREÑADA', 0)
+        return feats
 
     rows = []
     for _, row in casos.iterrows():
-        f = _features_ventana(row['ID'], row['Fecha_muerte'])
+        f = _features_ventana(row['ID'], row['Fecha_salida'])
         f['label'] = 1
         rows.append(f)
 
@@ -417,23 +431,23 @@ def _entrenar_modelo_mortalidad(df_ev):
     surv_ids = list(todos_partos_ids - case_ids)
     df_surv_ev = df_ev[df_ev['ID'].isin(surv_ids)]
     surv_span = df_surv_ev.groupby('ID')['Fecha'].agg(['min', 'max'])
-    surv_span = surv_span[(surv_span['max'] - surv_span['min']).dt.days >= _RIESGO_MUERTE_WIN]
+    surv_span = surv_span[(surv_span['max'] - surv_span['min']).dt.days >= _RIESGO_WIN]
 
     n_ctrl = min(len(casos) * 3, len(surv_span))
     sample_ids = rng.choice(surv_span.index, size=n_ctrl, replace=False)
     for id_ in sample_ids:
         lo, hi = surv_span.loc[id_, 'min'], surv_span.loc[id_, 'max']
         span_days = (hi - lo).days
-        offset = rng.randint(_RIESGO_MUERTE_WIN, span_days + 1)
+        offset = rng.randint(_RIESGO_WIN, span_days + 1)
         fecha_fin = lo + pd.Timedelta(days=int(offset))
         f = _features_ventana(id_, fecha_fin)
         f['label'] = 0
         rows.append(f)
 
     df_train = pd.DataFrame(rows)
-    X = df_train[_RIESGO_MUERTE_EVENTOS].values
+    X = df_train[_RIESGO_FEATURE_COLS].fillna(0).values
     y = df_train['label'].values
-    clf = LogisticRegression(max_iter=1000, class_weight='balanced')
+    clf = LogisticRegression(max_iter=2000, class_weight='balanced')
     clf.fit(X, y)
     return clf
 
@@ -443,29 +457,28 @@ def _calcular_riesgo_mortalidad(df_ev, _clf):
     fecha_hoy = df_ev['Fecha'].max()
     ids_con_parto = sorted(df_ev[df_ev['Evento'] == 'PARTO']['ID'].unique())
 
-    ventana = df_ev[(df_ev['Fecha'] > fecha_hoy - pd.Timedelta(days=_RIESGO_MUERTE_WIN)) &
+    ventana = df_ev[(df_ev['Fecha'] > fecha_hoy - pd.Timedelta(days=_RIESGO_WIN)) &
                      (df_ev['Fecha'] <= fecha_hoy) &
                      (df_ev['ID'].isin(ids_con_parto))]
-    tabla = (ventana[ventana['Evento'].isin(_RIESGO_MUERTE_EVENTOS)]
-             .pivot_table(index='ID', columns='Evento', values='Fecha', aggfunc='count', fill_value=0))
-    # Reindexar a TODAS las vacas con historial productivo, no solo las que
-    # tuvieron algún evento en la ventana — si no, el denominador queda sesgado
-    # a 100% "con alerta" (solo las que ya tienen eventos aparecen en el pivot).
-    tabla = tabla.reindex(ids_con_parto, fill_value=0)
-    for ev in _RIESGO_MUERTE_EVENTOS:
-        if ev not in tabla.columns:
-            tabla[ev] = 0
-    tabla = tabla[_RIESGO_MUERTE_EVENTOS]
-    tabla = (tabla > 0).astype(int)
-    tabla.index.name = 'ID'
+    conteo = (ventana.pivot_table(index='ID', columns='Evento', values='Fecha',
+                                  aggfunc='count', fill_value=0)
+                     .reindex(ids_con_parto, fill_value=0))
+    for ev in set(_RIESGO_EVENTOS_FLAG + _RIESGO_EVENTOS_CONTEO):
+        if ev not in conteo.columns:
+            conteo[ev] = 0
+    conteo.index.name = 'ID'
+
+    tabla = (conteo[_RIESGO_EVENTOS_FLAG] > 0).astype(int)
+    tabla['n_insemin'] = conteo['INSEMIN']
+    tabla['n_prenada'] = conteo['PREÑADA']
 
     if tabla.empty:
-        return pd.DataFrame(columns=['ID', 'Prob_riesgo', 'n_flags'] + _RIESGO_MUERTE_EVENTOS)
+        return pd.DataFrame(columns=['ID', 'Prob_riesgo', 'n_flags'] + _RIESGO_FEATURE_COLS)
 
-    probs = _clf.predict_proba(tabla.values)[:, 1]
+    probs = _clf.predict_proba(tabla[_RIESGO_FEATURE_COLS].values)[:, 1]
     out = tabla.reset_index()
     out['Prob_riesgo'] = probs * 100
-    out['n_flags'] = tabla.sum(axis=1).values
+    out['n_flags'] = tabla[_RIESGO_EVENTOS_FLAG].sum(axis=1).values
     return out.sort_values('Prob_riesgo', ascending=False).reset_index(drop=True)
 
 
@@ -1646,7 +1659,7 @@ with tab_dairycomp:
 
         sub_salud, sub_repro, sub_ctrl, sub_animal, sub_expl, sub_merito, sub_riesgo = st.tabs([
             "Estadísticas Salud", "Estadísticas Reproducción", "Control Lechero",
-            "Historial Animal", "📊 Explorador", "🏆 Ranking de Mérito", "⚠️ Riesgo de Mortalidad",
+            "Historial Animal", "📊 Explorador", "🏆 Ranking de Mérito", "⚠️ Riesgo de Descarte",
         ])
 
         with sub_salud:
@@ -1891,6 +1904,10 @@ with tab_dairycomp:
                 if 'MUERTA' in evs:
                     return 'MUERTA' if evs & _EVENTOS_PROD else 'NATIMUERTA'
                 if 'VENDIDA' in evs: return 'VENDIDA'
+                # RECHAZO: decisión manual de descarte, aún sin salida efectiva (venta/
+                # muerte) — de llegar acá ya sabemos que no tiene VENDIDA ni MUERTA.
+                # Tiene prioridad sobre SECA/ACTIVA: es una acción pendiente, no un estado normal.
+                if 'RECHAZO' in evs: return 'RECHAZO'
                 # SECA: tuvo SECA y su último SECA es más reciente que su último PARTO
                 if 'SECA' in evs:
                     _ult_seca  = _df_seca.get(animal_id_)
@@ -1912,14 +1929,15 @@ with tab_dairycomp:
 
             # ── Filtros por estado ──────────────────────────────────────────
             st.markdown("**Filtrar por estado:**")
-            _fcol1, _fcol2, _fcol3, _fcol4, _fcol5, _fcol6 = st.columns(6)
+            _fcol1, _fcol2, _fcol3, _fcol4, _fcol5, _fcol6, _fcol7 = st.columns(7)
             _estados_posibles = [
                 ('ACTIVA',     '🟢', _fcol1),
                 ('REPO', '🟣', _fcol2),
-                ('VENDIDA',    '🟡', _fcol3),
-                ('MUERTA',     '🔴', _fcol4),
-                ('NATIMUERTA', '⚫', _fcol5),
-                ('SECA',       '🔵', _fcol6),
+                ('RECHAZO',    '🟠', _fcol3),
+                ('VENDIDA',    '🟡', _fcol4),
+                ('MUERTA',     '🔴', _fcol5),
+                ('NATIMUERTA', '⚫', _fcol6),
+                ('SECA',       '🔵', _fcol7),
             ]
             _filtros = {}
             for _est, _ico, _col in _estados_posibles:
@@ -2334,7 +2352,7 @@ with tab_dairycomp:
             with col_f1:
                 estados_merito = st.multiselect(
                     "Estados a incluir",
-                    ['ACTIVA', 'SECA', 'REPO', 'VENDIDA', 'MUERTA', 'NATIMUERTA'],
+                    ['ACTIVA', 'SECA', 'RECHAZO', 'REPO', 'VENDIDA', 'MUERTA', 'NATIMUERTA'],
                     default=['ACTIVA', 'SECA'],
                     key='merito_estados',
                 )
@@ -2473,27 +2491,66 @@ with tab_dairycomp:
                     "mitad del rodeo también sea de 1ª lactancia."
                 )
 
-        # ── Sub-tab Riesgo de Mortalidad ──────────────────────────────────────
+        # ── Sub-tab Riesgo de Descarte ──────────────────────────────────────────
         with sub_riesgo:
-            st.subheader("⚠️ Vacas en riesgo de mortalidad — alerta temprana")
+            st.subheader("⚠️ Riesgo de descarte — alerta temprana")
             st.caption(
-                "Modelo de regresión logística entrenado sobre las 308 vacas del historial que "
-                "murieron teniendo al menos un parto previo, comparadas contra sobrevivientes en "
-                "ventanas equivalentes de 60 días. **AUC ≈ 0.68** (validación cruzada 5-fold) — "
-                "señal real pero moderada, ya que solo usa eventos discretos de DairyComp, sin "
-                "sensores ni condición corporal. Fundamento veterinario: retención de placenta, "
-                "hipocalcemia/vaca caída y renguera son causas documentadas de mortalidad y "
-                "descarte involuntario en la literatura de producción lechera."
+                "**RECHAZO** es la decisión manual de los especialistas del tambo: el primer paso "
+                "antes de la salida del rodeo (venta, muerte, baja aptitud). De 994 vacas con "
+                "RECHAZO en el historial, **87.9% terminan saliendo** (80.7% venta, 7.3% muerte — "
+                "con mediana de solo 14 días hasta la muerte cuando ocurre esa vía). Por eso el "
+                "modelo se entrena contra **RECHAZO∪MUERTA** (lo que ocurra primero, 1.082 casos) en "
+                "vez de solo muerte, usando eventos de salud y reproducción en los 90 días previos. "
+                "**AUC ≈ 0.79** (validación cruzada 5-fold) — mucho más señal que usando solo muerte "
+                "como blanco (AUC 0.68 con 308 casos)."
             )
 
             clf_muerte = _entrenar_modelo_mortalidad(df_ev)
             df_riesgo = _calcular_riesgo_mortalidad(df_ev, clf_muerte)
             df_riesgo['Estado'] = df_riesgo['ID'].map(_estado_map).fillna('ACTIVA')
+
+            # ── Ya marcadas RECHAZO por los especialistas, sin salida aún ──────────
+            st.markdown("### 🟠 Ya marcadas RECHAZO — acción pendiente")
+            st.caption(
+                "Estas vacas ya fueron marcadas para descarte por el equipo del tambo pero siguen "
+                "en el rodeo. No hace falta modelo: es la decisión humana ya tomada, pendiente de "
+                "ejecutar (venta)."
+            )
+            _fecha_hoy_rechazo = df_ev['Fecha'].max()
+            _primer_rechazo = df_ev[df_ev['Evento'] == 'RECHAZO'].groupby('ID')['Fecha'].min()
+            _ids_rechazo_pend = [i for i, e in _estado_map.items() if e == 'RECHAZO']
+            df_pend = pd.DataFrame({'ID': _ids_rechazo_pend})
+            df_pend['Fecha_RECHAZO'] = df_pend['ID'].map(_primer_rechazo)
+            df_pend['Días pendiente'] = (_fecha_hoy_rechazo - df_pend['Fecha_RECHAZO']).dt.days
+            df_pend = df_pend.sort_values('Días pendiente', ascending=False)
+
+            k0a, k0b = st.columns(2)
+            k0a.metric("Vacas marcadas RECHAZO sin salida", len(df_pend))
+            k0b.metric("Días pendiente (mediana)",
+                       f"{int(df_pend['Días pendiente'].median())}" if not df_pend.empty else "—")
+
+            if df_pend.empty:
+                st.success("No hay vacas marcadas RECHAZO pendientes de salida.")
+            else:
+                df_pend_show = df_pend[['ID', 'Fecha_RECHAZO', 'Días pendiente']].rename(
+                    columns={'Fecha_RECHAZO': 'Fecha RECHAZO'})
+                df_pend_show['Fecha RECHAZO'] = df_pend_show['Fecha RECHAZO'].dt.strftime('%d/%m/%Y')
+                st.dataframe(df_pend_show, use_container_width=True, hide_index=True, height=300)
+                st.download_button(
+                    "⬇️ Descargar pendientes de RECHAZO (CSV)",
+                    df_pend_show.to_csv(index=False).encode('utf-8'),
+                    file_name='vacas_rechazo_pendientes.csv', mime='text/csv', key='dl_rechazo_pend',
+                )
+
+            st.divider()
+
+            # ── Predicción temprana: vacas ACTIVA/SECA con patrón de riesgo ────────
+            st.markdown("### 🔮 Predicción temprana — vacas activas con patrón de riesgo")
             df_riesgo_activas = df_riesgo[df_riesgo['Estado'].isin(['ACTIVA', 'SECA'])].copy()
 
             k1, k2, k3 = st.columns(3)
             k1.metric("Vacas activas/secas evaluadas", len(df_riesgo_activas))
-            k2.metric("Con ≥1 alerta activa (últimos 60d)",
+            k2.metric("Con ≥1 alerta activa (últimos 90d)",
                       int((df_riesgo_activas['n_flags'] > 0).sum()))
             k3.metric("Con ≥2 alertas simultáneas",
                       int((df_riesgo_activas['n_flags'] >= 2).sum()))
@@ -2502,17 +2559,17 @@ with tab_dairycomp:
                 'Prob_riesgo', ascending=False)
 
             if df_alerta.empty:
-                st.success("No hay vacas activas/secas con eventos de riesgo en los últimos 60 días.")
+                st.success("No hay vacas activas/secas con eventos de riesgo en los últimos 90 días.")
             else:
                 st.markdown(f"**{len(df_alerta)} vacas con al menos una señal de alerta activa:**")
 
                 def _flags_texto(row):
-                    return ', '.join([ev for ev in _RIESGO_MUERTE_EVENTOS if row[ev] == 1])
+                    return ', '.join([ev for ev in _RIESGO_EVENTOS_FLAG if row[ev] == 1])
 
                 df_alerta_show = df_alerta.copy()
-                df_alerta_show['Eventos recientes (60d)'] = df_alerta_show.apply(_flags_texto, axis=1)
+                df_alerta_show['Eventos recientes (90d)'] = df_alerta_show.apply(_flags_texto, axis=1)
                 df_alerta_show['Prob. de riesgo (%)'] = df_alerta_show['Prob_riesgo'].round(1)
-                cols_show = ['ID', 'Estado', 'n_flags', 'Prob. de riesgo (%)', 'Eventos recientes (60d)']
+                cols_show = ['ID', 'Estado', 'n_flags', 'Prob. de riesgo (%)', 'Eventos recientes (90d)']
                 st.dataframe(
                     df_alerta_show[cols_show].rename(columns={'n_flags': 'N° alertas'}),
                     use_container_width=True, hide_index=True, height=420,
@@ -2520,14 +2577,16 @@ with tab_dairycomp:
                 st.download_button(
                     "⬇️ Descargar watchlist de riesgo (CSV)",
                     df_alerta_show[cols_show].to_csv(index=False).encode('utf-8'),
-                    file_name='riesgo_mortalidad_vacas.csv', mime='text/csv', key='dl_riesgo',
+                    file_name='riesgo_descarte_vacas.csv', mime='text/csv', key='dl_riesgo',
                 )
 
                 st.caption(
-                    "**CAIDA** (decúbito/vaca caída) y **TRATADA** son las señales más fuertes en el "
-                    "modelo (odds ratio ≈18x y ≈10x respectivamente). Vacas con 2+ alertas simultáneas "
-                    "merecen revisión veterinaria inmediata; si el pronóstico es reservado, este es el "
-                    "momento de evaluar la venta antes de una pérdida total."
+                    "**RECK** (recheck de preñez) y **CAIDA** son las señales más fuertes del modelo "
+                    "(odds ratio ≈11-12x), seguidas de **VACIA**, **TRATADA** y **RETPLAC** (≈4-5x). "
+                    "Más inseminaciones o preñeces confirmadas en la ventana juegan a favor. Vacas "
+                    "con 2+ alertas simultáneas merecen revisión veterinaria inmediata; si el "
+                    "pronóstico es reservado, este es el momento de evaluar la venta antes de una "
+                    "pérdida total."
                 )
 
     except Exception as e:
