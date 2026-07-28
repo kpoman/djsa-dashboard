@@ -766,6 +766,11 @@ with tab_prod:
 
     with sub_cal:
         try:
+            col_cal_title, col_cal_refresh = st.columns([9, 1])
+            if col_cal_refresh.button("🔄 Actualizar", key="refresh_calidad",
+                                      help="Limpiar cache y recargar calidad de leche"):
+                _get_calidad_leche.clear()
+                st.rerun()
             cal = _get_calidad_leche()
             df_dia = cal['diario']
             df_mes = cal['mensual']
