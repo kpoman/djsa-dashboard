@@ -12,13 +12,13 @@ st.set_page_config(page_title="Lotes — DJSA", page_icon="🗺️", layout="wid
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 
-# ── URLs Google Sheets (opcionales — si no se configuran, usa archivos locales) ─
-try:
-    URL_AMBIENTES = st.secrets.get("URL_AMBIENTES", "")
-    URL_PLANTEOS  = st.secrets.get("URL_PLANTEOS",  "")
-except Exception:
-    URL_AMBIENTES = ""
-    URL_PLANTEOS  = ""
+# ── URL Google Sheet Planteos (publicada, read-only) ────────────────────────
+URL_PLANTEOS = (
+    "https://docs.google.com/spreadsheets/d/e/"
+    "2PACX-1vQoFdNMq7Sc1co44sx_CDqFIhrHjRjd7Y87LhT2JZQi-q4mIpJaDBOLYpslgq54w4nbKV9C1dNDVe8U"
+    "/pub?output=csv"
+)
+URL_AMBIENTES = ""  # usa data/lotes_ambientes.csv local (generado del KML)
 
 _LOCAL_AMB = os.path.join(_DATA_DIR, 'lotes_ambientes.csv')
 _LOCAL_PLN = os.path.join(_DATA_DIR, 'lotes_planteos.csv')
@@ -97,19 +97,27 @@ def _get_ambientes():
     return pd.DataFrame(columns=['campo','lote_id','lote_nombre','ambiente_id','ambiente_nombre','ha'])
 
 
+_PLANTEOS_COLS = [
+    'campo','lote_id','ambiente_id','campaña','actividad','escenario',
+    'seccion','orden','item','unidad',
+    'precio_ppto','cant_ppto','valor_ppto',
+    'precio_real','cant_real','valor_real',
+    'diferencia','nota'
+]
+
 @st.cache_data(ttl=3600, show_spinner="Cargando planteos...")
 def _get_planteos():
     if URL_PLANTEOS:
-        return pd.read_csv(URL_PLANTEOS)
+        try:
+            df = pd.read_csv(URL_PLANTEOS)
+            if df.empty or df.shape[1] < 5:
+                return pd.DataFrame(columns=_PLANTEOS_COLS)
+            return df
+        except Exception:
+            pass
     if os.path.exists(_LOCAL_PLN):
         return pd.read_csv(_LOCAL_PLN)
-    return pd.DataFrame(columns=[
-        'campo','lote_id','ambiente_id','campaña','actividad','escenario',
-        'seccion','orden','item','unidad',
-        'precio_ppto','cant_ppto','valor_ppto',
-        'precio_real','cant_real','valor_real',
-        'diferencia','nota'
-    ])
+    return pd.DataFrame(columns=_PLANTEOS_COLS)
 
 
 df_amb = _get_ambientes()
