@@ -5,30 +5,86 @@ import folium
 from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
-import os, io, tempfile
+import xml.etree.ElementTree as ET
+import os, re
 
 st.set_page_config(page_title="Lotes — DJSA", page_icon="🗺️", layout="wide")
 
-# ── URLs Google Sheets (reemplazar con los links publicados) ─────────────────
-URL_AMBIENTES = st.secrets.get("URL_AMBIENTES", "") if hasattr(st, "secrets") else ""
-URL_PLANTEOS  = st.secrets.get("URL_PLANTEOS",  "") if hasattr(st, "secrets") else ""
+_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 
-# Fallback local mientras no hay sheet configurado
-_LOCAL_AMB = os.path.join(os.path.dirname(__file__), '..', 'data', 'lotes_ambientes.csv')
-_LOCAL_PLN = os.path.join(os.path.dirname(__file__), '..', 'data', 'lotes_planteos.csv')
+# ── URLs Google Sheets (opcionales — si no se configuran, usa archivos locales) ─
+try:
+    URL_AMBIENTES = st.secrets.get("URL_AMBIENTES", "")
+    URL_PLANTEOS  = st.secrets.get("URL_PLANTEOS",  "")
+except Exception:
+    URL_AMBIENTES = ""
+    URL_PLANTEOS  = ""
+
+_LOCAL_AMB = os.path.join(_DATA_DIR, 'lotes_ambientes.csv')
+_LOCAL_PLN = os.path.join(_DATA_DIR, 'lotes_planteos.csv')
+
+_KML_PATHS = {
+    'La Merced':   os.path.join(_DATA_DIR, 'la_merced.kml'),
+    'Pillahuinco': os.path.join(_DATA_DIR, 'pillahuinco.kml'),
+}
 
 # ── Colores por actividad ────────────────────────────────────────────────────
 _COLORES = {
-    'Maíz':       '#F9A825', 'Soja':       '#558B2F',
-    'Girasol':    '#FDD835', 'Trigo':      '#A1887F',
-    'Cebada':     '#BCAAA4', 'Invernada':  '#1565C0',
-    'Cría':       '#6A1B9A', 'Tambo':      '#00838F',
-    'Pastura':    '#2E7D32', 'Campo Natural': '#795548',
-    'Verdeo':     '#00897B', 'Sin dato':   '#9E9E9E',
+    'Maíz':          '#F9A825', 'Soja':         '#558B2F',
+    'Girasol':       '#FDD835', 'Trigo':         '#A1887F',
+    'Cebada':        '#BCAAA4', 'Invernada':     '#1565C0',
+    'Cría':          '#6A1B9A', 'Tambo':         '#00838F',
+    'Pastura':       '#2E7D32', 'Campo Natural':  '#795548',
+    'Verdeo':        '#00897B', 'Sin dato':       '#9E9E9E',
 }
 
 def _color(actividad):
     return _COLORES.get(actividad, '#9E9E9E')
+
+
+# ── Parser KML → GeoJSON ─────────────────────────────────────────────────────
+_KML_NS = 'http://www.opengis.net/kml/2.2'
+
+def _kml_to_geojson(kml_path):
+    """Convierte KML en un dict GeoJSON FeatureCollection."""
+    tree = ET.parse(kml_path)
+    root = tree.getroot()
+    features = []
+    for pm in root.iter(f'{{{_KML_NS}}}Placemark'):
+        name_el = pm.find(f'{{{_KML_NS}}}name')
+        name = name_el.text.strip() if name_el is not None and name_el.text else 'Sin nombre'
+
+        coords_el = pm.find(f'.//{{{_KML_NS}}}coordinates')
+        if coords_el is None or not coords_el.text:
+            continue
+        coords = []
+        for token in coords_el.text.strip().split():
+            parts = token.split(',')
+            if len(parts) >= 2:
+                try:
+                    coords.append([float(parts[0]), float(parts[1])])
+                except ValueError:
+                    pass
+        if len(coords) < 3:
+            continue
+        if coords[0] != coords[-1]:
+            coords.append(coords[0])
+        features.append({
+            'type': 'Feature',
+            'properties': {'name': name},
+            'geometry': {'type': 'Polygon', 'coordinates': [coords]},
+        })
+    return {'type': 'FeatureCollection', 'features': features}
+
+
+def _geojson_bounds(geojson):
+    lats, lons = [], []
+    for feat in geojson['features']:
+        for lon, lat in feat['geometry']['coordinates'][0]:
+            lats.append(lat); lons.append(lon)
+    if not lats:
+        return None
+    return [[min(lats), min(lons)], [max(lats), max(lons)]]
 
 
 # ── Carga de datos ───────────────────────────────────────────────────────────
@@ -39,6 +95,7 @@ def _get_ambientes():
     if os.path.exists(_LOCAL_AMB):
         return pd.read_csv(_LOCAL_AMB)
     return pd.DataFrame(columns=['campo','lote_id','lote_nombre','ambiente_id','ambiente_nombre','ha'])
+
 
 @st.cache_data(ttl=3600, show_spinner="Cargando planteos...")
 def _get_planteos():
@@ -86,6 +143,16 @@ with st.sidebar:
     actividades = sorted(df_pln['actividad'].dropna().unique()) if not df_pln.empty else []
     sel_act = st.multiselect("Actividad", actividades, default=actividades)
 
+    st.divider()
+    st.caption("**Leyenda actividades**")
+    for act, col in _COLORES.items():
+        if act != 'Sin dato':
+            st.markdown(
+                f'<span style="background:{col};padding:2px 8px;border-radius:4px;'
+                f'color:white;font-size:11px">{act}</span> ',
+                unsafe_allow_html=True
+            )
+
 # Breadcrumb
 _parts = [p for p in [sel_campo, sel_lote, sel_amb] if p != "(Todos)"]
 if _parts:
@@ -98,74 +165,76 @@ tab_mapa, tab_planteo, tab_analiticos = st.tabs(["🗺️ Mapa", "📋 Planteo",
 # TAB MAPA
 # ════════════════════════════════════════════════════════════════════════════
 with tab_mapa:
-    col_map, col_kml = st.columns([3, 1])
+    # Determinar qué campos mostrar
+    campos_show = [sel_campo] if sel_campo != "(Todos)" and sel_campo in _KML_PATHS else list(_KML_PATHS.keys())
 
-    with col_kml:
-        st.subheader("KML")
-        st.caption("Subí los archivos KML de cada campo para ver los lotes en el mapa.")
-        kml_merced    = st.file_uploader("La Merced (.kml)", type=['kml'], key='kml_merced')
-        kml_pillahuinco = st.file_uploader("Pillahuinco (.kml)", type=['kml'], key='kml_pillahuinco')
+    # Actividad por ambiente para colorear
+    _df_map = df_pln.copy()
+    if sel_camp != "(Todas)":
+        _df_map = _df_map[_df_map['campaña'] == sel_camp]
+    _act_por_amb = _df_map.groupby('ambiente_id')['actividad'].first().to_dict() if not _df_map.empty else {}
 
-        # Persistir en data/ si se sube
-        for _fname, _fobj in [('la_merced.kml', kml_merced), ('pillahuinco.kml', kml_pillahuinco)]:
-            if _fobj:
-                _dst = os.path.join(os.path.dirname(__file__), '..', 'data', _fname)
-                with open(_dst, 'wb') as f:
-                    f.write(_fobj.read())
-                st.success(f"Guardado: {_fname}")
+    # Ambientes destacados (selección del sidebar)
+    _highlight_ids = set()
+    if sel_amb != "(Todos)":
+        row = df_amb[df_amb['ambiente_nombre'] == sel_amb]
+        if not row.empty:
+            _highlight_ids = {row.iloc[0]['ambiente_id']}
+    elif sel_lote != "(Todos)":
+        _highlight_ids = set(df_amb[df_amb['lote_nombre'] == sel_lote]['ambiente_id'])
 
-        st.divider()
-        st.caption("**Leyenda actividades**")
-        for act, col in _COLORES.items():
-            st.markdown(
-                f'<span style="background:{col};padding:2px 8px;border-radius:4px;'
-                f'color:white;font-size:12px">{act}</span>',
-                unsafe_allow_html=True
-            )
+    # Primera pasada: recopilar GeoJSON y bounds de todos los campos
+    _geojsons = {}
+    all_lats, all_lons = [], []
+    for campo_name in campos_show:
+        kml_path = _KML_PATHS.get(campo_name)
+        if not kml_path or not os.path.exists(kml_path):
+            continue
+        gj = _kml_to_geojson(kml_path)
+        _geojsons[campo_name] = gj
+        b = _geojson_bounds(gj)
+        if b:
+            all_lats.extend([b[0][0], b[1][0]])
+            all_lons.extend([b[0][1], b[1][1]])
 
-    with col_map:
-        # Cargar KML desde data/ si existen
-        _kml_files = {}
-        for _campo, _fname in [('La Merced', 'la_merced.kml'), ('Pillahuinco', 'pillahuinco.kml')]:
-            _path = os.path.join(os.path.dirname(__file__), '..', 'data', _fname)
-            if os.path.exists(_path):
-                _kml_files[_campo] = _path
+    # Centro y zoom calculados desde los bounds (sin fit_bounds)
+    if all_lats:
+        _clat = (min(all_lats) + max(all_lats)) / 2
+        _clon = (min(all_lons) + max(all_lons)) / 2
+        _zoom = 8 if len(_geojsons) > 1 else 11
+    else:
+        _clat, _clon, _zoom = -37.0, -61.0, 8
 
-        # Filtrar planteos para colorear el mapa
-        _df_map = df_pln.copy()
-        if sel_camp != "(Todas)":
-            _df_map = _df_map[_df_map['campaña'] == sel_camp]
-        _act_por_amb = _df_map.groupby('ambiente_id')['actividad'].first().to_dict() if not _df_map.empty else {}
+    m = folium.Map(location=[_clat, _clon], zoom_start=_zoom, tiles='CartoDB positron')
 
-        # Mapa base centrado en Buenos Aires
-        m = folium.Map(location=[-36.5, -62.0], zoom_start=8, tiles='CartoDB positron')
+    # Segunda pasada: agregar capas GeoJSON
+    for campo_name, gj in _geojsons.items():
+        def _style(feat, _a=_act_por_amb, _h=_highlight_ids):
+            name = feat['properties'].get('name', '')
+            amb_id = name.lower().replace(' ', '_')
+            act = _a.get(amb_id, 'Sin dato')
+            is_hi = amb_id in _h
+            return {
+                'fillColor': _color(act),
+                'color':     '#E65100' if is_hi else '#333',
+                'weight':    3 if is_hi else 1.2,
+                'fillOpacity': 0.75 if is_hi else 0.55,
+            }
 
-        if _kml_files:
-            for _campo, _kml_path in _kml_files.items():
-                folium.GeoJson(
-                    _kml_path,
-                    name=_campo,
-                    style_function=lambda feat, _c=_campo: {
-                        'fillColor': _color(
-                            _act_por_amb.get(
-                                feat['properties'].get('name', ''), 'Sin dato'
-                            )
-                        ),
-                        'color': '#333',
-                        'weight': 1.5,
-                        'fillOpacity': 0.6,
-                    },
-                    tooltip=folium.GeoJsonTooltip(
-                        fields=['name', 'description'],
-                        aliases=['Ambiente', 'Descripción'],
-                        localize=True,
-                    ),
-                ).add_to(m)
-            folium.LayerControl().add_to(m)
-            st_folium(m, width='100%', height=580)
-        else:
-            st.info("Subí los KML en el panel de la derecha para ver los lotes en el mapa.")
-            st_folium(m, width='100%', height=400)
+        folium.GeoJson(
+            gj,
+            name=campo_name,
+            style_function=_style,
+            tooltip=folium.GeoJsonTooltip(
+                fields=['name'],
+                aliases=['Lote/Ambiente:'],
+                localize=True,
+            ),
+        ).add_to(m)
+
+    folium.LayerControl().add_to(m)
+    _map_key = "mapa_" + "_".join(sorted(campos_show)) + f"_z{_zoom}"
+    st_folium(m, width=870, height=580, returned_objects=[], key=_map_key)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB PLANTEO
@@ -245,9 +314,9 @@ with tab_planteo:
         def _color_diff(val):
             try:
                 v = float(val)
-                if v > 0:   return 'color: #C62828'  # costo mayor al ppto → rojo
-                if v < 0:   return 'color: #2E7D32'  # costo menor al ppto → verde
-            except:
+                if v > 0:   return 'color: #C62828'
+                if v < 0:   return 'color: #2E7D32'
+            except Exception:
                 pass
             return ''
 
@@ -295,7 +364,6 @@ with tab_analiticos:
         st.info("Sin datos de planteos todavía.")
         st.stop()
 
-    # Filtros analíticos
     col_a1, col_a2, col_a3 = st.columns(3)
     _camps_a = sorted(df_pln['campaña'].dropna().unique(), reverse=True)
     _acts_a  = sorted(df_pln['actividad'].dropna().unique())
@@ -307,14 +375,13 @@ with tab_analiticos:
     if sel_camp_a: df_an = df_an[df_an['campaña'].isin(sel_camp_a)]
     if sel_act_a:  df_an = df_an[df_an['actividad'].isin(sel_act_a)]
 
-    _col_val = {'Presupuesto': 'valor_ppto', 'Ejecutado': 'valor_real', 'Desvío': None}[metrica_a]
-
     if metrica_a == 'Desvío':
         df_an['_val'] = df_an['valor_real'] - df_an['valor_ppto']
+    elif metrica_a == 'Ejecutado':
+        df_an['_val'] = df_an['valor_real']
     else:
-        df_an['_val'] = df_an[_col_val]
+        df_an['_val'] = df_an['valor_ppto']
 
-    # Margen bruto por ambiente y campaña
     df_mb = df_an.groupby(['ambiente_id', 'campaña', 'actividad'])['_val'].sum().reset_index()
     df_mb = df_mb.merge(df_amb[['ambiente_id','ambiente_nombre','lote_nombre','campo']], on='ambiente_id', how='left')
 
@@ -333,7 +400,6 @@ with tab_analiticos:
     fig_mb.update_layout(height=480)
     st.plotly_chart(fig_mb, use_container_width=True)
 
-    # Costos por sección/categoría
     df_sec = df_an.groupby(['seccion', 'campaña'])['_val'].sum().reset_index()
     fig_sec = px.bar(
         df_sec, x='seccion', y='_val', color='campaña',
@@ -344,7 +410,6 @@ with tab_analiticos:
     fig_sec.update_layout(height=380, xaxis_tickangle=-30)
     st.plotly_chart(fig_sec, use_container_width=True)
 
-    # Evolución por campaña
     df_evol = df_an.groupby(['campaña', 'actividad'])['_val'].sum().reset_index()
     fig_evol = px.line(
         df_evol, x='campaña', y='_val', color='actividad',

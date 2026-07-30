@@ -1,0 +1,1120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>coordLaMerced.kmz.kmz</name>
+	<Style id="failed00">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<StyleMap id="mfailed">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed00</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin1</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="default">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed13">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<StyleMap id="default0">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#default</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#hl</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="failed14">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed00</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed13</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="sh_ylw-pushpin1">
+		<IconStyle>
+			<scale>1.2</scale>
+		</IconStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="hl">
+		<IconStyle>
+			<scale>1.2</scale>
+		</IconStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Placemark>
+		<name>Lote 3a</name>
+		<styleUrl>#default0</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>0</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 3a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.92720348450347,-36.32572269886359,0 -60.91953894325709,-36.33028969307432,0 -60.91078508460254,-36.32320168611167,0 -60.91887675639462,-36.31748436758154,0 -60.92720348450347,-36.32572269886359,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 3b</name>
+		<styleUrl>#default0</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>1</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 3b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.93138007328174,-36.32954103218943,0 -60.92436447706617,-36.33438592842211,0 -60.9197373742611,-36.33056982250096,0 -60.92728046319849,-36.32591500072493,0 -60.93138007328174,-36.32954103218943,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 4a</name>
+		<styleUrl>#failed14</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>2</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 4a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.93640884438706,-36.3338205906042,0 -60.93029083242961,-36.3377352093338,0 -60.92723905171296,-36.33636798252001,0 -60.92454756442839,-36.33439825426098,0 -60.93153933970334,-36.32972810151039,0 -60.93640884438706,-36.3338205906042,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 3c</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>3</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 3c</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.93565196720745,-36.32756641617427,0 -60.93213682739542,-36.32998754051566,0 -60.92744959784905,-36.32576849650272,0 -60.93108280560546,-36.32348062138999,0 -60.93565196720745,-36.32756641617427,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 4b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>4</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 4b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94013048580754,-36.33148388168615,0 -60.93643762150607,-36.33373437893366,0 -60.93229813255623,-36.33007101184331,0 -60.93580228716394,-36.32766803942851,0 -60.94013048580754,-36.33148388168615,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 5b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>5</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 5b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94542707678963,-36.33563236351754,0 -60.94152029443654,-36.33815516480919,0 -60.93690704004117,-36.33397992411175,0 -60.94070243361739,-36.33148760469722,0 -60.94542707678963,-36.33563236351754,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 2a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>6</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 2a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.9512951529703,-36.33163969434973,0 -60.95103690331683,-36.33223991525942,0 -60.94558581204441,-36.3355830865006,0 -60.94086276445238,-36.33139796861467,0 -60.94674555317894,-36.32741796911574,0 -60.9512951529703,-36.33163969434973,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 2b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>7</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 2b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94890356835676,-36.33861586772105,0 -60.9456108768998,-36.33566629934622,0 -60.95080540901381,-36.33246610612887,0 -60.94890356835676,-36.33861586772105,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 1bc</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>8</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 1bc</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94671068536785,-36.32739252725,0 -60.94049515669949,-36.33145623046843,0 -60.93125438730593,-36.32342488148974,0 -60.93729414586899,-36.31855783158669,0 -60.94671068536785,-36.32739252725,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 1a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>9</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 1a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.93724811178561,-36.31849389679722,0 -60.93102718701029,-36.32328450011105,0 -60.92735354415881,-36.32563356194572,0 -60.91893542573895,-36.31729579909403,0 -60.92822439482593,-36.31029313352428,0 -60.93724811178561,-36.31849389679722,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 5a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>10</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 5a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94139267202189,-36.33828300806856,0 -60.9363698054242,-36.34139203465252,0 -60.93116027345018,-36.33886601951283,0 -60.93042743497579,-36.33809604905463,0 -60.93653695630051,-36.33401952396152,0 -60.94139267202189,-36.33828300806856,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 6</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>11</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 6</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94886984165478,-36.33868354731928,0 -60.94804359995791,-36.34151209764629,0 -60.94211671884317,-36.34615757771698,0 -60.93651047090121,-36.3414662575383,0 -60.94561045435107,-36.33579966530722,0 -60.94886984165478,-36.33868354731928,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 7a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>12</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 7a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.94176705418499,-36.34633238834993,0 -60.93557247208347,-36.3512333688736,0 -60.9308843909794,-36.34778301828188,0 -60.93072958832222,-36.34516682330728,0 -60.93622482164083,-36.3416732596906,0 -60.94176705418499,-36.34633238834993,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 8</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>13</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 8</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.92843127076176,-36.34082841222657,0 -60.92837859853563,-36.34073013423527,0 -60.92834247955907,-36.3406464591783,0 -60.92838755275955,-36.34058398148263,0 -60.9308495124336,-36.33904779300359,0 -60.93603838647235,-36.34153893027968,0 -60.93061240422255,-36.34491704637407,0 -60.92838525598344,-36.34334787633905,0 -60.92541864830601,-36.34589570227882,0 -60.92138093909303,-36.33929592264113,0 -60.9233182468823,-36.33774228694215,0 -60.92843127076176,-36.34082841222657,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 7b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>14</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 7b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.93018559764505,-36.34746055599209,0 -60.93518475477202,-36.35138984110453,0 -60.93094005635054,-36.3548775139737,0 -60.92655249006172,-36.34776455074228,0 -60.93018559764505,-36.34746055599209,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 9</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>15</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 9</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.93083964526761,-36.35492730553894,0 -60.91904196601364,-36.36426903154905,0 -60.90491659011672,-36.35247185339836,0 -60.92128343735636,-36.33937807839645,0 -60.93083964526761,-36.35492730553894,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 11</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>16</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 11</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90075867351808,-36.36070418324091,0 -60.89391087192311,-36.36563282889855,0 -60.88486760977978,-36.35810277525801,0 -60.89155614138922,-36.35304565920264,0 -60.90075867351808,-36.36070418324091,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 12</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>17</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 12</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.89382772637702,-36.36567274615679,0 -60.8885138946179,-36.369574909504,0 -60.87953150984849,-36.36214494619616,0 -60.88481832923974,-36.35825840244084,0 -60.89382772637702,-36.36567274615679,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 13</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>18</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 13</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.88838760773161,-36.36963453573723,0 -60.88296698556293,-36.37346717564828,0 -60.87427483977763,-36.36628580100621,0 -60.87943868755092,-36.36224824755327,0 -60.88838760773161,-36.36963453573723,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 14</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>19</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 14</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.88281173378886,-36.37353300230118,0 -60.87490723529535,-36.37920766134297,0 -60.86648837486599,-36.37201004874974,0 -60.87420144152696,-36.3663930336513,0 -60.88281173378886,-36.37353300230118,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 10a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>20</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 10a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90786817527322,-36.35555257864053,0 -60.90351068653806,-36.35853207282367,0 -60.89485793203212,-36.35067207374918,0 -60.89858401629282,-36.34785969174121,0 -60.90786817527322,-36.35555257864053,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 10b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>21</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 10b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90339424165115,-36.35861070034863,0 -60.90083573582836,-36.36062168072435,0 -60.891637943883,-36.35300213521289,0 -60.8947999402695,-36.35077367730683,0 -60.90339424165115,-36.35861070034863,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 15</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>22</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 15</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.91736654678676,-36.36332273392981,0 -60.91020216170325,-36.36830957245936,0 -60.90124006540767,-36.36081910668793,0 -60.9081196541305,-36.35571347012132,0 -60.91736654678676,-36.36332273392981,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 16</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>23</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 16</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90990775925502,-36.36840782555313,0 -60.90297486097437,-36.37312468283401,0 -60.89419144870094,-36.36587977667166,0 -60.90100008120667,-36.36112719240528,0 -60.90990775925502,-36.36840782555313,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 17</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>24</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 17</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90271694738354,-36.37334650349317,0 -60.89758220626122,-36.37686852643075,0 -60.88879214057834,-36.36981197700214,0 -60.89392463141006,-36.36605869049817,0 -60.90271694738354,-36.37334650349317,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 18</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>25</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 18</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.89741034040421,-36.37701291602902,0 -60.89209589284518,-36.38078854527775,0 -60.88307310199155,-36.37363035708792,0 -60.88847255304135,-36.3698908054559,0 -60.89741034040421,-36.37701291602902,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 19</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>26</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 19</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.89191709256413,-36.38093783979402,0 -60.8840014589421,-36.38656853228232,0 -60.87508435274861,-36.37940416282699,0 -60.88288257258463,-36.37380284183337,0 -60.89191709256413,-36.38093783979402,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 20</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>27</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 20</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.92382354821117,-36.36854913115813,0 -60.91403679413359,-36.37591789157694,0 -60.9076325710605,-36.37033310987206,0 -60.91751652832274,-36.36336905468162,0 -60.92382354821117,-36.36854913115813,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 21</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>28</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 21</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.91378983151326,-36.37594209993434,0 -60.90985839441382,-36.37883345931843,0 -60.90328674305573,-36.3733528385431,0 -60.90760232925162,-36.37042403623066,0 -60.91378983151326,-36.37594209993434,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 22</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>29</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 22</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90974385521628,-36.3789736727656,0 -60.90221903844452,-36.38466546512642,0 -60.89487813702532,-36.37915078896977,0 -60.90300950474907,-36.37351429702233,0 -60.90974385521628,-36.3789736727656,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 23</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>30</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 23</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90147715598652,-36.38498159141388,0 -60.8907682175543,-36.39213453073149,0 -60.88414025378571,-36.38671298500491,0 -60.89472170313731,-36.37922745871727,0 -60.90147715598652,-36.38498159141388,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 24a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>31</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 24a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.92579166805016,-36.37692963500181,0 -60.92044736974201,-36.38124251982111,0 -60.91424111381431,-36.37612606936788,0 -60.91535718088236,-36.37538069540313,0 -60.92579166805016,-36.37692963500181,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 24b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>32</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 24b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.92994612008189,-36.37370752540129,0 -60.92575268401711,-36.37679978469938,0 -60.91541260288876,-36.37518200192386,0 -60.92392310682008,-36.36873495331803,0 -60.92994612008189,-36.37370752540129,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 25a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>33</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 25a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.9201171518073,-36.38128846966669,0 -60.91769645194962,-36.38310618392631,0 -60.91217799729241,-36.37777731150599,0 -60.91412421730053,-36.37622010404719,0 -60.9201171518073,-36.38128846966669,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 25b</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>34</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 25b</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.91758415649097,-36.38313557663857,0 -60.91605074764598,-36.38429486756407,0 -60.91018364203708,-36.37928727194626,0 -60.91194659373719,-36.37787796120011,0 -60.91758415649097,-36.38313557663857,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 26a</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>35</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 26a</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.91345970746553,-36.38616067834523,0 -60.91123630354943,-36.38526124133292,0 -60.90863464048019,-36.38668018388525,0 -60.9038669977487,-36.38523016699186,0 -60.90509022290988,-36.38438696172777,0 -60.90455291036444,-36.38326469911285,0 -60.90494761595745,-36.38292083223096,0 -60.91256205721389,-36.38337271508048,0 -60.91496132238764,-36.38502238507183,0 -60.91345970746553,-36.38616067834523,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 26b1</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>36</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 26b1</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.91591115211952,-36.38442049900895,0 -60.91499182396539,-36.38497165691184,0 -60.91256140922565,-36.38329365915861,0 -60.9049965254427,-36.38284132313004,0 -60.90975337165365,-36.37939012350329,0 -60.91591115211952,-36.38442049900895,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 26b2</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>37</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 26b2</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90492032752506,-36.38441124194774,0 -60.9037487169777,-36.38520418034857,0 -60.90853028333516,-36.38677228183874,0 -60.91124090264438,-36.38540897492735,0 -60.91326212928807,-36.38632640219787,0 -60.9084140300503,-36.39041456298303,0 -60.90216621055939,-36.38511588291376,0 -60.90439924616263,-36.38342197873676,0 -60.90492032752506,-36.38441124194774,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+	<Placemark>
+		<name>Lote 27</name>
+		<styleUrl>#mfailed</styleUrl>
+		<ExtendedData>
+			<Data name="tessellate">
+				<value>1</value>
+			</Data>
+			<Data name="description">
+				<value>null</value>
+			</Data>
+			<Data name="system:index">
+				<value>38</value>
+			</Data>
+			<Data name="Name">
+				<value>Lote 27</value>
+			</Data>
+		</ExtendedData>
+		<Polygon>
+			<outerBoundaryIs>
+				<LinearRing>
+					<coordinates>
+						-60.90819164075381,-36.39048263806366,0 -60.89841519233897,-36.39824116482036,0 -60.89104456912775,-36.39229771705543,0 -60.90181801306519,-36.38507243042784,0 -60.90819164075381,-36.39048263806366,0 
+					</coordinates>
+				</LinearRing>
+			</outerBoundaryIs>
+		</Polygon>
+	</Placemark>
+</Document>
+</kml>

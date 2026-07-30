@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Pillahuinco</name>
+	<open>1</open>
+	<Style id="failed0">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed1">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed10">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed11">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed12">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed2">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed3">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed4">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed5">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed6">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed7">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="failed8">
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<StyleMap id="m_ylw-pushpin1">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin1</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl1</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin10">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed0</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed6</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin11">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed8</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed1</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin12">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed12</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed11</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin13">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed4</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed5</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin14">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed7</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed2</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin15">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#failed3</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#failed10</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_ylw-pushpin">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_ylw-pushpin0">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin0</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin0</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin1">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl1">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<BalloonStyle>
+		</BalloonStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin0">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<color>1affffff</color>
+		</LineStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<BalloonStyle>
+		</BalloonStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin0">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<color>1affffff</color>
+		</LineStyle>
+		<PolyStyle>
+			<color>4dffffff</color>
+		</PolyStyle>
+	</Style>
+	<Folder>
+		<name>Pillahuinco</name>
+		<open>1</open>
+		<Placemark>
+			<name>Pilla Lote 21 Alto</name>
+			<styleUrl>#m_ylw-pushpin1</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.49701023282555,-38.15116759753103,0 -61.496040090287,-38.15191297876608,0 -61.49479832255319,-38.15120132262011,0 -61.49409135386044,-38.15023291003121,0 -61.49435012404171,-38.14903940588779,0 -61.49378632107687,-38.14852904344431,0 -61.49189142574879,-38.14784917591299,0 -61.49642178430174,-38.14446778687903,0 -61.50296865631269,-38.14979504830142,0 -61.49874243535169,-38.15273985401084,0 -61.49701023282555,-38.15116759753103,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 26</name>
+			<styleUrl>#m_ylw-pushpin1</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.51422700193621,-38.15909921083402,0 -61.50913083416982,-38.1650313199399,0 -61.50574640695633,-38.16512289445497,0 -61.50507069011261,-38.16413647636355,0 -61.5045057879604,-38.16362642964237,0 -61.50399306329987,-38.16359925024681,0 -61.50335061543369,-38.1622211054337,0 -61.50249028476287,-38.16181516224128,0 -61.50250432384992,-38.16101209057141,0 -61.50091766494378,-38.15821171212015,0 -61.50096742436488,-38.157183542588,0 -61.50033384120869,-38.155990346618,0 -61.49816100768775,-38.15431700949599,0 -61.49881121911553,-38.15285213426778,0 -61.50301337370042,-38.149805649446,0 -61.51422700193621,-38.15909921083402,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 22 Puesto</name>
+			<styleUrl>#m_ylw-pushpin1</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.48785141305178,-38.15092333314136,0 -61.48822043355637,-38.15149515527806,0 -61.48899410337922,-38.15451441059485,0 -61.49022707692203,-38.15900198157264,0 -61.48662718132902,-38.16017307396729,0 -61.4867108318829,-38.15513565632389,0 -61.48665647338765,-38.15314259269533,0 -61.48607760399933,-38.15221470976564,0 -61.48785141305178,-38.15092333314136,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 22 Escuela</name>
+			<styleUrl>#m_ylw-pushpin1</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.4902292797109,-38.15911827942055,0 -61.49194172593145,-38.16506593742516,0 -61.49031795768715,-38.16642650067667,0 -61.48761336397568,-38.16457895954395,0 -61.48683510921921,-38.16269034342069,0 -61.4866781751133,-38.16025021715979,0 -61.4902292797109,-38.15911827942055,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 10 Corrales</name>
+			<styleUrl>#m_ylw-pushpin12</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.48563491207264,-38.1628446006274,0 -61.48813174723788,-38.16783536616561,0 -61.48681556093835,-38.16878533622765,0 -61.4858391186342,-38.1680398041798,0 -61.48240794997176,-38.17152931908385,0 -61.48164557969301,-38.17350214748004,0 -61.48135605002691,-38.17488970999778,0 -61.47988635551727,-38.17600188901321,0 -61.47978755215252,-38.1759239568448,0 -61.47681091179004,-38.17321064971145,0 -61.48032314062828,-38.17073201382661,0 -61.48073228566788,-38.16655730296092,0 -61.4803924290856,-38.1650743723281,0 -61.48292051014871,-38.16351110971669,0 -61.48341759353026,-38.16260029683781,0 -61.48443421457827,-38.16196115315054,0 -61.48563491207264,-38.1628446006274,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 9 Cerro</name>
+			<styleUrl>#m_ylw-pushpin13</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.4859993023731,-38.1606009145695,0 -61.4843198723315,-38.16191895891387,0 -61.48318318078249,-38.16248725434928,0 -61.48287540374941,-38.16343332506779,0 -61.48024651974057,-38.16501642534118,0 -61.48050262036177,-38.16649109721673,0 -61.48016440336796,-38.17062756567007,0 -61.47654280720062,-38.1731248193975,0 -61.47205100272654,-38.16928052308084,0 -61.47370381771799,-38.16895213531154,0 -61.47191835749274,-38.16734351800393,0 -61.47429237656468,-38.16679695876009,0 -61.4758218334889,-38.16713109731958,0 -61.4766086226276,-38.1660187547544,0 -61.47471479738371,-38.1647361602432,0 -61.47520054456821,-38.16415625839323,0 -61.47734095804177,-38.16402904335589,0 -61.47858692353947,-38.16281410512608,0 -61.47841383244561,-38.16239300949908,0 -61.47898392790871,-38.16174811316341,0 -61.48015056117604,-38.16219882728782,0 -61.48176709930087,-38.16147525603436,0 -61.4826694102611,-38.16028276263755,0 -61.48615470393647,-38.1583621954445,0 -61.4859993023731,-38.1606009145695,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 22 Ruta</name>
+			<styleUrl>#m_ylw-pushpin11</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.48594085391061,-38.15238780537152,0 -61.48644945215722,-38.1533086261873,0 -61.48587441432342,-38.15842092939258,0 -61.48318824597288,-38.15953228134313,0 -61.48258397159762,-38.16023652325846,0 -61.47910559648724,-38.15751590264666,0 -61.48594085391061,-38.15238780537152,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Maldonado</name>
+			<styleUrl>#m_ylw-pushpin14</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.47897635053158,-38.15767467909117,0 -61.48226016728232,-38.16032179933945,0 -61.48170836877279,-38.161300620829,0 -61.4800943109057,-38.16201691074716,0 -61.47892146984186,-38.16174300068401,0 -61.47830075857854,-38.16241872313895,0 -61.47849554851074,-38.16288851170169,0 -61.47730595999578,-38.16405690603795,0 -61.47517728989498,-38.16413194116303,0 -61.47466775671344,-38.16465396101982,0 -61.47649046045311,-38.16604676551058,0 -61.47568356031355,-38.16709254905005,0 -61.47427402228153,-38.16676176037849,0 -61.471875336994,-38.16722916887699,0 -61.47347244786233,-38.16887499774111,0 -61.47193803857446,-38.16919840455422,0 -61.46916229437211,-38.16693754259466,0 -61.47063739796346,-38.16398049983133,0 -61.47897635053158,-38.15767467909117,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 13 Tigre Bajo</name>
+			<styleUrl>#m_ylw-pushpin15</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.48948414166235,-38.17699342091094,0 -61.49738782779255,-38.18367348351938,0 -61.49361835638325,-38.18689439564995,0 -61.48685774222318,-38.18163879677044,0 -61.48948414166235,-38.17699342091094,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 14 Tigre</name>
+			<styleUrl>#m_ylw-pushpin10</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.49748555571396,-38.18391741253825,0 -61.50554138037876,-38.1855657257518,0 -61.50565557734136,-38.18920960869854,0 -61.50662607893875,-38.19060904197808,0 -61.50211966306576,-38.19354146026721,0 -61.49364687488589,-38.18695724197272,0 -61.49748555571396,-38.18391741253825,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 14 Carneros</name>
+			<styleUrl>#msn_ylw-pushpin0</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.48851662339867,-38.16829227350492,0 -61.49029781384137,-38.17162240993733,0 -61.48908586048454,-38.1769409119826,0 -61.48634961693021,-38.18081539484825,0 -61.48009964450018,-38.17611267628125,0 -61.48358707750542,-38.17284931407628,0 -61.48389067100889,-38.17177453257911,0 -61.48820175087187,-38.16816295410926,0 -61.48851662339867,-38.16829227350492,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 24</name>
+			<styleUrl>#msn_ylw-pushpin</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.49709643431817,-38.15398740548228,0 -61.49809370412223,-38.15452072029982,0 -61.50029356574142,-38.1560591252608,0 -61.50089682702345,-38.15718076789711,0 -61.50083659161661,-38.15808641596885,0 -61.5023308576903,-38.16093545747506,0 -61.50244253321245,-38.16096585789996,0 -61.50242093745641,-38.16175954982273,0 -61.50335327993933,-38.16215663859867,0 -61.50490315365247,-38.16413092793046,0 -61.50475147850962,-38.16502470292817,0 -61.49209400419504,-38.16493525691578,0 -61.49041255731467,-38.15895969667705,0 -61.49579395283853,-38.1547260627289,0 -61.49709643431817,-38.15398740548228,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+		<Placemark>
+			<name>Pilla Lote 21 Bajo</name>
+			<styleUrl>#msn_ylw-pushpin</styleUrl>
+			<Polygon>
+				<tessellate>1</tessellate>
+				<outerBoundaryIs>
+					<LinearRing>
+						<coordinates>
+							-61.49159479469116,-38.14821375531722,0 -61.49170240480512,-38.14821376345689,0 -61.49315163761522,-38.14876375818458,0 -61.4937626929224,-38.14921094903277,0 -61.49362463680438,-38.15099533308351,0 -61.49506576476422,-38.15201886197146,0 -61.49551102742697,-38.15296269965788,0 -61.49568152954912,-38.15460518214662,0 -61.49036657472659,-38.15883067916925,0 -61.48943472462338,-38.15481953452398,0 -61.48972079030434,-38.15411691002275,0 -61.48943438811958,-38.15354386832374,0 -61.48902751888518,-38.15326842287583,0 -61.48851845519845,-38.15169835718774,0 -61.48878767512467,-38.1510768120913,0 -61.48846325953208,-38.15057391707031,0 -61.49159479469116,-38.14821375531722,0 
+						</coordinates>
+					</LinearRing>
+				</outerBoundaryIs>
+			</Polygon>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>
