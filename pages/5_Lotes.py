@@ -110,9 +110,8 @@ def _get_planteos():
     if URL_PLANTEOS:
         try:
             df = pd.read_csv(URL_PLANTEOS)
-            if df.empty or df.shape[1] < 5:
-                return pd.DataFrame(columns=_PLANTEOS_COLS)
-            return df
+            if not df.empty and df.shape[1] >= 5:
+                return df
         except Exception:
             pass
     if os.path.exists(_LOCAL_PLN):
@@ -329,7 +328,7 @@ with tab_planteo:
             return ''
 
         st.dataframe(
-            df_tabla.style.applymap(_color_diff, subset=['Diferencia'])
+            df_tabla.style.map(_color_diff, subset=['Diferencia'])
                           .format({'Ppto (US$/ha)': '{:.1f}', 'Real (US$/ha)': '{:.1f}', 'Diferencia': '{:+.1f}'}, na_rep='—'),
             use_container_width=True,
             hide_index=True,
@@ -369,61 +368,422 @@ with tab_planteo:
 # ════════════════════════════════════════════════════════════════════════════
 with tab_analiticos:
     if df_pln.empty:
-        st.info("Sin datos de planteos todavía.")
+        st.warning(
+            f"Sin datos de planteos. "
+            f"Archivo local buscado: `{_LOCAL_PLN}` "
+            f"({'encontrado' if os.path.exists(_LOCAL_PLN) else '❌ NO encontrado'}). "
+            f"Sheet: `{'configurado' if URL_PLANTEOS else 'vacío'}`."
+        )
         st.stop()
 
-    col_a1, col_a2, col_a3 = st.columns(3)
-    _camps_a = sorted(df_pln['campaña'].dropna().unique(), reverse=True)
-    _acts_a  = sorted(df_pln['actividad'].dropna().unique())
-    sel_camp_a = col_a1.multiselect("Campaña(s)", _camps_a, default=_camps_a[:3] if len(_camps_a) >= 3 else _camps_a)
-    sel_act_a  = col_a2.multiselect("Actividad(es)", _acts_a, default=_acts_a)
-    metrica_a  = col_a3.radio("Métrica", ["Presupuesto", "Ejecutado", "Desvío"], horizontal=True)
+    # ── Helper: MB por campo/actividad/campaña ────────────────────────────────
+    def _mb_por_cultivo(df):
+        ing = (df[df['seccion'] == 'Ingresos']
+               .groupby(['campo', 'actividad', 'campaña'])['valor_real']
+               .sum().rename('ingresos'))
+        cos = (df[df['seccion'].str.startswith('Costos')]
+               .groupby(['campo', 'actividad', 'campaña'])['valor_real']
+               .sum().rename('costos'))
+        mb = pd.concat([ing, cos], axis=1).fillna(0)
+        mb['mb'] = mb['ingresos'] - mb['costos']
+        return mb.reset_index()
 
-    df_an = df_pln.copy()
-    if sel_camp_a: df_an = df_an[df_an['campaña'].isin(sel_camp_a)]
-    if sel_act_a:  df_an = df_an[df_an['actividad'].isin(sel_act_a)]
+    df_mb = _mb_por_cultivo(df_pln)
 
-    if metrica_a == 'Desvío':
-        df_an['_val'] = df_an['valor_real'] - df_an['valor_ppto']
-    elif metrica_a == 'Ejecutado':
-        df_an['_val'] = df_an['valor_real']
-    else:
-        df_an['_val'] = df_an['valor_ppto']
+    # ── Sub-tabs ──────────────────────────────────────────────────────────────
+    atab_res, atab_wf, atab_sens = st.tabs([
+        "🏁 Resumen & Ranking", "🌊 Descomposición", "🎯 Sensibilidad",
+    ])
 
-    df_mb = df_an.groupby(['ambiente_id', 'campaña', 'actividad'])['_val'].sum().reset_index()
-    df_mb = df_mb.merge(df_amb[['ambiente_id','ambiente_nombre','lote_nombre','campo']], on='ambiente_id', how='left')
+    # ════════════════════════════════════════════════════════════════════════
+    # RESUMEN & RANKING
+    # ════════════════════════════════════════════════════════════════════════
+    with atab_res:
+        if df_mb.empty:
+            st.warning("Sin datos para calcular MB.")
+            st.stop()
 
-    if df_mb.empty:
-        st.warning("Sin datos para la selección.")
-        st.stop()
+        _best  = df_mb.loc[df_mb['mb'].idxmax()]
+        _worst = df_mb.loc[df_mb['mb'].idxmin()]
 
-    fig_mb = px.bar(
-        df_mb, x='ambiente_nombre', y='_val', color='campaña',
-        barmode='group',
-        facet_col='campo', facet_col_wrap=2,
-        title=f'{metrica_a} total por ambiente y campaña (US$/ha)',
-        labels={'_val': 'US$/ha', 'ambiente_nombre': 'Ambiente'},
-        color_discrete_sequence=px.colors.qualitative.Set2,
-    )
-    fig_mb.update_layout(height=480)
-    st.plotly_chart(fig_mb, use_container_width=True)
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Cultivos analizados", len(df_mb))
+        k2.metric(
+            f"Mejor · {_best['campo']} {_best['actividad']}",
+            f"U$S {_best['mb']:+,.0f}/ha",
+        )
+        k3.metric(
+            f"Peor · {_worst['campo']} {_worst['actividad']}",
+            f"U$S {_worst['mb']:+,.0f}/ha",
+        )
+        k4.metric("Promedio MB/ha", f"U$S {df_mb['mb'].mean():+,.0f}/ha")
 
-    df_sec = df_an.groupby(['seccion', 'campaña'])['_val'].sum().reset_index()
-    fig_sec = px.bar(
-        df_sec, x='seccion', y='_val', color='campaña',
-        barmode='group',
-        title=f'{metrica_a} por sección',
-        labels={'_val': 'US$/ha', 'seccion': 'Sección'},
-    )
-    fig_sec.update_layout(height=380, xaxis_tickangle=-30)
-    st.plotly_chart(fig_sec, use_container_width=True)
+        st.divider()
 
-    df_evol = df_an.groupby(['campaña', 'actividad'])['_val'].sum().reset_index()
-    fig_evol = px.line(
-        df_evol, x='campaña', y='_val', color='actividad',
-        markers=True,
-        title=f'Evolución {metrica_a} por actividad',
-        labels={'_val': 'US$/ha', 'campaña': 'Campaña'},
-    )
-    fig_evol.update_layout(height=350)
-    st.plotly_chart(fig_evol, use_container_width=True)
+        # ── Tabla semáforo ────────────────────────────────────────────────────
+        st.subheader("Semáforo de Márgenes Brutos")
+
+        def _semaforo(mb):
+            if mb > 100: return "🟢"
+            if mb > 0:   return "🟡"
+            return "🔴"
+
+        def _color_mb_cell(val):
+            try:
+                v = float(val)
+                if v > 100: return 'background-color:#C8E6C9;color:#1B5E20'
+                if v > 0:   return 'background-color:#FFF9C4;color:#7B6200'
+                return 'background-color:#FFCDD2;color:#B71C1C'
+            except Exception:
+                return ''
+
+        df_tabla = df_mb.copy()
+        df_tabla.insert(0, '', df_tabla['mb'].apply(_semaforo))
+        df_tabla = df_tabla[['', 'campo', 'actividad', 'campaña', 'ingresos', 'costos', 'mb']]
+        df_tabla.columns = ['', 'Campo', 'Cultivo', 'Campaña', 'Ingresos', 'Costos', 'MB']
+        df_tabla = df_tabla.sort_values('MB', ascending=False)
+
+        st.dataframe(
+            df_tabla.style
+                .map(_color_mb_cell, subset=['MB'])
+                .format({'Ingresos': 'U$S {:,.0f}', 'Costos': 'U$S {:,.0f}', 'MB': 'U$S {:+,.0f}'}),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.divider()
+
+        # ── Ranking horizontal ────────────────────────────────────────────────
+        st.subheader("Ranking MB/ha")
+
+        df_rank = df_mb.sort_values('mb').copy()
+        df_rank['label'] = df_rank['campo'] + ' · ' + df_rank['actividad'] + ' ' + df_rank['campaña']
+
+        fig_rank = go.Figure(go.Bar(
+            x=df_rank['mb'],
+            y=df_rank['label'],
+            orientation='h',
+            marker_color=df_rank['mb'].apply(lambda x: '#43A047' if x > 0 else '#E53935'),
+            text=df_rank['mb'].apply(lambda x: f'U$S {x:+,.0f}/ha'),
+            textposition='outside',
+        ))
+        fig_rank.add_vline(x=0, line_color='#555', line_width=1.5)
+        fig_rank.update_layout(
+            title='Ranking de Márgenes Brutos (US$/ha)',
+            xaxis_title='US$/ha', yaxis_title='',
+            height=max(300, len(df_rank) * 55 + 80),
+            showlegend=False,
+            margin=dict(l=200, r=120),
+        )
+        st.plotly_chart(fig_rank, use_container_width=True)
+
+        st.divider()
+
+        # ── Ingresos vs Costos con MB superpuesto ─────────────────────────────
+        st.subheader("Ingresos vs Costos — visión comparada")
+
+        df_ic = df_mb.copy()
+        df_ic['label'] = df_ic['campo'] + '<br>' + df_ic['actividad'] + ' ' + df_ic['campaña']
+
+        fig_ic = go.Figure()
+        fig_ic.add_trace(go.Bar(
+            name='Ingresos', x=df_ic['label'], y=df_ic['ingresos'],
+            marker_color='#1976D2',
+            text=df_ic['ingresos'].apply(lambda x: f'{x:,.0f}'),
+            textposition='inside', textfont=dict(color='white'),
+        ))
+        fig_ic.add_trace(go.Bar(
+            name='Costos', x=df_ic['label'], y=df_ic['costos'],
+            marker_color='#EF5350',
+            text=df_ic['costos'].apply(lambda x: f'{x:,.0f}'),
+            textposition='inside', textfont=dict(color='white'),
+        ))
+        fig_ic.add_trace(go.Scatter(
+            name='MB', x=df_ic['label'], y=df_ic['mb'],
+            mode='markers+text',
+            marker=dict(
+                size=16, symbol='diamond',
+                color=df_ic['mb'].apply(lambda x: '#2E7D32' if x > 0 else '#B71C1C'),
+                line=dict(width=2, color='white'),
+            ),
+            text=df_ic['mb'].apply(lambda x: f'{x:+,.0f}'),
+            textposition='top center',
+        ))
+        fig_ic.update_layout(
+            barmode='group',
+            title='Ingresos vs Costos con MB (US$/ha)',
+            yaxis_title='US$/ha',
+            height=460,
+            hovermode='x unified',
+        )
+        st.plotly_chart(fig_ic, use_container_width=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # WATERFALL / DESCOMPOSICIÓN
+    # ════════════════════════════════════════════════════════════════════════
+    with atab_wf:
+        col_w1, col_w2, col_w3 = st.columns(3)
+        _campos_wf = sorted(df_pln['campo'].unique())
+        _acts_wf   = sorted(df_pln['actividad'].unique())
+        _camps_wf  = sorted(df_pln['campaña'].unique(), reverse=True)
+
+        sel_w_campo = col_w1.selectbox("Campo", _campos_wf, key='wf_campo')
+        sel_w_act   = col_w2.selectbox("Cultivo", _acts_wf, key='wf_act')
+        sel_w_camp  = col_w3.selectbox("Campaña", _camps_wf, key='wf_camp')
+
+        df_wf = df_pln[
+            (df_pln['campo'] == sel_w_campo) &
+            (df_pln['actividad'] == sel_w_act) &
+            (df_pln['campaña'] == sel_w_camp)
+        ].sort_values(['seccion', 'orden'])
+
+        if df_wf.empty:
+            st.warning("Sin datos para esta combinación.")
+        else:
+            # ── Waterfall ─────────────────────────────────────────────────────
+            labels, values, measures = [], [], []
+
+            for _, row in df_wf[df_wf['seccion'] == 'Ingresos'].sort_values('orden').iterrows():
+                labels.append(row['item'])
+                values.append(float(row['valor_real']) if pd.notna(row['valor_real']) else 0.0)
+                measures.append('relative')
+
+            for _, row in df_wf[df_wf['seccion'].str.startswith('Costos')].sort_values('orden').iterrows():
+                labels.append(row['item'])
+                values.append(-(float(row['valor_real']) if pd.notna(row['valor_real']) else 0.0))
+                measures.append('relative')
+
+            labels.append('Margen Bruto')
+            values.append(None)
+            measures.append('total')
+
+            _mb_color = '#1565C0' if sum(v for v in values if v is not None) > 0 else '#6A1B9A'
+
+            fig_wf = go.Figure(go.Waterfall(
+                orientation='v',
+                measure=measures,
+                x=labels,
+                y=values,
+                connector={'line': {'color': '#aaa', 'dash': 'dot'}},
+                increasing={'marker': {'color': '#43A047'}},
+                decreasing={'marker': {'color': '#E53935'}},
+                totals={'marker': {'color': _mb_color}},
+                text=[f'{v:+.1f}' if v is not None else '' for v in values],
+                textposition='outside',
+            ))
+            fig_wf.add_hline(y=0, line_color='#555', line_width=1.2, line_dash='dash')
+            fig_wf.update_layout(
+                title=f"Descomposición MB — {sel_w_campo} · {sel_w_act} {sel_w_camp}",
+                yaxis_title='US$/ha',
+                height=500,
+                showlegend=False,
+            )
+            st.plotly_chart(fig_wf, use_container_width=True)
+
+            # ── Comparación inter-campo: mismo cultivo/campaña ─────────────
+            df_todos = df_pln[
+                (df_pln['actividad'] == sel_w_act) &
+                (df_pln['campaña'] == sel_w_camp)
+            ]
+            campos_comp = sorted(df_todos['campo'].unique())
+
+            if len(campos_comp) > 1:
+                st.divider()
+                st.subheader(f"Comparación inter-campo — {sel_w_act} {sel_w_camp}")
+                st.caption("Mismo cultivo y campaña en ambos campos: ¿qué explica la diferencia en MB?")
+
+                # Bar apilado relativo: ingresos arriba, costos abajo
+                _bars = []
+                for campo in campos_comp:
+                    df_c = df_todos[df_todos['campo'] == campo]
+                    for _, row in df_c.iterrows():
+                        signo = 1 if row['seccion'] == 'Ingresos' else -1
+                        _bars.append({
+                            'campo': campo,
+                            'item':  row['item'],
+                            'seccion': row['seccion'],
+                            'valor': (float(row['valor_real']) if pd.notna(row['valor_real']) else 0.0) * signo,
+                        })
+                df_bars = pd.DataFrame(_bars)
+
+                fig_comp = px.bar(
+                    df_bars,
+                    x='campo', y='valor', color='item',
+                    barmode='relative',
+                    title=f"Composición MB por campo — {sel_w_act} {sel_w_camp}",
+                    labels={'valor': 'US$/ha', 'campo': '', 'item': 'Ítem'},
+                    color_discrete_sequence=px.colors.qualitative.Set3,
+                )
+                # Overlay MB como diamante
+                _mb_comp = df_mb[
+                    (df_mb['actividad'] == sel_w_act) & (df_mb['campaña'] == sel_w_camp)
+                ]
+                fig_comp.add_trace(go.Scatter(
+                    x=_mb_comp['campo'], y=_mb_comp['mb'],
+                    mode='markers+text', name='MB',
+                    marker=dict(size=18, symbol='diamond', color='#1565C0',
+                                line=dict(width=2, color='white')),
+                    text=_mb_comp['mb'].apply(lambda x: f'MB {x:+,.0f}'),
+                    textposition='top center',
+                ))
+                fig_comp.add_hline(y=0, line_color='#555', line_width=1.5)
+                fig_comp.update_layout(height=480)
+                st.plotly_chart(fig_comp, use_container_width=True)
+
+                # ── Diagnóstico cuantitativo (2 campos) ───────────────────
+                if len(campos_comp) == 2:
+                    c_a, c_b = campos_comp[0], campos_comp[1]
+                    _row_a = df_mb[(df_mb['campo']==c_a) & (df_mb['actividad']==sel_w_act) & (df_mb['campaña']==sel_w_camp)]
+                    _row_b = df_mb[(df_mb['campo']==c_b) & (df_mb['actividad']==sel_w_act) & (df_mb['campaña']==sel_w_camp)]
+
+                    if not _row_a.empty and not _row_b.empty:
+                        _ing_a, _cos_a, _mb_a = _row_a.iloc[0][['ingresos','costos','mb']]
+                        _ing_b, _cos_b, _mb_b = _row_b.iloc[0][['ingresos','costos','mb']]
+
+                        _rinde_a = df_todos[(df_todos['campo']==c_a) & (df_todos['item']=='Cosecha')]['cant_real'].mean()
+                        _rinde_b = df_todos[(df_todos['campo']==c_b) & (df_todos['item']=='Cosecha')]['cant_real'].mean()
+
+                        d1, d2, d3 = st.columns(3)
+                        d1.metric(f"Diferencia MB ({c_b} vs {c_a})",
+                                  f"U$S {_mb_b - _mb_a:+,.0f}/ha")
+                        d2.metric("Δ Ingresos",
+                                  f"U$S {_ing_b - _ing_a:+,.0f}/ha",
+                                  f"Rinde: {_rinde_a:.2f} vs {_rinde_b:.2f} tn/ha"
+                                  if pd.notna(_rinde_a) and pd.notna(_rinde_b) else None)
+                        d3.metric("Δ Costos Directos",
+                                  f"U$S {_cos_b - _cos_a:+,.0f}/ha",
+                                  delta_color="inverse")
+
+                        _driver = "rendimiento/precio" if abs(_ing_b-_ing_a) > abs(_cos_b-_cos_a) else "estructura de costos"
+                        st.info(
+                            f"**El principal driver de la diferencia es el {_driver}.** "
+                            f"Δ Ingresos: U$S {_ing_b-_ing_a:+,.0f}/ha · "
+                            f"Δ Costos: U$S {_cos_b-_cos_a:+,.0f}/ha."
+                        )
+
+    # ════════════════════════════════════════════════════════════════════════
+    # SENSIBILIDAD
+    # ════════════════════════════════════════════════════════════════════════
+    with atab_sens:
+        st.subheader("Análisis de sensibilidad")
+        st.caption("¿Qué pasa con el MB si cambia el precio del grano o el rendimiento?")
+
+        col_s1, col_s2, col_s3 = st.columns(3)
+        sel_s_campo = col_s1.selectbox("Campo",    sorted(df_pln['campo'].unique()),    key='sens_campo')
+        sel_s_act   = col_s2.selectbox("Cultivo",  sorted(df_pln['actividad'].unique()), key='sens_act')
+        sel_s_camp  = col_s3.selectbox("Campaña",  sorted(df_pln['campaña'].unique(), reverse=True), key='sens_camp')
+
+        df_sens = df_pln[
+            (df_pln['campo'] == sel_s_campo) &
+            (df_pln['actividad'] == sel_s_act) &
+            (df_pln['campaña'] == sel_s_camp)
+        ]
+
+        if df_sens.empty:
+            st.warning("Sin datos para esta combinación.")
+        else:
+            _cosecha_row = df_sens[df_sens['item'] == 'Cosecha']
+            _base_precio = (float(_cosecha_row['precio_real'].dropna().iloc[0])
+                            if not _cosecha_row.empty and _cosecha_row['precio_real'].notna().any() else None)
+            _base_rinde  = (float(_cosecha_row['cant_real'].dropna().iloc[0])
+                            if not _cosecha_row.empty and _cosecha_row['cant_real'].notna().any()  else None)
+
+            _base_ing    = df_sens[df_sens['seccion'] == 'Ingresos']['valor_real'].sum()
+            _base_cos    = df_sens[df_sens['seccion'].str.startswith('Costos')]['valor_real'].sum()
+            _base_mb     = _base_ing - _base_cos
+            _otros_ing   = df_sens[(df_sens['seccion'] == 'Ingresos') & (df_sens['item'] != 'Cosecha')]['valor_real'].sum()
+
+            if _base_precio is None or _base_rinde is None:
+                st.warning("No se encontró precio/rendimiento para 'Cosecha'. Verificá los datos.")
+            else:
+                col_sl1, col_sl2 = st.columns(2)
+                with col_sl1:
+                    delta_precio_pct = st.slider(
+                        f"Δ precio grano (base: U$S {_base_precio:.0f}/tn)",
+                        min_value=-50, max_value=50, value=0, step=5, format="%d%%",
+                        key='sens_precio_sl',
+                    )
+                with col_sl2:
+                    delta_rinde_pct = st.slider(
+                        f"Δ rendimiento (base: {_base_rinde:.2f} tn/ha)",
+                        min_value=-50, max_value=50, value=0, step=5, format="%d%%",
+                        key='sens_rinde_sl',
+                    )
+
+                _new_precio  = _base_precio * (1 + delta_precio_pct / 100)
+                _new_rinde   = _base_rinde  * (1 + delta_rinde_pct / 100)
+                _new_cosecha = _new_precio * _new_rinde
+                _new_mb      = _new_cosecha + _otros_ing - _base_cos
+
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Precio grano", f"U$S {_new_precio:.1f}/tn",
+                          f"{delta_precio_pct:+d}%")
+                k2.metric("Rendimiento",  f"{_new_rinde:.2f} tn/ha",
+                          f"{delta_rinde_pct:+d}%")
+                k3.metric("Ingreso cosecha", f"U$S {_new_cosecha:.0f}/ha",
+                          f"{_new_cosecha - _base_precio * _base_rinde:+.0f}")
+                k4.metric("Nuevo MB", f"U$S {_new_mb:+,.0f}/ha",
+                          f"{_new_mb - _base_mb:+,.0f} vs base",
+                          delta_color="normal" if _new_mb >= _base_mb else "inverse")
+
+                # Punto de equilibrio (descontando otros ingresos)
+                _be_precio = (_base_cos - _otros_ing) / _base_rinde
+                _be_rinde  = (_base_cos - _otros_ing) / _base_precio
+                st.info(
+                    f"**Punto de equilibrio:** precio ≥ **U$S {_be_precio:.1f}/tn** "
+                    f"(actual U$S {_base_precio:.1f}/tn, {(_base_precio/_be_precio-1)*100:+.0f}% de margen) "
+                    f"· rinde ≥ **{_be_rinde:.2f} tn/ha** "
+                    f"(actual {_base_rinde:.2f} tn/ha, {(_base_rinde/_be_rinde-1)*100:+.0f}% de margen)"
+                )
+
+                st.divider()
+
+                # ── Heatmap precio × rendimiento ──────────────────────────────
+                st.subheader("Mapa de calor: precio × rendimiento → MB")
+                st.caption("Verde = MB positivo · Rojo = negativo · La estrella ★ marca el escenario seleccionado arriba.")
+
+                _steps = list(range(-40, 45, 10))
+                mb_matrix = np.array([
+                    [
+                        _base_precio * (1 + pp/100) * _base_rinde * (1 + rp/100) + _otros_ing - _base_cos
+                        for pp in _steps
+                    ]
+                    for rp in _steps
+                ])
+                _x_labels = [f'{p:+d}%' for p in _steps]
+                _y_labels = [f'{r:+d}%' for r in _steps]
+
+                fig_hm = go.Figure(go.Heatmap(
+                    z=mb_matrix,
+                    x=_x_labels,
+                    y=_y_labels,
+                    colorscale=[
+                        [0.0,  '#B71C1C'],
+                        [0.45, '#FFCDD2'],
+                        [0.50, '#FFFFFF'],
+                        [0.55, '#C8E6C9'],
+                        [1.0,  '#1B5E20'],
+                    ],
+                    zmid=0,
+                    text=np.vectorize(lambda x: f'{x:+.0f}')(mb_matrix),
+                    texttemplate='%{text}',
+                    textfont={'size': 9},
+                    colorbar={'title': 'MB<br>US$/ha'},
+                ))
+                # Marcar escenario actual
+                _star_x = f'{delta_precio_pct:+d}%'
+                _star_y = f'{delta_rinde_pct:+d}%'
+                fig_hm.add_trace(go.Scatter(
+                    x=[_star_x], y=[_star_y],
+                    mode='markers', name='Escenario',
+                    marker=dict(size=18, symbol='star', color='white',
+                                line=dict(color='#333', width=2)),
+                    showlegend=False,
+                ))
+                fig_hm.update_layout(
+                    title=f"MB (US$/ha) — {sel_s_campo} · {sel_s_act} {sel_s_camp}",
+                    xaxis_title='Δ Precio grano',
+                    yaxis_title='Δ Rendimiento',
+                    height=440,
+                )
+                st.plotly_chart(fig_hm, use_container_width=True)
