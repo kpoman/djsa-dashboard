@@ -12,16 +12,15 @@ st.set_page_config(page_title="Lotes — DJSA", page_icon="🗺️", layout="wid
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 
-# ── URL Google Sheet Planteos (publicada, read-only) ────────────────────────
-URL_PLANTEOS = (
-    "https://docs.google.com/spreadsheets/d/e/"
-    "2PACX-1vQoFdNMq7Sc1co44sx_CDqFIhrHjRjd7Y87LhT2JZQi-q4mIpJaDBOLYpslgq54w4nbKV9C1dNDVe8U"
-    "/pub?output=csv"
-)
+# ── URLs Google Sheet (tab Header y tab Lineas, publicadas por separado) ────
+# Dejar vacío para usar CSVs locales como fallback
+URL_HEADER   = ""   # pub?output=csv&gid=XXX  (tab "Planteos")
+URL_LINEAS   = ""   # pub?output=csv&gid=YYY  (tab "Lineas")
 URL_AMBIENTES = ""  # usa data/lotes_ambientes.csv local (generado del KML)
 
 _LOCAL_AMB = os.path.join(_DATA_DIR, 'lotes_ambientes.csv')
-_LOCAL_PLN = os.path.join(_DATA_DIR, 'lotes_planteos.csv')
+_LOCAL_HDR = os.path.join(_DATA_DIR, 'planteos_header.csv')
+_LOCAL_LIN = os.path.join(_DATA_DIR, 'planteos_lineas.csv')
 
 _KML_PATHS = {
     'La Merced':   os.path.join(_DATA_DIR, 'la_merced.kml'),
@@ -97,37 +96,57 @@ def _get_ambientes():
     return pd.DataFrame(columns=['campo','lote_id','lote_nombre','ambiente_id','ambiente_nombre','ha'])
 
 
-_PLANTEOS_COLS = [
-    'campo','lote_id','ambiente_id','campaña','actividad','escenario',
-    'seccion','orden','item','unidad',
-    'precio_ppto','cant_ppto','valor_ppto',
-    'precio_real','cant_real','valor_real',
-    'diferencia','nota'
-]
+_HDR_COLS = ['planteo_id','campo','lote_id','ambiente_id','campaña','actividad',
+             'ha','escenario','fecha_siembra','fecha_cosecha','referencia','nota']
+_LIN_COLS = ['planteo_id','mes','seccion','orden','item','unidad',
+             'precio_ppto','cant_ppto','valor_ppto',
+             'precio_real','cant_real','valor_real','diferencia','nota']
 
-@st.cache_data(ttl=3600, show_spinner="Cargando planteos...")
-def _get_planteos():
-    if URL_PLANTEOS:
+
+def _csv_load(url, local, cols):
+    if url:
         try:
-            df = pd.read_csv(URL_PLANTEOS)
+            df = pd.read_csv(url)
             if not df.empty and df.shape[1] >= 5:
                 return df
         except Exception:
             pass
-    if os.path.exists(_LOCAL_PLN):
-        return pd.read_csv(_LOCAL_PLN)
-    return pd.DataFrame(columns=_PLANTEOS_COLS)
+    if os.path.exists(local):
+        return pd.read_csv(local)
+    return pd.DataFrame(columns=cols)
+
+
+@st.cache_data(ttl=3600, show_spinner="Cargando planteos...")
+def _get_header():
+    return _csv_load(URL_HEADER, _LOCAL_HDR, _HDR_COLS)
+
+
+@st.cache_data(ttl=3600, show_spinner="Cargando líneas...")
+def _get_lineas():
+    return _csv_load(URL_LINEAS, _LOCAL_LIN, _LIN_COLS)
+
+
+def _get_planteos_flat():
+    """Join lineas + header → vista plana para tabs existentes."""
+    df_hdr = _get_header()
+    df_lin = _get_lineas()
+    if df_hdr.empty or df_lin.empty:
+        return pd.DataFrame()
+    _join = ['planteo_id','campo','lote_id','ambiente_id','campaña','actividad','ha','escenario']
+    return df_lin.merge(df_hdr[_join], on='planteo_id', how='left')
 
 
 df_amb = _get_ambientes()
-df_pln = _get_planteos()
+df_hdr = _get_header()
+df_lin = _get_lineas()
+df_pln = _get_planteos_flat()
 
 # ── Header ───────────────────────────────────────────────────────────────────
 st.title("🗺️ Lotes y Ambientes")
 col_h, col_ref = st.columns([8, 1])
 col_h.markdown("Gestión de lotes por campo — mapa, planteos técnicos y control presupuestario.")
 if col_ref.button("🔄 Actualizar", help="Limpiar cache"):
-    _get_ambientes.clear(); _get_planteos.clear(); st.rerun()
+    _get_ambientes.clear(); _get_header.clear(); _get_lineas.clear(); st.rerun()
 
 # ── Selector jerárquico en sidebar ───────────────────────────────────────────
 with st.sidebar:
@@ -247,121 +266,189 @@ with tab_mapa:
 # TAB PLANTEO
 # ════════════════════════════════════════════════════════════════════════════
 with tab_planteo:
-    if df_pln.empty or df_amb.empty:
-        st.info("Configurá el Google Sheet de Planteos para ver los datos aquí.")
+    if df_hdr.empty or df_lin.empty:
+        st.info("Sin datos de planteos. Cargá `planteos_header.csv` y `planteos_lineas.csv` en `data/`.")
         st.markdown("""
-**Estructura del Sheet necesaria:**
+**Schema `planteos_header.csv`:**
+`planteo_id | campo | lote_id | ambiente_id | campaña | actividad | ha | escenario | fecha_siembra | fecha_cosecha | referencia | nota`
 
-**Tab `Ambientes`:**
-`campo | lote_id | lote_nombre | ambiente_id | ambiente_nombre | ha`
-
-**Tab `Planteos`:**
-`campo | lote_id | ambiente_id | campaña | actividad | escenario | seccion | orden | item | unidad | precio_ppto | cant_ppto | valor_ppto | precio_real | cant_real | valor_real | diferencia | nota`
+**Schema `planteos_lineas.csv`:**
+`planteo_id | mes | seccion | orden | item | unidad | precio_ppto | cant_ppto | valor_ppto | precio_real | cant_real | valor_real | diferencia | nota`
         """)
         st.stop()
 
-    # Filtrar planteos según selección sidebar
-    df_f = df_pln.copy()
+    # ── Selector de planteo por ID ───────────────────────────────────────────
+    # Filtrar header según sidebar
+    _hdr_f = df_hdr.copy()
     if sel_campo != "(Todos)":
-        df_f = df_f[df_f['campo'] == sel_campo]
-    if sel_lote != "(Todos)":
-        _amb_ids = df_amb[df_amb['lote_nombre'] == sel_lote]['ambiente_id'].unique()
-        df_f = df_f[df_f['ambiente_id'].isin(_amb_ids)]
-    if sel_amb != "(Todos)":
-        _amb_id = df_amb[df_amb['ambiente_nombre'] == sel_amb]['ambiente_id'].values
-        df_f = df_f[df_f['ambiente_id'].isin(_amb_id)]
+        _hdr_f = _hdr_f[_hdr_f['campo'] == sel_campo]
     if sel_camp != "(Todas)":
-        df_f = df_f[df_f['campaña'] == sel_camp]
+        _hdr_f = _hdr_f[_hdr_f['campaña'] == sel_camp]
     if sel_act:
-        df_f = df_f[df_f['actividad'].isin(sel_act)]
+        _hdr_f = _hdr_f[_hdr_f['actividad'].isin(sel_act)]
 
-    if df_f.empty:
-        st.warning("Sin datos para la selección actual.")
+    if _hdr_f.empty:
+        st.warning("Sin planteos para la selección actual.")
         st.stop()
 
-    # ── Selector de planteo específico ──────────────────────────────────────
-    col_p1, col_p2, col_p3 = st.columns(3)
-    _camps  = sorted(df_f['campaña'].unique(), reverse=True)
-    _acts   = sorted(df_f['actividad'].unique())
-    _escs   = sorted(df_f['escenario'].unique())
+    # Etiquetas legibles para el selector
+    def _label(row):
+        partes = [row['planteo_id'], '—', row['campo'], '·', row['actividad'], row['campaña'], row['escenario']]
+        if pd.notna(row.get('ha')) and str(row.get('ha')).strip():
+            partes.append(f"({row['ha']} ha)")
+        return ' '.join(str(p) for p in partes)
 
-    _camp_sel = col_p1.selectbox("Campaña", _camps, key='plt_camp')
-    _act_sel  = col_p2.selectbox("Actividad", _acts, key='plt_act')
-    _esc_sel  = col_p3.selectbox("Escenario", _escs, key='plt_esc')
+    _hdr_f = _hdr_f.copy()
+    _hdr_f['_label'] = _hdr_f.apply(_label, axis=1)
+    _ids   = _hdr_f['planteo_id'].tolist()
+    _labels = _hdr_f['_label'].tolist()
 
-    df_plt = df_f[
-        (df_f['campaña'] == _camp_sel) &
-        (df_f['actividad'] == _act_sel) &
-        (df_f['escenario'] == _esc_sel)
-    ].sort_values(['seccion', 'orden'])
+    _sel_label = st.selectbox("Planteo", _labels, key='plt_id')
+    _sel_id    = _ids[_labels.index(_sel_label)]
+    _hdr_sel   = _hdr_f[_hdr_f['planteo_id'] == _sel_id].iloc[0]
 
-    if df_plt.empty:
-        st.warning("Sin datos para esta combinación.")
+    # ── Info del planteo seleccionado ────────────────────────────────────────
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("ID", _sel_id)
+    c2.metric("Campo", _hdr_sel['campo'])
+    c3.metric("Actividad", f"{_hdr_sel['actividad']} {_hdr_sel['campaña']}")
+    c4.metric("Hectáreas", f"{_hdr_sel['ha']} ha" if pd.notna(_hdr_sel.get('ha')) else "—")
+    c5.metric("Escenario", _hdr_sel['escenario'])
+
+    _ref = _hdr_sel.get('referencia','')
+    _f_siem = _hdr_sel.get('fecha_siembra','')
+    _f_cos  = _hdr_sel.get('fecha_cosecha','')
+    _meta = []
+    if pd.notna(_ref) and str(_ref).strip():   _meta.append(f"Referencia: **{_ref}**")
+    if pd.notna(_f_siem) and str(_f_siem).strip(): _meta.append(f"Siembra: {_f_siem}")
+    if pd.notna(_f_cos) and str(_f_cos).strip():   _meta.append(f"Cosecha: {_f_cos}")
+    if _meta:
+        st.caption(" · ".join(_meta))
+
+    st.divider()
+
+    # ── Líneas del planteo ───────────────────────────────────────────────────
+    df_lin_sel = df_lin[df_lin['planteo_id'] == _sel_id].sort_values(['seccion','orden','mes'])
+
+    if df_lin_sel.empty:
+        st.warning("Sin líneas para este planteo.")
         st.stop()
 
-    # ── Tabla estilo Márgenes: ppto vs real vs diferencia ───────────────────
-    st.subheader(f"{_act_sel} — {_camp_sel} — {_esc_sel}")
+    _tiene_mes = df_lin_sel['mes'].notna().any() and (df_lin_sel['mes'].astype(str).str.strip() != '').any()
+    _tiene_ppto = df_lin_sel['valor_ppto'].notna().any()
 
-    for seccion, df_sec in df_plt.groupby('seccion', sort=False):
-        st.markdown(f"**{seccion.upper()}**")
+    # Sub-tabs Planteo
+    if _tiene_mes:
+        ptab_res, ptab_tl = st.tabs(["📋 Resumen", "📅 Timeline"])
+    else:
+        ptab_res = st.container()
 
-        rows = []
-        for _, r in df_sec.iterrows():
-            dif = r.get('diferencia', r.get('valor_real', 0) - r.get('valor_ppto', 0))
-            rows.append({
-                'Ítem':          r['item'],
-                'Unidad':        r.get('unidad', ''),
-                'Ppto (US$/ha)': r.get('valor_ppto', ''),
-                'Real (US$/ha)': r.get('valor_real', ''),
-                'Diferencia':    dif,
-                'Nota':          r.get('nota', ''),
-            })
-        df_tabla = pd.DataFrame(rows)
+    # ── Resumen ──────────────────────────────────────────────────────────────
+    with ptab_res if _tiene_mes else ptab_res:
+        _df_res = df_lin_sel[df_lin_sel['mes'].isna() | (df_lin_sel['mes'].astype(str).str.strip() == '')]
+        if _df_res.empty:
+            _df_res = df_lin_sel.groupby(['seccion','orden','item','unidad'])[
+                ['valor_ppto','valor_real']].sum().reset_index()
 
         def _color_diff(val):
             try:
                 v = float(val)
-                if v > 0:   return 'color: #C62828'
-                if v < 0:   return 'color: #2E7D32'
+                return 'color: #C62828' if v > 0 else ('color: #43A047' if v < 0 else '')
             except Exception:
-                pass
-            return ''
+                return ''
 
-        st.dataframe(
-            df_tabla.style.map(_color_diff, subset=['Diferencia'])
-                          .format({'Ppto (US$/ha)': '{:.1f}', 'Real (US$/ha)': '{:.1f}', 'Diferencia': '{:+.1f}'}, na_rep='—'),
-            use_container_width=True,
-            hide_index=True,
-        )
+        for seccion, df_sec in _df_res.groupby('seccion', sort=False):
+            _es_ing = seccion == 'Ingresos'
+            st.markdown(
+                f"<span style='font-weight:700;color:{'#43A047' if _es_ing else '#E53935'}'>"
+                f"{'▲' if _es_ing else '▼'} {seccion.upper()}</span>",
+                unsafe_allow_html=True,
+            )
+            rows = []
+            for _, r in df_sec.sort_values('orden').iterrows():
+                dif = (r.get('valor_real', np.nan) or np.nan) - (r.get('valor_ppto', np.nan) or np.nan)
+                rows.append({
+                    'Mes':           r.get('mes', '') or '',
+                    'Ítem':          r['item'],
+                    'Unidad':        r.get('unidad', ''),
+                    'Ppto (US$/ha)': r.get('valor_ppto', np.nan),
+                    'Real (US$/ha)': r.get('valor_real', np.nan),
+                    'Diferencia':    dif if pd.notna(dif) else np.nan,
+                    'Nota':          r.get('nota', '') or '',
+                })
+            df_t = pd.DataFrame(rows)
+            _fmt = {'Ppto (US$/ha)': '{:.1f}', 'Real (US$/ha)': '{:.1f}', 'Diferencia': '{:+.1f}'}
+            _show_cols = [c for c in df_t.columns if c != 'Mes' or _tiene_mes]
+            st.dataframe(
+                df_t[_show_cols].style.map(_color_diff, subset=['Diferencia']).format(_fmt, na_rep='—'),
+                use_container_width=True, hide_index=True,
+            )
 
-    # ── KPIs resumen ────────────────────────────────────────────────────────
-    st.divider()
-    _total_ppto = df_plt['valor_ppto'].sum()
-    _total_real = df_plt['valor_real'].sum()
-    _total_dif  = _total_real - _total_ppto
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Total presupuesto (US$/ha)", f"{_total_ppto:,.0f}")
-    k2.metric("Total ejecutado (US$/ha)",   f"{_total_real:,.0f}")
-    k3.metric("Desvío",                     f"{_total_dif:+,.0f}",
-              delta_color="inverse" if _total_dif > 0 else "normal")
+        # KPIs
+        st.divider()
+        _ing_r = _df_res[_df_res['seccion']=='Ingresos']['valor_real'].sum()
+        _cos_r = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_real'].sum()
+        _mb_r  = _ing_r - _cos_r
+        _ing_p = _df_res[_df_res['seccion']=='Ingresos']['valor_ppto'].sum()
+        _cos_p = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_ppto'].sum()
+        _mb_p  = _ing_p - _cos_p
 
-    # ── Gráfico de desvío por sección ───────────────────────────────────────
-    df_dev = df_plt.groupby('seccion')[['valor_ppto','valor_real']].sum().reset_index()
-    df_dev['desvio'] = df_dev['valor_real'] - df_dev['valor_ppto']
-    df_dev['color']  = df_dev['desvio'].apply(lambda x: '#C62828' if x > 0 else '#2E7D32')
+        k1, k2, k3, k4 = st.columns(4)
+        if _tiene_ppto:
+            k1.metric("Ingresos ppto", f"U$S {_ing_p:,.0f}/ha")
+            k2.metric("Costos ppto",   f"U$S {_cos_p:,.0f}/ha")
+            k3.metric("MB ppto",       f"U$S {_mb_p:+,.0f}/ha")
+            k4.metric("MB real vs ppto", f"U$S {_mb_r - _mb_p:+,.0f}/ha",
+                      delta_color="normal" if _mb_r >= _mb_p else "inverse")
+        else:
+            k1.metric("Ingresos", f"U$S {_ing_r:,.0f}/ha")
+            k2.metric("Costos Directos", f"U$S {_cos_r:,.0f}/ha")
+            k3.metric("Margen Bruto", f"U$S {_mb_r:+,.0f}/ha",
+                      delta_color="normal" if _mb_r > 0 else "inverse")
+            k4.metric("Ha totales", f"{_hdr_sel['ha']}" if pd.notna(_hdr_sel.get('ha')) else "—")
 
-    fig_dev = go.Figure(go.Bar(
-        x=df_dev['seccion'], y=df_dev['desvio'],
-        marker_color=df_dev['color'],
-        text=df_dev['desvio'].apply(lambda x: f'{x:+.0f}'),
-        textposition='outside',
-    ))
-    fig_dev.update_layout(
-        title='Desvío por sección (real − ppto, US$/ha)',
-        yaxis_title='US$/ha', xaxis_title='',
-        height=320, showlegend=False,
-    )
-    st.plotly_chart(fig_dev, use_container_width=True)
+    # ── Timeline ─────────────────────────────────────────────────────────────
+    if _tiene_mes:
+        with ptab_tl:
+            _df_tl = df_lin_sel[df_lin_sel['mes'].notna() & (df_lin_sel['mes'].astype(str).str.strip() != '')].copy()
+            _df_tl['signo'] = _df_tl['seccion'].apply(lambda s: 1 if s == 'Ingresos' else -1)
+            _df_tl['valor_signed'] = _df_tl['valor_real'].fillna(0) * _df_tl['signo']
+
+            # Ordenar meses cronológicamente
+            _meses_ord = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+            _df_tl['mes_ord'] = _df_tl['mes'].apply(
+                lambda m: _meses_ord.index(str(m).strip()[:3].capitalize())
+                if str(m).strip()[:3].capitalize() in _meses_ord else 99
+            )
+            _df_tl = _df_tl.sort_values('mes_ord')
+
+            # Colores: ingresos verdes, costos rojos
+            _items_i = sorted(_df_tl[_df_tl['seccion']=='Ingresos']['item'].unique())
+            _items_c = sorted(_df_tl[_df_tl['seccion']!='Ingresos']['item'].unique())
+            _g = ['#1B5E20','#2E7D32','#43A047','#66BB6A','#A5D6A7']
+            _r = ['#B71C1C','#C62828','#E53935','#EF5350','#EF9A9A','#FFCDD2','#FFEBEE']
+            _cmap = {it: _g[i % len(_g)] for i, it in enumerate(_items_i)}
+            _cmap.update({it: _r[i % len(_r)] for i, it in enumerate(_items_c)})
+
+            fig_tl = px.bar(
+                _df_tl, x='mes', y='valor_signed', color='item',
+                barmode='relative',
+                color_discrete_map=_cmap,
+                title=f"Flujo mensual — {_sel_id}",
+                labels={'valor_signed': 'US$/ha', 'mes': 'Mes', 'item': 'Ítem'},
+                category_orders={'mes': [m for m in _meses_ord if m in _df_tl['mes'].values]},
+            )
+            fig_tl.add_hline(y=0, line_color='#555', line_width=1.2)
+            fig_tl.update_layout(height=420)
+            st.plotly_chart(fig_tl, use_container_width=True)
+
+            # Tabla mes a mes
+            _tl_pivot = _df_tl.groupby(['mes','seccion'])['valor_real'].sum().reset_index()
+            _tl_pivot = _tl_pivot.pivot_table(index='mes', columns='seccion', values='valor_real', aggfunc='sum').fillna(0)
+            if 'Ingresos' in _tl_pivot.columns and any(c.startswith('Costos') for c in _tl_pivot.columns):
+                _cos_cols = [c for c in _tl_pivot.columns if c.startswith('Costos')]
+                _tl_pivot['MB'] = _tl_pivot['Ingresos'] - _tl_pivot[_cos_cols].sum(axis=1)
+            st.dataframe(_tl_pivot.style.format('{:,.1f}', na_rep='—'), use_container_width=True)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB ANALÍTICOS
@@ -370,9 +457,12 @@ with tab_analiticos:
     if df_pln.empty:
         st.warning(
             f"Sin datos de planteos. "
-            f"Archivo local buscado: `{_LOCAL_PLN}` "
-            f"({'encontrado' if os.path.exists(_LOCAL_PLN) else '❌ NO encontrado'}). "
-            f"Sheet: `{'configurado' if URL_PLANTEOS else 'vacío'}`."
+            f"Header local: `{_LOCAL_HDR}` "
+            f"({'✓' if os.path.exists(_LOCAL_HDR) else '❌ NO encontrado'}). "
+            f"Líneas local: `{_LOCAL_LIN}` "
+            f"({'✓' if os.path.exists(_LOCAL_LIN) else '❌ NO encontrado'}). "
+            f"Sheets: header={'configurado' if URL_HEADER else 'vacío'}, "
+            f"lineas={'configurado' if URL_LINEAS else 'vacío'}."
         )
         st.stop()
 
@@ -488,13 +578,13 @@ with tab_analiticos:
         fig_ic = go.Figure()
         fig_ic.add_trace(go.Bar(
             name='Ingresos', x=df_ic['label'], y=df_ic['ingresos'],
-            marker_color='#1976D2',
+            marker_color='#43A047',
             text=df_ic['ingresos'].apply(lambda x: f'{x:,.0f}'),
             textposition='inside', textfont=dict(color='white'),
         ))
         fig_ic.add_trace(go.Bar(
             name='Costos', x=df_ic['label'], y=df_ic['costos'],
-            marker_color='#EF5350',
+            marker_color='#E53935',
             text=df_ic['costos'].apply(lambda x: f'{x:,.0f}'),
             textposition='inside', textfont=dict(color='white'),
         ))
@@ -606,13 +696,21 @@ with tab_analiticos:
                         })
                 df_bars = pd.DataFrame(_bars)
 
+                # Colores: ingresos en verdes, costos en rojos
+                _items_ing = sorted(df_bars[df_bars['seccion']=='Ingresos']['item'].unique())
+                _items_cos = sorted(df_bars[df_bars['seccion']!='Ingresos']['item'].unique())
+                _greens = ['#1B5E20','#2E7D32','#388E3C','#43A047','#66BB6A','#A5D6A7']
+                _reds   = ['#B71C1C','#C62828','#D32F2F','#E53935','#EF5350','#EF9A9A','#FFCDD2','#FFEBEE']
+                _color_map = {it: _greens[i % len(_greens)] for i, it in enumerate(_items_ing)}
+                _color_map.update({it: _reds[i % len(_reds)] for i, it in enumerate(_items_cos)})
+
                 fig_comp = px.bar(
                     df_bars,
                     x='campo', y='valor', color='item',
                     barmode='relative',
                     title=f"Composición MB por campo — {sel_w_act} {sel_w_camp}",
                     labels={'valor': 'US$/ha', 'campo': '', 'item': 'Ítem'},
-                    color_discrete_sequence=px.colors.qualitative.Set3,
+                    color_discrete_map=_color_map,
                 )
                 # Overlay MB como diamante
                 _mb_comp = df_mb[

@@ -1,0 +1,5 @@
+planteo_id,campo,lote_id,ambiente_id,campaña,actividad,ha,escenario,fecha_siembra,fecha_cosecha,referencia,nota
+LM_CEB_2526_001,La Merced,(campo),(campo),25/26,Cebada,360,Real,,,Cebada La Merced 25/26,
+PM_CEB_2526_001,Pillahuinco,(campo),(campo),25/26,Cebada,93,Real,,,Cebada Pillahuinco 25/26,
+PM_GIR_2526_001,Pillahuinco,(campo),(campo),25/26,Girasol,180,Real,,,Girasol Pillahuinco 25/26,
+PM_TRI_2526_001,Pillahuinco,(campo),(campo),25/26,Trigo,97,Real,,,Trigo Pillahuinco 25/26,
