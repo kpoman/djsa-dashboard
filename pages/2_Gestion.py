@@ -22,6 +22,8 @@ def _clean_currency(x):
 def _get_gestion():
     df = pd.read_csv(URL_GESTION)
     df['Date'] = df['Campaña'].apply(lambda x: pd.to_datetime('20' + str(x)[-2:] + '-07-01'))
+    if 'Subcategoria' in df.columns:
+        df['Subcategoria'] = df['Subcategoria'].fillna('(Sin subcategoría)')
     currency_cols = ['Gasto U$D', 'Ingreso U$D', 'MB U$D', 'MB/ha U$D',
                      'Valor/tn', 'Gasto U$D/ha', 'Ingreso U$D/ha',
                      'Gasto AR$', 'Ingreso AR$', 'MB AR$']
