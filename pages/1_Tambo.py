@@ -635,9 +635,11 @@ with tab_prod:
                 'taxi':     pd.to_numeric(df_taxi['diaria_total'].values,  errors='coerce').astype(float),
             }).dropna(subset=['date'])
 
-            # Reemplazar 0 por NaN para que mean ignore días sin reporte y no diluya el promedio
-            for _c in ['mastitis', 'guachera', 'taxi']:
+            # Mastitis/guachera: 0 → NaN para que el promedio ignore días sin reporte.
+            # Taxi machos: sin valor cargado (NaN) equivale a 0 enviado — no se excluye del promedio.
+            for _c in ['mastitis', 'guachera']:
                 _df_raw.loc[_df_raw[_c] == 0, _c] = np.nan
+            _df_raw['taxi'] = _df_raw['taxi'].fillna(0)
 
             # Agrupar por semana (lunes) — promedio diario en cada semana
             _df_sem = (_df_raw.set_index('date')
@@ -645,16 +647,19 @@ with tab_prod:
                               .mean()
                               .reset_index())
 
-            # Restringir al rango donde realmente hay datos (primera semana con cualquier valor)
-            _df_sem['has_data'] = _df_sem[['mastitis','guachera','taxi']].notna().any(axis=1)
+            # Restringir al rango donde realmente hay datos de mastitis/guachera
+            # (taxi siempre está definido, no debe determinar el rango)
+            _df_sem['has_data'] = _df_sem[['mastitis','guachera']].notna().any(axis=1)
             if _df_sem['has_data'].any():
                 _first = _df_sem[_df_sem['has_data']].index[0]
                 _last  = _df_sem[_df_sem['has_data']].index[-1]
                 _df_sem = _df_sem.loc[_first:_last].drop(columns='has_data')
 
-                # Interpolar huecos intermedios y rellenar extremos con 0
+                # Semanas sin ningún día reportado (0/blank) → 0. No se interpola:
+                # una semana realmente en cero (ej. taxi machos) no debe fabricarse
+                # con un valor inventado a partir de semanas vecinas.
                 for _c in ['mastitis', 'guachera', 'taxi']:
-                    _df_sem[_c] = _df_sem[_c].interpolate(method='linear').fillna(0)
+                    _df_sem[_c] = _df_sem[_c].fillna(0)
 
                 # Balance semanal
                 _df_sem['Guachera']                       = _df_sem['guachera']
