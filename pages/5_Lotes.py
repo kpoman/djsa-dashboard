@@ -6,21 +6,122 @@ from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
 import xml.etree.ElementTree as ET
-import os, re
+import os, re, math
+import gspread
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Lotes — DJSA", page_icon="🗺️", layout="wide")
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 
-# ── URLs Google Sheet (tab Header y tab Lineas, publicadas por separado) ────
-# Dejar vacío para usar CSVs locales como fallback
-URL_HEADER   = ""   # pub?output=csv&gid=XXX  (tab "Planteos")
-URL_LINEAS   = ""   # pub?output=csv&gid=YYY  (tab "Lineas")
+# ── Google Sheets (planteos locales + ejecución — vía service account) ─────
+# Las referencias (Revista Márgenes, etc.) quedan en CSV local (cargadas por chat/OCR).
+_WS_HEADER = "Planteos"
+_WS_LINEAS = "Lineas"
+
+try:
+    _SHEET_ID = st.secrets.get("planteos", {}).get("sheet_id", "")
+except Exception:
+    _SHEET_ID = ""
+
 URL_AMBIENTES = ""  # usa data/lotes_ambientes.csv local (generado del KML)
+URL_REF_HDR  = ""   # pub?output=csv&gid=XXX  (tab "Referencia Header")
+URL_REF_LIN  = ""   # pub?output=csv&gid=YYY  (tab "Referencia Lineas")
 
 _LOCAL_AMB = os.path.join(_DATA_DIR, 'lotes_ambientes.csv')
-_LOCAL_HDR = os.path.join(_DATA_DIR, 'planteos_header.csv')
-_LOCAL_LIN = os.path.join(_DATA_DIR, 'planteos_lineas.csv')
+_LOCAL_REF_HDR = os.path.join(_DATA_DIR, 'planteos_referencia_header.csv')
+_LOCAL_REF_LIN = os.path.join(_DATA_DIR, 'planteos_referencia_lineas.csv')
+
+
+# ── Cliente Google Sheets ────────────────────────────────────────────────────
+@st.cache_resource(show_spinner=False)
+def _gs_client():
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    creds = Credentials.from_service_account_info(
+        creds_dict,
+        scopes=["https://www.googleapis.com/auth/spreadsheets"],
+    )
+    return gspread.authorize(creds)
+
+
+def _gs_worksheet(name, cols):
+    sh = _gs_client().open_by_key(_SHEET_ID)
+    try:
+        ws = sh.worksheet(name)
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=name, rows=1000, cols=max(len(cols), 10))
+        ws.append_row(cols)
+    return ws
+
+
+def _gs_to_str(v):
+    if v is None:
+        return ''
+    try:
+        if pd.isna(v):
+            return ''
+    except (TypeError, ValueError):
+        pass
+    return str(v)
+
+
+def _gs_read_df(name, cols):
+    if not _SHEET_ID:
+        return pd.DataFrame(columns=cols)
+    ws = _gs_worksheet(name, cols)
+    records = ws.get_all_records()
+    if not records:
+        return pd.DataFrame(columns=cols)
+    df = pd.DataFrame(records)
+    return df.reindex(columns=cols)
+
+
+def _gs_append_rows(name, cols, rows):
+    ws = _gs_worksheet(name, cols)
+    if not isinstance(rows, list):
+        rows = [rows]
+    values = [[_gs_to_str(r.get(c)) for c in cols] for r in rows]
+    ws.append_rows(values, value_input_option="USER_ENTERED")
+
+
+def _gs_update_lineas_real(sel_id, edited_df):
+    """Actualiza precio_real/cant_real/valor_real/diferencia de las líneas de un planteo."""
+    ws = _gs_worksheet(_WS_LINEAS, _LIN_COLS)
+    all_vals = ws.get_all_values()
+    if not all_vals:
+        return
+    header = all_vals[0]
+    col_idx = {c: i for i, c in enumerate(header)}
+    updates = []
+    for i in range(1, len(all_vals)):
+        row = all_vals[i]
+        if row[col_idx['planteo_id']] != sel_id:
+            continue
+        _seccion = row[col_idx['seccion']]
+        _orden = row[col_idx['orden']]
+        _match = edited_df[
+            (edited_df['seccion'].astype(str) == str(_seccion)) &
+            (edited_df['orden'].astype(str) == str(_orden))
+        ]
+        if _match.empty:
+            continue
+        r = _match.iloc[0]
+        precio_r = pd.to_numeric(r.get('precio_real'), errors='coerce')
+        cant_r   = pd.to_numeric(r.get('cant_real'), errors='coerce')
+        valor_r  = (precio_r * cant_r) if pd.notna(precio_r) and pd.notna(cant_r) else pd.to_numeric(r.get('valor_real'), errors='coerce')
+        valor_p  = pd.to_numeric(row[col_idx['valor_ppto']], errors='coerce') if row[col_idx['valor_ppto']] != '' else np.nan
+        dif      = (valor_r - valor_p) if pd.notna(valor_r) and pd.notna(valor_p) else np.nan
+
+        _sheet_row = i + 1  # 1-indexed; all_vals[0] es la fila de encabezados (sheet row 1)
+        for field, val in [('precio_real', precio_r), ('cant_real', cant_r),
+                           ('valor_real', valor_r), ('diferencia', dif)]:
+            _col = col_idx[field] + 1
+            updates.append({
+                'range': gspread.utils.rowcol_to_a1(_sheet_row, _col),
+                'values': [[_gs_to_str(val)]],
+            })
+    if updates:
+        ws.batch_update(updates)
 
 _KML_PATHS = {
     'La Merced':   os.path.join(_DATA_DIR, 'la_merced.kml'),
@@ -86,6 +187,37 @@ def _geojson_bounds(geojson):
     return [[min(lats), min(lons)], [max(lats), max(lons)]]
 
 
+def _polygon_area_ha(coords):
+    """Área aproximada (hectáreas) de un polígono [lon,lat] vía proyección equirectangular local."""
+    if len(coords) < 3:
+        return 0.0
+    _R = 6378137.0  # radio terrestre medio (m)
+    lat0 = math.radians(sum(c[1] for c in coords) / len(coords))
+    pts = [(math.radians(lon) * _R * math.cos(lat0), math.radians(lat) * _R) for lon, lat in coords]
+    area = 0.0
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    return abs(area) / 2.0 / 10000.0  # m² → ha
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _get_kml_areas(campo):
+    """{ambiente_id: ha} calculado desde los polígonos del KML del campo."""
+    kml_path = _KML_PATHS.get(campo)
+    if not kml_path or not os.path.exists(kml_path):
+        return {}
+    gj = _kml_to_geojson(kml_path)
+    areas = {}
+    for feat in gj['features']:
+        name = feat['properties'].get('name', '')
+        amb_id = name.lower().replace(' ', '_')
+        areas[amb_id] = _polygon_area_ha(feat['geometry']['coordinates'][0])
+    return areas
+
+
 # ── Carga de datos ───────────────────────────────────────────────────────────
 @st.cache_data(ttl=3600, show_spinner="Cargando ambientes...")
 def _get_ambientes():
@@ -97,10 +229,12 @@ def _get_ambientes():
 
 
 _HDR_COLS = ['planteo_id','campo','lote_id','ambiente_id','campaña','actividad',
-             'ha','escenario','fecha_siembra','fecha_cosecha','referencia','nota']
+             'ha','escenario','fecha_siembra','fecha_cosecha','referencia_id','referencia','nota']
 _LIN_COLS = ['planteo_id','mes','seccion','orden','item','unidad',
              'precio_ppto','cant_ppto','valor_ppto',
              'precio_real','cant_real','valor_real','diferencia','nota']
+_REF_HDR_COLS = ['referencia_id','cultivo','campaña','fuente','fecha_publicacion','zona','nota']
+_REF_LIN_COLS = ['referencia_id','seccion','orden','item','unidad','precio','cantidad','valor','nota']
 
 
 def _csv_load(url, local, cols):
@@ -116,14 +250,57 @@ def _csv_load(url, local, cols):
     return pd.DataFrame(columns=cols)
 
 
-@st.cache_data(ttl=3600, show_spinner="Cargando planteos...")
+@st.cache_data(ttl=300, show_spinner="Cargando planteos (Google Sheets)...")
 def _get_header():
-    return _csv_load(URL_HEADER, _LOCAL_HDR, _HDR_COLS)
+    df = _gs_read_df(_WS_HEADER, _HDR_COLS)
+    if not df.empty and 'ha' in df.columns:
+        df['ha'] = pd.to_numeric(df['ha'], errors='coerce')
+    return df
 
 
-@st.cache_data(ttl=3600, show_spinner="Cargando líneas...")
+@st.cache_data(ttl=300, show_spinner="Cargando líneas (Google Sheets)...")
 def _get_lineas():
-    return _csv_load(URL_LINEAS, _LOCAL_LIN, _LIN_COLS)
+    df = _gs_read_df(_WS_LINEAS, _LIN_COLS)
+    _num_cols = ['orden', 'precio_ppto', 'cant_ppto', 'valor_ppto',
+                 'precio_real', 'cant_real', 'valor_real', 'diferencia']
+    for c in _num_cols:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+    return df
+
+
+@st.cache_data(ttl=3600, show_spinner="Cargando planteos de referencia...")
+def _get_ref_header():
+    return _csv_load(URL_REF_HDR, _LOCAL_REF_HDR, _REF_HDR_COLS)
+
+
+@st.cache_data(ttl=3600, show_spinner="Cargando líneas de referencia...")
+def _get_ref_lineas():
+    return _csv_load(URL_REF_LIN, _LOCAL_REF_LIN, _REF_LIN_COLS)
+
+
+# ── Generación de planteo_id y escritura local ───────────────────────────────
+_CAMPO_PREFIX = {'La Merced': 'LM', 'Pillahuinco': 'PM'}
+_CULTIVO_PREFIX = {
+    'Maíz': 'MAI', 'Soja': 'SOJ', 'Girasol': 'GIR', 'Trigo': 'TRI',
+    'Cebada': 'CEB', 'Invernada': 'INV', 'Cría': 'CRI', 'Tambo': 'TAM',
+    'Pastura': 'PAS', 'Campo Natural': 'CNA', 'Verdeo': 'VER',
+}
+
+
+def _campaña_prefix(campaña):
+    return re.sub(r'\D', '', str(campaña))
+
+
+def _gen_planteo_id(campo, cultivo, campaña, df_hdr_existente):
+    cp = _CAMPO_PREFIX.get(campo, re.sub(r'[^A-Z]', '', campo.upper())[:2] or 'XX')
+    kp = _CULTIVO_PREFIX.get(cultivo, re.sub(r'[^A-Z]', '', cultivo.upper())[:3] or 'XXX')
+    camp = _campaña_prefix(campaña)
+    prefix = f"{cp}_{kp}_{camp}_"
+    existentes = df_hdr_existente['planteo_id'].astype(str) if not df_hdr_existente.empty else pd.Series(dtype=str)
+    seqs = [int(pid[len(prefix):]) for pid in existentes if pid.startswith(prefix) and pid[len(prefix):].isdigit()]
+    seq = (max(seqs) + 1) if seqs else 1
+    return f"{prefix}{seq:03d}"
 
 
 def _get_planteos_flat():
@@ -139,6 +316,8 @@ def _get_planteos_flat():
 df_amb = _get_ambientes()
 df_hdr = _get_header()
 df_lin = _get_lineas()
+df_ref_hdr = _get_ref_header()
+df_ref_lin = _get_ref_lineas()
 df_pln = _get_planteos_flat()
 
 # ── Header ───────────────────────────────────────────────────────────────────
@@ -146,7 +325,9 @@ st.title("🗺️ Lotes y Ambientes")
 col_h, col_ref = st.columns([8, 1])
 col_h.markdown("Gestión de lotes por campo — mapa, planteos técnicos y control presupuestario.")
 if col_ref.button("🔄 Actualizar", help="Limpiar cache"):
-    _get_ambientes.clear(); _get_header.clear(); _get_lineas.clear(); st.rerun()
+    _get_ambientes.clear(); _get_header.clear(); _get_lineas.clear()
+    _get_ref_header.clear(); _get_ref_lineas.clear()
+    st.rerun()
 
 # ── Selector jerárquico en sidebar ───────────────────────────────────────────
 with st.sidebar:
@@ -185,12 +366,18 @@ if _parts:
     st.caption("📍 " + " › ".join(_parts))
 
 # ── Tabs principales ─────────────────────────────────────────────────────────
-tab_mapa, tab_planteo, tab_analiticos = st.tabs(["🗺️ Mapa", "📋 Planteo", "📊 Analíticos"])
+# Se usa segmented_control en vez de st.tabs(): st.tabs() no persiste la tab
+# activa de forma confiable cuando conviven componentes custom (folium) con
+# selectbox dinámicos en otras tabs — resetea a la primera en cada rerun.
+_main_tab = st.segmented_control(
+    "Sección", ["🗺️ Mapa", "📋 Planteo", "📊 Analíticos"],
+    default="🗺️ Mapa", key='main_tab', label_visibility='collapsed',
+)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB MAPA
 # ════════════════════════════════════════════════════════════════════════════
-with tab_mapa:
+if _main_tab == "🗺️ Mapa":
     # Determinar qué campos mostrar
     campos_show = [sel_campo] if sel_campo != "(Todos)" and sel_campo in _KML_PATHS else list(_KML_PATHS.keys())
 
@@ -265,16 +452,145 @@ with tab_mapa:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB PLANTEO
 # ════════════════════════════════════════════════════════════════════════════
-with tab_planteo:
-    if df_hdr.empty or df_lin.empty:
-        st.info("Sin datos de planteos. Cargá `planteos_header.csv` y `planteos_lineas.csv` en `data/`.")
-        st.markdown("""
-**Schema `planteos_header.csv`:**
-`planteo_id | campo | lote_id | ambiente_id | campaña | actividad | ha | escenario | fecha_siembra | fecha_cosecha | referencia | nota`
+elif _main_tab == "📋 Planteo":
+    # ── Derivar planteo local desde una Referencia (Revista Márgenes, etc.) ──
+    with st.expander("➕ Derivar planteo local desde una Referencia", expanded=df_hdr.empty):
+        if df_ref_hdr.empty:
+            st.caption(
+                "No hay planteos de referencia cargados todavía. "
+                "Pasame un screenshot de la Revista Márgenes (u otra fuente) en el chat y te los cargo acá."
+            )
+        else:
+            def _ref_label(row):
+                partes = [row['cultivo'], row['campaña']]
+                if pd.notna(row.get('zona')) and str(row.get('zona')).strip():
+                    partes.append(f"({row['zona']})")
+                _rinde_match = re.search(r'rinde \w+ [\d.]+ qq/ha', str(row.get('nota', '')))
+                if _rinde_match:
+                    partes.append(f"· {_rinde_match.group(0)}")
+                partes.append(f"[{row['referencia_id']}]")
+                return ' '.join(str(p) for p in partes)
 
-**Schema `planteos_lineas.csv`:**
-`planteo_id | mes | seccion | orden | item | unidad | precio_ppto | cant_ppto | valor_ppto | precio_real | cant_real | valor_real | diferencia | nota`
-        """)
+            _ref_f = df_ref_hdr.copy()
+            _ref_f['_label'] = _ref_f.apply(_ref_label, axis=1)
+            _ref_labels = _ref_f['_label'].tolist()
+            _ref_ids = _ref_f['referencia_id'].tolist()
+
+            _sel_ref_label = st.selectbox("Planteo de referencia", _ref_labels, key='deriv_ref')
+            _sel_ref_id = _ref_ids[_ref_labels.index(_sel_ref_label)]
+            _ref_row = _ref_f[_ref_f['referencia_id'] == _sel_ref_id].iloc[0]
+
+            df_ref_lin_sel = df_ref_lin[df_ref_lin['referencia_id'] == _sel_ref_id].sort_values(['seccion', 'orden'])
+
+            if df_ref_lin_sel.empty:
+                st.warning("Esta referencia no tiene líneas cargadas.")
+            else:
+                st.caption(f"Base: **{_sel_ref_label}** · {len(df_ref_lin_sel)} líneas (US$/ha)")
+
+                dc1, dc2, dc3, dc4 = st.columns(4)
+                _campos_disp = sorted(df_amb['campo'].dropna().unique()) if not df_amb.empty else list(_CAMPO_PREFIX.keys())
+                _d_campo = dc1.selectbox("Campo destino", _campos_disp, key='deriv_campo')
+
+                _kml_areas = _get_kml_areas(_d_campo)
+
+                _lotes_campo = ["(campo entero)"] + sorted(
+                    df_amb[df_amb['campo'] == _d_campo]['lote_nombre'].dropna().unique()
+                ) if not df_amb.empty else ["(campo entero)"]
+                _d_lote = dc2.selectbox("Lote", _lotes_campo, key='deriv_lote')
+
+                _amb_f = df_amb[(df_amb['campo'] == _d_campo) & (df_amb['lote_nombre'] == _d_lote)] if _d_lote != "(campo entero)" else pd.DataFrame()
+                _ambs_lote = ["(lote entero)"] + sorted(_amb_f['ambiente_nombre'].dropna().unique()) if not _amb_f.empty else ["(lote entero)"]
+                _d_amb = dc3.selectbox("Ambiente", _ambs_lote, key='deriv_ambiente', disabled=(_d_lote == "(campo entero)"))
+
+                # Hectáreas: default calculado del polígono KML (ambiente > lote > campo), editable/sobre-escribible
+                if _d_lote == "(campo entero)":
+                    _amb_ids = df_amb[df_amb['campo'] == _d_campo]['ambiente_id'].tolist()
+                elif _d_amb == "(lote entero)":
+                    _amb_ids = _amb_f['ambiente_id'].tolist()
+                else:
+                    _amb_ids = _amb_f[_amb_f['ambiente_nombre'] == _d_amb]['ambiente_id'].tolist()
+                _ha_default = round(sum(_kml_areas.get(a, 0.0) for a in _amb_ids), 1)
+                # Key depende de la selección: así el default se refresca al cambiar campo/lote/ambiente,
+                # pero un valor editado a mano se preserva mientras no cambie la selección.
+                _ha_key = f'deriv_ha__{_d_campo}__{_d_lote}__{_d_amb}'
+                _d_ha = dc4.number_input("Hectáreas", min_value=0.0, value=_ha_default, step=1.0, key=_ha_key,
+                                          help="Calculado desde el polígono KML. Editable si el área real difiere.")
+
+                dc5, dc6, dc7 = st.columns(3)
+                _d_escenario = dc5.selectbox("Escenario", ["Planificado", "Real"], key='deriv_escenario')
+                _d_siembra = dc6.date_input("Fecha siembra", value=None, key='deriv_siembra')
+                _d_cosecha = dc7.date_input("Fecha cosecha", value=None, key='deriv_cosecha')
+
+                _d_nota = st.text_input("Nota (opcional)", key='deriv_nota')
+
+                st.markdown("**Ajustá escala de costos/rindes antes de crear el planteo:**")
+                _df_preview = df_ref_lin_sel[['seccion', 'orden', 'item', 'unidad', 'precio', 'cantidad', 'valor', 'nota']].copy()
+                _df_edit = st.data_editor(
+                    _df_preview, use_container_width=True, hide_index=True,
+                    num_rows="dynamic", key='deriv_editor',
+                )
+
+                if st.button("✅ Crear planteo local", key='deriv_submit'):
+                    _cultivo = _ref_row['cultivo']
+                    _campaña = _ref_row['campaña']
+                    _new_id = _gen_planteo_id(_d_campo, _cultivo, _campaña, df_hdr)
+
+                    if _d_lote == "(campo entero)":
+                        _lote_id_val, _amb_id_val = "(campo entero)", "(campo entero)"
+                    else:
+                        _lote_id_val = _amb_f['lote_id'].iloc[0] if not _amb_f.empty else _d_lote
+                        if _d_amb == "(lote entero)":
+                            _amb_id_val = "(lote entero)"
+                        else:
+                            _match_amb = _amb_f[_amb_f['ambiente_nombre'] == _d_amb]
+                            _amb_id_val = _match_amb['ambiente_id'].iloc[0] if not _match_amb.empty else _d_amb
+
+                    _hdr_row = {
+                        'planteo_id': _new_id, 'campo': _d_campo,
+                        'lote_id': _lote_id_val, 'ambiente_id': _amb_id_val,
+                        'campaña': _campaña, 'actividad': _cultivo,
+                        'ha': _d_ha, 'escenario': _d_escenario,
+                        'fecha_siembra': _d_siembra.isoformat() if _d_siembra else '',
+                        'fecha_cosecha': _d_cosecha.isoformat() if _d_cosecha else '',
+                        'referencia_id': _sel_ref_id,
+                        'referencia': _sel_ref_label,
+                        'nota': _d_nota,
+                    }
+
+                    _lin_rows = []
+                    for _, r in _df_edit.iterrows():
+                        precio = pd.to_numeric(r.get('precio'), errors='coerce')
+                        cantidad = pd.to_numeric(r.get('cantidad'), errors='coerce')
+                        valor = (precio * cantidad) if pd.notna(precio) and pd.notna(cantidad) else pd.to_numeric(r.get('valor'), errors='coerce')
+                        _lin_rows.append({
+                            'planteo_id': _new_id, 'mes': '',
+                            'seccion': r.get('seccion'), 'orden': r.get('orden'),
+                            'item': r.get('item'), 'unidad': r.get('unidad'),
+                            'precio_ppto': precio, 'cant_ppto': cantidad, 'valor_ppto': valor,
+                            'precio_real': None, 'cant_real': None, 'valor_real': None,
+                            'diferencia': None, 'nota': r.get('nota', ''),
+                        })
+
+                    _gs_append_rows(_WS_HEADER, _HDR_COLS, _hdr_row)
+                    _gs_append_rows(_WS_LINEAS, _LIN_COLS, _lin_rows)
+                    _get_header.clear(); _get_lineas.clear()
+                    # Recargar en memoria (sin rerun explícito, para no perder el tab activo)
+                    df_hdr = _get_header()
+                    df_lin = _get_lineas()
+                    df_pln = _get_planteos_flat()
+                    st.session_state['plt_id_pending'] = _new_id
+                    st.success(f"✅ Planteo local **{_new_id}** creado a partir de {_sel_ref_label} ({_d_ha:.0f} ha).")
+
+    st.divider()
+
+    if df_hdr.empty or df_lin.empty:
+        if not _SHEET_ID:
+            st.info("Sin `sheet_id` configurado en `.streamlit/secrets.toml` (sección `[planteos]`).")
+        else:
+            st.info(
+                "Sin planteos locales todavía. Derivá uno desde una Referencia con el formulario de arriba "
+                "— se va a guardar en las pestañas `Planteos` / `Lineas` del Google Sheet."
+            )
         st.stop()
 
     # ── Selector de planteo por ID ───────────────────────────────────────────
@@ -302,6 +618,10 @@ with tab_planteo:
     _hdr_f['_label'] = _hdr_f.apply(_label, axis=1)
     _ids   = _hdr_f['planteo_id'].tolist()
     _labels = _hdr_f['_label'].tolist()
+
+    _pending_id = st.session_state.pop('plt_id_pending', None)
+    if _pending_id and _pending_id in _ids:
+        st.session_state['plt_id'] = _labels[_ids.index(_pending_id)]
 
     _sel_label = st.selectbox("Planteo", _labels, key='plt_id')
     _sel_id    = _ids[_labels.index(_sel_label)]
@@ -334,6 +654,28 @@ with tab_planteo:
         st.warning("Sin líneas para este planteo.")
         st.stop()
 
+    # ── Cargar / editar ejecución (valor real) ───────────────────────────────
+    with st.expander("✏️ Cargar ejecución (valor real)", expanded=False):
+        st.caption("Editá precio/cantidad/valor **real** por línea. Ppto queda fijo como referencia.")
+        _df_exec = df_lin_sel[[
+            'mes', 'seccion', 'orden', 'item', 'unidad',
+            'precio_ppto', 'cant_ppto', 'valor_ppto',
+            'precio_real', 'cant_real', 'valor_real', 'nota',
+        ]].copy()
+        _exec_edit = st.data_editor(
+            _df_exec, use_container_width=True, hide_index=True, num_rows="fixed",
+            disabled=['mes', 'seccion', 'orden', 'item', 'unidad', 'precio_ppto', 'cant_ppto', 'valor_ppto'],
+            key=f'exec_editor_{_sel_id}',
+        )
+
+        if st.button("💾 Guardar ejecución", key=f'exec_save_{_sel_id}'):
+            _gs_update_lineas_real(_sel_id, _exec_edit)
+            _get_lineas.clear()
+            df_lin = _get_lineas()
+            df_pln = _get_planteos_flat()
+            df_lin_sel = df_lin[df_lin['planteo_id'] == _sel_id].sort_values(['seccion', 'orden', 'mes'])
+            st.success("✅ Ejecución guardada en Google Sheets.")
+
     _tiene_mes = df_lin_sel['mes'].notna().any() and (df_lin_sel['mes'].astype(str).str.strip() != '').any()
     _tiene_ppto = df_lin_sel['valor_ppto'].notna().any()
 
@@ -349,6 +691,20 @@ with tab_planteo:
         if _df_res.empty:
             _df_res = df_lin_sel.groupby(['seccion','orden','item','unidad'])[
                 ['valor_ppto','valor_real']].sum().reset_index()
+
+        _ha_sel = pd.to_numeric(_hdr_sel.get('ha'), errors='coerce')
+        _tiene_ha = pd.notna(_ha_sel) and _ha_sel > 0
+
+        if _tiene_ha:
+            _modo_val = st.radio(
+                "Mostrar valores en", ["US$/ha", f"US$ total ({_ha_sel:.0f} ha)"],
+                horizontal=True, key='plt_modo_val',
+            )
+            _es_total = _modo_val.startswith("US$ total")
+        else:
+            _es_total = False
+        _mult = float(_ha_sel) if _es_total else 1.0
+        _unid_lbl = "US$" if _es_total else "US$/ha"
 
         def _color_diff(val):
             try:
@@ -371,13 +727,13 @@ with tab_planteo:
                     'Mes':           r.get('mes', '') or '',
                     'Ítem':          r['item'],
                     'Unidad':        r.get('unidad', ''),
-                    'Ppto (US$/ha)': r.get('valor_ppto', np.nan),
-                    'Real (US$/ha)': r.get('valor_real', np.nan),
-                    'Diferencia':    dif if pd.notna(dif) else np.nan,
+                    f'Ppto ({_unid_lbl})': (r.get('valor_ppto', np.nan) or np.nan) * _mult,
+                    f'Real ({_unid_lbl})': (r.get('valor_real', np.nan) or np.nan) * _mult,
+                    'Diferencia':    (dif * _mult) if pd.notna(dif) else np.nan,
                     'Nota':          r.get('nota', '') or '',
                 })
             df_t = pd.DataFrame(rows)
-            _fmt = {'Ppto (US$/ha)': '{:.1f}', 'Real (US$/ha)': '{:.1f}', 'Diferencia': '{:+.1f}'}
+            _fmt = {f'Ppto ({_unid_lbl})': '{:,.1f}', f'Real ({_unid_lbl})': '{:,.1f}', 'Diferencia': '{:+,.1f}'}
             _show_cols = [c for c in df_t.columns if c != 'Mes' or _tiene_mes]
             st.dataframe(
                 df_t[_show_cols].style.map(_color_diff, subset=['Diferencia']).format(_fmt, na_rep='—'),
@@ -386,24 +742,25 @@ with tab_planteo:
 
         # KPIs
         st.divider()
-        _ing_r = _df_res[_df_res['seccion']=='Ingresos']['valor_real'].sum()
-        _cos_r = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_real'].sum()
+        _ing_r = _df_res[_df_res['seccion']=='Ingresos']['valor_real'].sum() * _mult
+        _cos_r = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_real'].sum() * _mult
         _mb_r  = _ing_r - _cos_r
-        _ing_p = _df_res[_df_res['seccion']=='Ingresos']['valor_ppto'].sum()
-        _cos_p = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_ppto'].sum()
+        _ing_p = _df_res[_df_res['seccion']=='Ingresos']['valor_ppto'].sum() * _mult
+        _cos_p = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_ppto'].sum() * _mult
         _mb_p  = _ing_p - _cos_p
+        _suf = "" if _es_total else "/ha"
 
         k1, k2, k3, k4 = st.columns(4)
         if _tiene_ppto:
-            k1.metric("Ingresos ppto", f"U$S {_ing_p:,.0f}/ha")
-            k2.metric("Costos ppto",   f"U$S {_cos_p:,.0f}/ha")
-            k3.metric("MB ppto",       f"U$S {_mb_p:+,.0f}/ha")
-            k4.metric("MB real vs ppto", f"U$S {_mb_r - _mb_p:+,.0f}/ha",
+            k1.metric("Ingresos ppto", f"U$S {_ing_p:,.0f}{_suf}")
+            k2.metric("Costos ppto",   f"U$S {_cos_p:,.0f}{_suf}")
+            k3.metric("MB ppto",       f"U$S {_mb_p:+,.0f}{_suf}")
+            k4.metric("MB real vs ppto", f"U$S {_mb_r - _mb_p:+,.0f}{_suf}",
                       delta_color="normal" if _mb_r >= _mb_p else "inverse")
         else:
-            k1.metric("Ingresos", f"U$S {_ing_r:,.0f}/ha")
-            k2.metric("Costos Directos", f"U$S {_cos_r:,.0f}/ha")
-            k3.metric("Margen Bruto", f"U$S {_mb_r:+,.0f}/ha",
+            k1.metric("Ingresos", f"U$S {_ing_r:,.0f}{_suf}")
+            k2.metric("Costos Directos", f"U$S {_cos_r:,.0f}{_suf}")
+            k3.metric("Margen Bruto", f"U$S {_mb_r:+,.0f}{_suf}",
                       delta_color="normal" if _mb_r > 0 else "inverse")
             k4.metric("Ha totales", f"{_hdr_sel['ha']}" if pd.notna(_hdr_sel.get('ha')) else "—")
 
@@ -453,16 +810,12 @@ with tab_planteo:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB ANALÍTICOS
 # ════════════════════════════════════════════════════════════════════════════
-with tab_analiticos:
+elif _main_tab == "📊 Analíticos":
     if df_pln.empty:
         st.warning(
             f"Sin datos de planteos. "
-            f"Header local: `{_LOCAL_HDR}` "
-            f"({'✓' if os.path.exists(_LOCAL_HDR) else '❌ NO encontrado'}). "
-            f"Líneas local: `{_LOCAL_LIN}` "
-            f"({'✓' if os.path.exists(_LOCAL_LIN) else '❌ NO encontrado'}). "
-            f"Sheets: header={'configurado' if URL_HEADER else 'vacío'}, "
-            f"lineas={'configurado' if URL_LINEAS else 'vacío'}."
+            f"Google Sheet: {'configurado' if _SHEET_ID else '❌ sin `sheet_id` en secrets'} "
+            f"(pestañas `{_WS_HEADER}` / `{_WS_LINEAS}`)."
         )
         st.stop()
 

@@ -9,3 +9,5 @@ requests>=2.31.0
 statsmodels>=0.14.0
 scipy>=1.11.0
 scikit-learn>=1.4.0
+gspread>=6.1.0
+google-auth>=2.30.0

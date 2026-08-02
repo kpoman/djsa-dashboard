@@ -1,5 +1,7 @@
-planteo_id,campo,lote_id,ambiente_id,campaña,actividad,ha,escenario,fecha_siembra,fecha_cosecha,referencia,nota
-LM_CEB_2526_001,La Merced,(campo),(campo),25/26,Cebada,360,Real,,,Cebada La Merced 25/26,
-PM_CEB_2526_001,Pillahuinco,(campo),(campo),25/26,Cebada,93,Real,,,Cebada Pillahuinco 25/26,
-PM_GIR_2526_001,Pillahuinco,(campo),(campo),25/26,Girasol,180,Real,,,Girasol Pillahuinco 25/26,
-PM_TRI_2526_001,Pillahuinco,(campo),(campo),25/26,Trigo,97,Real,,,Trigo Pillahuinco 25/26,
+planteo_id,campo,lote_id,ambiente_id,campaña,actividad,ha,escenario,fecha_siembra,fecha_cosecha,referencia_id,referencia,nota
+LM_CEB_2526_001,La Merced,(campo),(campo),25/26,Cebada,360.0,Real,,,,Cebada La Merced 25/26,
+PM_CEB_2526_001,Pillahuinco,(campo),(campo),25/26,Cebada,93.0,Real,,,,Cebada Pillahuinco 25/26,
+PM_GIR_2526_001,Pillahuinco,(campo),(campo),25/26,Girasol,180.0,Real,,,,Girasol Pillahuinco 25/26,
+PM_TRI_2526_001,Pillahuinco,(campo),(campo),25/26,Trigo,97.0,Real,,,,Trigo Pillahuinco 25/26,
+LM_TRI_2627_001,La Merced,(campo entero),(campo entero),26/27,Trigo,0.0,Planificado,,,TRI_SE_2627_001,Trigo 26/27 — Revista Márgenes Agropecuarios,
+LM_GIR_2627_001,La Merced,(campo entero),(campo entero),26/27,Girasol,200.0,Planificado,2026-10-01,2027-07-01,GIR_OE_2627_001,Girasol 26/27 — Revista Márgenes Agropecuarios,teste
