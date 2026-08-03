@@ -453,40 +453,66 @@ if _main_tab == "🗺️ Mapa":
 # TAB PLANTEO
 # ════════════════════════════════════════════════════════════════════════════
 elif _main_tab == "📋 Planteo":
-    # ── Derivar planteo local desde una Referencia (Revista Márgenes, etc.) ──
-    with st.expander("➕ Derivar planteo local desde una Referencia", expanded=df_hdr.empty):
-        if df_ref_hdr.empty:
-            st.caption(
-                "No hay planteos de referencia cargados todavía. "
-                "Pasame un screenshot de la Revista Márgenes (u otra fuente) en el chat y te los cargo acá."
-            )
-        else:
-            def _ref_label(row):
-                partes = [row['cultivo'], row['campaña']]
-                if pd.notna(row.get('zona')) and str(row.get('zona')).strip():
-                    partes.append(f"({row['zona']})")
-                _rinde_match = re.search(r'rinde \w+ [\d.]+ qq/ha', str(row.get('nota', '')))
-                if _rinde_match:
-                    partes.append(f"· {_rinde_match.group(0)}")
-                partes.append(f"[{row['referencia_id']}]")
-                return ' '.join(str(p) for p in partes)
+    # ── Nuevo Planteo Local: derivado de un Planteo de Referencia, o desde cero ──
+    with st.expander("➕ Nuevo Planteo Local", expanded=df_hdr.empty):
+        _origen = st.radio(
+            "Origen",
+            ["Desde Planteo de Referencia (Márgenes)", "Sin referencia (desde cero)"],
+            horizontal=True, key='deriv_origen',
+        )
+        _es_desde_ref = _origen.startswith("Desde")
 
-            _ref_f = df_ref_hdr.copy()
-            _ref_f['_label'] = _ref_f.apply(_ref_label, axis=1)
-            _ref_labels = _ref_f['_label'].tolist()
-            _ref_ids = _ref_f['referencia_id'].tolist()
+        _sel_ref_id, _sel_ref_label = None, None
+        _cultivo_src, _campaña_src = None, None
+        _df_lineas_base = pd.DataFrame(columns=['seccion', 'orden', 'item', 'unidad', 'precio', 'cantidad', 'valor', 'nota'])
+        _show_form = True
 
-            _sel_ref_label = st.selectbox("Planteo de referencia", _ref_labels, key='deriv_ref')
-            _sel_ref_id = _ref_ids[_ref_labels.index(_sel_ref_label)]
-            _ref_row = _ref_f[_ref_f['referencia_id'] == _sel_ref_id].iloc[0]
-
-            df_ref_lin_sel = df_ref_lin[df_ref_lin['referencia_id'] == _sel_ref_id].sort_values(['seccion', 'orden'])
-
-            if df_ref_lin_sel.empty:
-                st.warning("Esta referencia no tiene líneas cargadas.")
+        if _es_desde_ref:
+            if df_ref_hdr.empty:
+                st.caption(
+                    "No hay Planteos de Referencia cargados todavía. "
+                    "Pasame un screenshot de la Revista Márgenes (u otra fuente) en el chat y te los cargo acá, "
+                    "o elegí 'Sin referencia' arriba para crear un Planteo Local directo."
+                )
+                _show_form = False
             else:
-                st.caption(f"Base: **{_sel_ref_label}** · {len(df_ref_lin_sel)} líneas (US$/ha)")
+                def _ref_label(row):
+                    partes = [row['cultivo'], row['campaña']]
+                    if pd.notna(row.get('zona')) and str(row.get('zona')).strip():
+                        partes.append(f"({row['zona']})")
+                    _rinde_match = re.search(r'rinde \w+ [\d.]+ qq/ha', str(row.get('nota', '')))
+                    if _rinde_match:
+                        partes.append(f"· {_rinde_match.group(0)}")
+                    partes.append(f"[{row['referencia_id']}]")
+                    return ' '.join(str(p) for p in partes)
 
+                _ref_f = df_ref_hdr.copy()
+                _ref_f['_label'] = _ref_f.apply(_ref_label, axis=1)
+                _ref_labels = _ref_f['_label'].tolist()
+                _ref_ids = _ref_f['referencia_id'].tolist()
+
+                _sel_ref_label = st.selectbox("Planteo de Referencia", _ref_labels, key='deriv_ref')
+                _sel_ref_id = _ref_ids[_ref_labels.index(_sel_ref_label)]
+                _ref_row = _ref_f[_ref_f['referencia_id'] == _sel_ref_id].iloc[0]
+
+                df_ref_lin_sel = df_ref_lin[df_ref_lin['referencia_id'] == _sel_ref_id].sort_values(['seccion', 'orden'])
+
+                if df_ref_lin_sel.empty:
+                    st.warning("Este Planteo de Referencia no tiene líneas cargadas.")
+                    _show_form = False
+                else:
+                    st.caption(f"Base: **{_sel_ref_label}** · {len(df_ref_lin_sel)} líneas (US$/ha)")
+                    _cultivo_src = _ref_row['cultivo']
+                    _campaña_src = _ref_row['campaña']
+                    _df_lineas_base = df_ref_lin_sel[['seccion', 'orden', 'item', 'unidad', 'precio', 'cantidad', 'valor', 'nota']].copy()
+        else:
+            st.caption("Planteo Local sin Planteo de Referencia — cargá las líneas manualmente abajo.")
+            cc1, cc2 = st.columns(2)
+            _cultivo_src = cc1.selectbox("Cultivo / Actividad", sorted(_CULTIVO_PREFIX.keys()), key='deriv_cultivo_manual')
+            _campaña_src = cc2.text_input("Campaña", value="25/26", key='deriv_campaña_manual')
+
+        if _show_form:
+            if True:
                 dc1, dc2, dc3, dc4 = st.columns(4)
                 _campos_disp = sorted(df_amb['campo'].dropna().unique()) if not df_amb.empty else list(_CAMPO_PREFIX.keys())
                 _d_campo = dc1.selectbox("Campo destino", _campos_disp, key='deriv_campo')
@@ -523,16 +549,21 @@ elif _main_tab == "📋 Planteo":
 
                 _d_nota = st.text_input("Nota (opcional)", key='deriv_nota')
 
-                st.markdown("**Ajustá escala de costos/rindes antes de crear el planteo:**")
-                _df_preview = df_ref_lin_sel[['seccion', 'orden', 'item', 'unidad', 'precio', 'cantidad', 'valor', 'nota']].copy()
+                _tabla_lbl = ("**Ajustá escala de costos/rindes antes de crear el planteo:**" if _es_desde_ref
+                              else "**Cargá las líneas del planteo (agregar filas con el botón +):**")
+                st.markdown(_tabla_lbl)
                 _df_edit = st.data_editor(
-                    _df_preview, use_container_width=True, hide_index=True,
+                    _df_lineas_base, use_container_width=True, hide_index=True,
                     num_rows="dynamic", key='deriv_editor',
                 )
 
-                if st.button("✅ Crear planteo local", key='deriv_submit'):
-                    _cultivo = _ref_row['cultivo']
-                    _campaña = _ref_row['campaña']
+                _puede_crear = bool(_cultivo_src) and bool(str(_campaña_src or '').strip())
+                if not _puede_crear:
+                    st.caption("⚠️ Completá Cultivo/Actividad y Campaña para poder crear el planteo.")
+
+                if st.button("✅ Crear planteo local", key='deriv_submit', disabled=not _puede_crear):
+                    _cultivo = _cultivo_src
+                    _campaña = _campaña_src
                     _new_id = _gen_planteo_id(_d_campo, _cultivo, _campaña, df_hdr)
 
                     if _d_lote == "(campo entero)":
@@ -579,7 +610,8 @@ elif _main_tab == "📋 Planteo":
                     df_lin = _get_lineas()
                     df_pln = _get_planteos_flat()
                     st.session_state['plt_id_pending'] = _new_id
-                    st.success(f"✅ Planteo local **{_new_id}** creado a partir de {_sel_ref_label} ({_d_ha:.0f} ha).")
+                    _origen_msg = f"a partir de {_sel_ref_label}" if _es_desde_ref else "sin Planteo de Referencia"
+                    st.success(f"✅ Planteo Local **{_new_id}** creado {_origen_msg} ({_d_ha:.0f} ha).")
 
     st.divider()
 
@@ -588,8 +620,9 @@ elif _main_tab == "📋 Planteo":
             st.info("Sin `sheet_id` configurado en `.streamlit/secrets.toml` (sección `[planteos]`).")
         else:
             st.info(
-                "Sin planteos locales todavía. Derivá uno desde una Referencia con el formulario de arriba "
-                "— se va a guardar en las pestañas `Planteos` / `Lineas` del Google Sheet."
+                "Sin Planteos Locales todavía. Creá uno con el formulario de arriba "
+                "(desde un Planteo de Referencia o desde cero) — se va a guardar en las pestañas "
+                "`Planteos` / `Lineas` del Google Sheet."
             )
         st.stop()
 
@@ -623,7 +656,7 @@ elif _main_tab == "📋 Planteo":
     if _pending_id and _pending_id in _ids:
         st.session_state['plt_id'] = _labels[_ids.index(_pending_id)]
 
-    _sel_label = st.selectbox("Planteo", _labels, key='plt_id')
+    _sel_label = st.selectbox("Planteo Local", _labels, key='plt_id')
     _sel_id    = _ids[_labels.index(_sel_label)]
     _hdr_sel   = _hdr_f[_hdr_f['planteo_id'] == _sel_id].iloc[0]
 
@@ -639,7 +672,7 @@ elif _main_tab == "📋 Planteo":
     _f_siem = _hdr_sel.get('fecha_siembra','')
     _f_cos  = _hdr_sel.get('fecha_cosecha','')
     _meta = []
-    if pd.notna(_ref) and str(_ref).strip():   _meta.append(f"Referencia: **{_ref}**")
+    if pd.notna(_ref) and str(_ref).strip():   _meta.append(f"Planteo de Referencia: **{_ref}**")
     if pd.notna(_f_siem) and str(_f_siem).strip(): _meta.append(f"Siembra: {_f_siem}")
     if pd.notna(_f_cos) and str(_f_cos).strip():   _meta.append(f"Cosecha: {_f_cos}")
     if _meta:
