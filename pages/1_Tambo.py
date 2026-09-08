@@ -570,7 +570,6 @@ with tab_prod:
             st.subheader("LTVO total (media móvil 7d)")
             fig1 = px.line(df_total, x='date', y='ltvo_roll',
                            labels={'date': 'Fecha', 'ltvo_roll': 'LTVO'})
-            fig1.update_yaxes(range=[20, 35])
             st.plotly_chart(fig1, use_container_width=True)
             df_ltvo_dl = df_total[['date', 'diaria_ltvo']].rename(columns={'date': 'Fecha', 'diaria_ltvo': 'LTVO'})
             st.download_button("Descargar LTVO total (CSV)", df_ltvo_dl.to_csv(index=False).encode('utf-8'),
