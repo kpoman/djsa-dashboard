@@ -56,6 +56,10 @@ def _get_datos_prod(df_partediario_total=None):
     if df_partediario_total is not None and not df_partediario_total.empty:
         _pd = df_partediario_total.copy()
         _pd['date'] = pd.to_datetime(_pd['date'], errors='coerce')
+        # Excluir el día de hoy: puede estar parcialmente ordeñado (falta el tambo de
+        # la tarde) y arrastraría hacia abajo el promedio mensual. Se toma hasta ayer.
+        _ayer = pd.Timestamp.now().normalize() - pd.Timedelta(days=1)
+        _pd = _pd[_pd['date'] <= _ayer]
         _pd['Ano'] = _pd['date'].dt.year
         _pd['Mes'] = _pd['date'].dt.month
         _pd['diaria_ltvo']  = pd.to_numeric(_pd['diaria_ltvo'],  errors='coerce')
