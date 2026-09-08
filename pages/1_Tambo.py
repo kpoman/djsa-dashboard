@@ -1450,7 +1450,10 @@ with tab_crea:
             st.caption(
                 "Superponé hasta 4 variables. Con 1–2 variables se usan ejes "
                 "independientes izquierda/derecha. Con 3–4, o activando "
-                "**Normalizar**, todas van a la misma escala 0–100 %."
+                "**Normalizar**, todas van a la misma escala 0–100 %. "
+                "Los puntos marcados son datos reales — algunas variables (ej. "
+                "% BAJAS annual) se cargan una vez al año, no mes a mes, y por eso "
+                "muestran pocos puntos unidos por tramos rectos largos."
             )
             c1, c2, c3 = st.columns([4, 1, 2])
             with c1:
@@ -1499,12 +1502,20 @@ with tab_crea:
                         yref = 'y' if i == 0 else 'y2'
                         htmpl = f'{var}: %{{y:.2f}}<extra></extra>'
 
+                    # % de meses con dato real: si es baja, la variable se carga
+                    # esporádicamente (ej. una vez al año) y sin marcadores los pocos
+                    # puntos reales quedan unidos por una recta larga que parece otra
+                    # tendencia. Los marcadores muestran dónde hay dato de verdad.
+                    _pct_denso = len(serie) / max(len(df_f), 1)
+                    _msize = 4 if _pct_denso >= 0.7 else 7
+
                     fig_exp.add_trace(go.Scatter(
                         x=serie.index, y=y_vals,
                         name=var, yaxis=yref,
                         line=dict(color=color, width=2),
+                        marker=dict(size=_msize, color=color),
                         hovertemplate=htmpl,
-                        mode='lines',
+                        mode='lines+markers',
                     ))
 
                 layout_exp = dict(
