@@ -225,7 +225,7 @@ def _get_datos_crea():
         'Partos de vaca:', 'Partos de vaq.', 'Partos Totales', 'Partos Muertos',
         'VO', 'VS', 'VT', 'Muertes', 'Ventas', 'Bajas Adultas', 'Dias Lactancia',
         'Abortos', 'Hembras nacidas de VACAS', 'Hembras nacidas de VAQ',
-        'Hembras nacidas', 'Muertes guachera', 'Muertes Recria',
+        'Hembras nacidas', 'Muertes guachera HEMBRA', 'Muertes guachera MACHOS', 'Muertes Recria',
         'Vendidas guachera', 'Vendidas Recria', 'Bajas guachera-Recria',
         'MACHOS NACIDOS',
     ]
@@ -251,7 +251,7 @@ def _get_datos_crea():
         ('_pct_VO_VT',       'VO',               'VT'),
         ('_mort_perinatal',  'Partos Muertos',    'Partos Totales'),
         ('_mort_adultas',    'Muertes',           'VT'),
-        ('_mort_guachera',   'Muertes guachera',  'Hembras nacidas'),
+        ('_mort_guachera',   'Muertes guachera HEMBRA',  'Hembras nacidas'),
         ('_mort_recria',     'Muertes Recria',    'Hembras nacidas'),
         ('_pct_hembras',     'Hembras nacidas',   'Partos Totales'),
         ('_tasa_abortos',    'Abortos',           'VT'),
