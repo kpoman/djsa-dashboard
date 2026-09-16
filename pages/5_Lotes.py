@@ -108,7 +108,19 @@ def _gs_update_lineas_real(sel_id, edited_df):
         r = _match.iloc[0]
         precio_r = pd.to_numeric(r.get('precio_real'), errors='coerce')
         cant_r   = pd.to_numeric(r.get('cant_real'), errors='coerce')
-        valor_r  = (precio_r * cant_r) if pd.notna(precio_r) and pd.notna(cant_r) else pd.to_numeric(r.get('valor_real'), errors='coerce')
+        valor_r_directo = pd.to_numeric(r.get('valor_real'), errors='coerce')
+        if pd.notna(precio_r) and pd.notna(cant_r):
+            valor_r = precio_r * cant_r
+        elif pd.notna(valor_r_directo):
+            valor_r = valor_r_directo
+        elif pd.notna(precio_r):
+            # Línea de costo sin desglose cantidad (ej. Semilla, Labranzas): cargar
+            # solo "precio" significa "el valor total real", no un precio unitario.
+            valor_r = precio_r
+        elif pd.notna(cant_r):
+            valor_r = cant_r
+        else:
+            valor_r = np.nan
         valor_p  = pd.to_numeric(row[col_idx['valor_ppto']], errors='coerce') if row[col_idx['valor_ppto']] != '' else np.nan
         dif      = (valor_r - valor_p) if pd.notna(valor_r) and pd.notna(valor_p) else np.nan
 
@@ -329,11 +341,20 @@ if col_ref.button("🔄 Actualizar", help="Limpiar cache"):
     _get_ref_header.clear(); _get_ref_lineas.clear()
     st.rerun()
 
+# ── Navegación pendiente (ej. click en tabla de Analíticos → saltar a Planteo) ──
+_nav = st.session_state.pop('nav_pending', None)
+if _nav:
+    if 'campo' in _nav:      st.session_state['sb_campo'] = _nav['campo']
+    if 'campaña' in _nav:    st.session_state['sb_campana'] = _nav['campaña']
+    if 'actividad' in _nav:  st.session_state['sb_actividad'] = _nav['actividad']
+    if 'main_tab' in _nav:   st.session_state['main_tab'] = _nav['main_tab']
+    if 'plt_id' in _nav:     st.session_state['plt_id_pending'] = _nav['plt_id']
+
 # ── Selector jerárquico en sidebar ───────────────────────────────────────────
 with st.sidebar:
     st.header("Filtros")
     campos = sorted(df_amb['campo'].dropna().unique()) if not df_amb.empty else []
-    sel_campo = st.selectbox("Campo", ["(Todos)"] + campos)
+    sel_campo = st.selectbox("Campo", ["(Todos)"] + campos, key='sb_campo')
 
     df_amb_f = df_amb if sel_campo == "(Todos)" else df_amb[df_amb['campo'] == sel_campo]
     lotes = sorted(df_amb_f['lote_nombre'].dropna().unique())
@@ -345,10 +366,10 @@ with st.sidebar:
 
     st.divider()
     campanas = sorted(df_pln['campaña'].dropna().unique(), reverse=True) if not df_pln.empty else []
-    sel_camp = st.selectbox("Campaña", ["(Todas)"] + list(campanas))
+    sel_camp = st.selectbox("Campaña", ["(Todas)"] + list(campanas), key='sb_campana')
 
     actividades = sorted(df_pln['actividad'].dropna().unique()) if not df_pln.empty else []
-    sel_act = st.multiselect("Actividad", actividades, default=actividades)
+    sel_act = st.multiselect("Actividad", actividades, default=actividades, key='sb_actividad')
 
     st.divider()
     st.caption("**Leyenda actividades**")
@@ -513,34 +534,69 @@ elif _main_tab == "📋 Planteo":
 
         if _show_form:
             if True:
-                dc1, dc2, dc3, dc4 = st.columns(4)
+                dc1, dc2 = st.columns(2)
                 _campos_disp = sorted(df_amb['campo'].dropna().unique()) if not df_amb.empty else list(_CAMPO_PREFIX.keys())
                 _d_campo = dc1.selectbox("Campo destino", _campos_disp, key='deriv_campo')
 
                 _kml_areas = _get_kml_areas(_d_campo)
 
-                _lotes_campo = ["(campo entero)"] + sorted(
-                    df_amb[df_amb['campo'] == _d_campo]['lote_nombre'].dropna().unique()
-                ) if not df_amb.empty else ["(campo entero)"]
-                _d_lote = dc2.selectbox("Lote", _lotes_campo, key='deriv_lote')
+                _lotes_campo = sorted(df_amb[df_amb['campo'] == _d_campo]['lote_nombre'].dropna().unique()) if not df_amb.empty else []
+                _sel_lotes = dc2.multiselect(
+                    "Lote(s) destino", _lotes_campo, key='deriv_lotes',
+                    help="Uno o varios. Sin selección → todo el campo (1 planteo).",
+                )
 
-                _amb_f = df_amb[(df_amb['campo'] == _d_campo) & (df_amb['lote_nombre'] == _d_lote)] if _d_lote != "(campo entero)" else pd.DataFrame()
-                _ambs_lote = ["(lote entero)"] + sorted(_amb_f['ambiente_nombre'].dropna().unique()) if not _amb_f.empty else ["(lote entero)"]
-                _d_amb = dc3.selectbox("Ambiente", _ambs_lote, key='deriv_ambiente', disabled=(_d_lote == "(campo entero)"))
+                _amb_opts = sorted(
+                    df_amb[(df_amb['campo'] == _d_campo) & (df_amb['lote_nombre'].isin(_sel_lotes))]['ambiente_nombre'].dropna().unique()
+                ) if _sel_lotes else []
+                _sel_ambs = st.multiselect(
+                    "Ambiente(s) — opcional, para elegir puntualmente dentro de un lote", _amb_opts,
+                    key='deriv_ambs', disabled=not _sel_lotes,
+                    help="Un lote sin ningún ambiente elegido se crea entero. Si elegís ambientes de un lote, "
+                         "se crea 1 planteo por cada ambiente elegido (no el lote completo).",
+                )
 
-                # Hectáreas: default calculado del polígono KML (ambiente > lote > campo), editable/sobre-escribible
-                if _d_lote == "(campo entero)":
-                    _amb_ids = df_amb[df_amb['campo'] == _d_campo]['ambiente_id'].tolist()
-                elif _d_amb == "(lote entero)":
-                    _amb_ids = _amb_f['ambiente_id'].tolist()
+                # Construir la lista de destinos: 1 planteo por elemento
+                _destinos = []
+                if not _sel_lotes:
+                    _amb_ids_campo = df_amb[df_amb['campo'] == _d_campo]['ambiente_id'].tolist()
+                    _destinos.append({
+                        'label': '(campo entero)', 'lote_id': '(campo entero)', 'ambiente_id': '(campo entero)',
+                        'ha': round(sum(_kml_areas.get(a, 0.0) for a in _amb_ids_campo), 1),
+                    })
                 else:
-                    _amb_ids = _amb_f[_amb_f['ambiente_nombre'] == _d_amb]['ambiente_id'].tolist()
-                _ha_default = round(sum(_kml_areas.get(a, 0.0) for a in _amb_ids), 1)
-                # Key depende de la selección: así el default se refresca al cambiar campo/lote/ambiente,
-                # pero un valor editado a mano se preserva mientras no cambie la selección.
-                _ha_key = f'deriv_ha__{_d_campo}__{_d_lote}__{_d_amb}'
-                _d_ha = dc4.number_input("Hectáreas", min_value=0.0, value=_ha_default, step=1.0, key=_ha_key,
-                                          help="Calculado desde el polígono KML. Editable si el área real difiere.")
+                    for _lote in _sel_lotes:
+                        _amb_f_lote = df_amb[(df_amb['campo'] == _d_campo) & (df_amb['lote_nombre'] == _lote)]
+                        _lote_id = _amb_f_lote['lote_id'].iloc[0] if not _amb_f_lote.empty else _lote
+                        _ambs_de_este_lote = [a for a in _sel_ambs if a in _amb_f_lote['ambiente_nombre'].tolist()]
+                        if _ambs_de_este_lote:
+                            for _amb in _ambs_de_este_lote:
+                                _r = _amb_f_lote[_amb_f_lote['ambiente_nombre'] == _amb].iloc[0]
+                                _destinos.append({
+                                    'label': f"{_lote} · {_amb}", 'lote_id': _lote_id, 'ambiente_id': _r['ambiente_id'],
+                                    'ha': round(_kml_areas.get(_r['ambiente_id'], 0.0), 1),
+                                })
+                        else:
+                            _amb_ids_lote = _amb_f_lote['ambiente_id'].tolist()
+                            _destinos.append({
+                                'label': _lote, 'lote_id': _lote_id, 'ambiente_id': '(lote entero)',
+                                'ha': round(sum(_kml_areas.get(a, 0.0) for a in _amb_ids_lote), 1),
+                            })
+
+                st.caption(
+                    f"Se va{'n' if len(_destinos) > 1 else ''} a crear **{len(_destinos)}** Planteo{'s' if len(_destinos) > 1 else ''} "
+                    f"Local{'es' if len(_destinos) > 1 else ''}" +
+                    (" — 1 por destino, mismas líneas/escenario/fechas." if len(_destinos) > 1 else ".")
+                )
+                st.caption("Hectáreas calculadas desde el KML — editables si el área real difiere.")
+                _df_dest = pd.DataFrame([{'Destino': d['label'], 'Hectáreas': d['ha']} for d in _destinos])
+                _dest_key = f"deriv_dest_editor__{_d_campo}__{'-'.join(_sel_lotes)}__{'-'.join(_sel_ambs)}"
+                _df_dest_edit = st.data_editor(
+                    _df_dest, hide_index=True, use_container_width=True, key=_dest_key,
+                    disabled=['Destino'],
+                )
+                for _i, _d in enumerate(_destinos):
+                    _d['ha'] = float(pd.to_numeric(_df_dest_edit.iloc[_i]['Hectáreas'], errors='coerce') or 0.0)
 
                 dc5, dc6, dc7 = st.columns(3)
                 _d_escenario = dc5.selectbox("Escenario", ["Planificado", "Real"], key='deriv_escenario')
@@ -561,57 +617,59 @@ elif _main_tab == "📋 Planteo":
                 if not _puede_crear:
                     st.caption("⚠️ Completá Cultivo/Actividad y Campaña para poder crear el planteo.")
 
-                if st.button("✅ Crear planteo local", key='deriv_submit', disabled=not _puede_crear):
+                _btn_lbl = f"✅ Crear {len(_destinos)} Planteos Locales" if len(_destinos) > 1 else "✅ Crear planteo local"
+                if st.button(_btn_lbl, key='deriv_submit', disabled=not _puede_crear):
                     _cultivo = _cultivo_src
                     _campaña = _campaña_src
-                    _new_id = _gen_planteo_id(_d_campo, _cultivo, _campaña, df_hdr)
 
-                    if _d_lote == "(campo entero)":
-                        _lote_id_val, _amb_id_val = "(campo entero)", "(campo entero)"
-                    else:
-                        _lote_id_val = _amb_f['lote_id'].iloc[0] if not _amb_f.empty else _d_lote
-                        if _d_amb == "(lote entero)":
-                            _amb_id_val = "(lote entero)"
-                        else:
-                            _match_amb = _amb_f[_amb_f['ambiente_nombre'] == _d_amb]
-                            _amb_id_val = _match_amb['ambiente_id'].iloc[0] if not _match_amb.empty else _d_amb
+                    _df_hdr_work = df_hdr.copy()
+                    _hdr_rows_batch, _lin_rows_batch, _ids_creados = [], [], []
 
-                    _hdr_row = {
-                        'planteo_id': _new_id, 'campo': _d_campo,
-                        'lote_id': _lote_id_val, 'ambiente_id': _amb_id_val,
-                        'campaña': _campaña, 'actividad': _cultivo,
-                        'ha': _d_ha, 'escenario': _d_escenario,
-                        'fecha_siembra': _d_siembra.isoformat() if _d_siembra else '',
-                        'fecha_cosecha': _d_cosecha.isoformat() if _d_cosecha else '',
-                        'referencia_id': _sel_ref_id,
-                        'referencia': _sel_ref_label,
-                        'nota': _d_nota,
-                    }
+                    for _dest in _destinos:
+                        _new_id = _gen_planteo_id(_d_campo, _cultivo, _campaña, _df_hdr_work)
+                        _ids_creados.append(_new_id)
+                        _df_hdr_work = pd.concat(
+                            [_df_hdr_work, pd.DataFrame([{'planteo_id': _new_id}])], ignore_index=True
+                        )
 
-                    _lin_rows = []
-                    for _, r in _df_edit.iterrows():
-                        precio = pd.to_numeric(r.get('precio'), errors='coerce')
-                        cantidad = pd.to_numeric(r.get('cantidad'), errors='coerce')
-                        valor = (precio * cantidad) if pd.notna(precio) and pd.notna(cantidad) else pd.to_numeric(r.get('valor'), errors='coerce')
-                        _lin_rows.append({
-                            'planteo_id': _new_id, 'mes': '',
-                            'seccion': r.get('seccion'), 'orden': r.get('orden'),
-                            'item': r.get('item'), 'unidad': r.get('unidad'),
-                            'precio_ppto': precio, 'cant_ppto': cantidad, 'valor_ppto': valor,
-                            'precio_real': None, 'cant_real': None, 'valor_real': None,
-                            'diferencia': None, 'nota': r.get('nota', ''),
+                        _hdr_rows_batch.append({
+                            'planteo_id': _new_id, 'campo': _d_campo,
+                            'lote_id': _dest['lote_id'], 'ambiente_id': _dest['ambiente_id'],
+                            'campaña': _campaña, 'actividad': _cultivo,
+                            'ha': _dest['ha'], 'escenario': _d_escenario,
+                            'fecha_siembra': _d_siembra.isoformat() if _d_siembra else '',
+                            'fecha_cosecha': _d_cosecha.isoformat() if _d_cosecha else '',
+                            'referencia_id': _sel_ref_id,
+                            'referencia': _sel_ref_label,
+                            'nota': _d_nota,
                         })
 
-                    _gs_append_rows(_WS_HEADER, _HDR_COLS, _hdr_row)
-                    _gs_append_rows(_WS_LINEAS, _LIN_COLS, _lin_rows)
+                        for _, r in _df_edit.iterrows():
+                            precio = pd.to_numeric(r.get('precio'), errors='coerce')
+                            cantidad = pd.to_numeric(r.get('cantidad'), errors='coerce')
+                            valor = (precio * cantidad) if pd.notna(precio) and pd.notna(cantidad) else pd.to_numeric(r.get('valor'), errors='coerce')
+                            _lin_rows_batch.append({
+                                'planteo_id': _new_id, 'mes': '',
+                                'seccion': r.get('seccion'), 'orden': r.get('orden'),
+                                'item': r.get('item'), 'unidad': r.get('unidad'),
+                                'precio_ppto': precio, 'cant_ppto': cantidad, 'valor_ppto': valor,
+                                'precio_real': None, 'cant_real': None, 'valor_real': None,
+                                'diferencia': None, 'nota': r.get('nota', ''),
+                            })
+
+                    _gs_append_rows(_WS_HEADER, _HDR_COLS, _hdr_rows_batch)
+                    _gs_append_rows(_WS_LINEAS, _LIN_COLS, _lin_rows_batch)
                     _get_header.clear(); _get_lineas.clear()
                     # Recargar en memoria (sin rerun explícito, para no perder el tab activo)
                     df_hdr = _get_header()
                     df_lin = _get_lineas()
                     df_pln = _get_planteos_flat()
-                    st.session_state['plt_id_pending'] = _new_id
-                    _origen_msg = f"a partir de {_sel_ref_label}" if _es_desde_ref else "sin Planteo de Referencia"
-                    st.success(f"✅ Planteo Local **{_new_id}** creado {_origen_msg} ({_d_ha:.0f} ha).")
+                    st.session_state['plt_id_pending'] = _ids_creados[0]
+                    if len(_ids_creados) == 1:
+                        _origen_msg = f"a partir de {_sel_ref_label}" if _es_desde_ref else "sin Planteo de Referencia"
+                        st.success(f"✅ Planteo Local **{_ids_creados[0]}** creado {_origen_msg} ({_destinos[0]['ha']:.0f} ha).")
+                    else:
+                        st.success(f"✅ {len(_ids_creados)} Planteos Locales creados: {', '.join(_ids_creados)}.")
 
     st.divider()
 
@@ -867,8 +925,8 @@ elif _main_tab == "📊 Analíticos":
     df_mb = _mb_por_cultivo(df_pln)
 
     # ── Sub-tabs ──────────────────────────────────────────────────────────────
-    atab_res, atab_wf, atab_sens = st.tabs([
-        "🏁 Resumen & Ranking", "🌊 Descomposición", "🎯 Sensibilidad",
+    atab_res, atab_wf, atab_sens, atab_hist = st.tabs([
+        "🏁 Resumen & Ranking", "🌊 Descomposición", "🎯 Sensibilidad", "📈 Histórico por Lote",
     ])
 
     # ════════════════════════════════════════════════════════════════════════
@@ -917,15 +975,27 @@ elif _main_tab == "📊 Analíticos":
         df_tabla.insert(0, '', df_tabla['mb'].apply(_semaforo))
         df_tabla = df_tabla[['', 'campo', 'actividad', 'campaña', 'ingresos', 'costos', 'mb']]
         df_tabla.columns = ['', 'Campo', 'Cultivo', 'Campaña', 'Ingresos', 'Costos', 'MB']
-        df_tabla = df_tabla.sort_values('MB', ascending=False)
+        df_tabla = df_tabla.sort_values('MB', ascending=False).reset_index(drop=True)
 
-        st.dataframe(
+        st.caption("👆 Hacé click en una fila para ver el detalle en el tab Planteo.")
+        _sel_event = st.dataframe(
             df_tabla.style
                 .map(_color_mb_cell, subset=['MB'])
                 .format({'Ingresos': 'U$S {:,.0f}', 'Costos': 'U$S {:,.0f}', 'MB': 'U$S {:+,.0f}'}),
             use_container_width=True,
             hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key='semaforo_select',
         )
+        _sel_rows = _sel_event.selection.get('rows', []) if _sel_event and getattr(_sel_event, 'selection', None) else []
+        if _sel_rows:
+            _clicked = df_tabla.iloc[_sel_rows[0]]
+            st.session_state['nav_pending'] = {
+                'campo': _clicked['Campo'], 'campaña': _clicked['Campaña'],
+                'actividad': [_clicked['Cultivo']], 'main_tab': "📋 Planteo",
+            }
+            st.rerun()
 
         st.divider()
 
@@ -1068,17 +1138,28 @@ elif _main_tab == "📊 Analíticos":
                 st.subheader(f"Comparación inter-campo — {sel_w_act} {sel_w_camp}")
                 st.caption("Mismo cultivo y campaña en ambos campos: ¿qué explica la diferencia en MB?")
 
+                _ha_by_campo = df_todos.groupby('campo')['ha'].first().to_dict()
+                _comp_total = st.checkbox(
+                    "Ver en valor total (US$) en vez de US$/ha", key='comp_total',
+                    help="Multiplica por las hectáreas de cada planteo. Requiere que las hectáreas estén cargadas.",
+                )
+                _unid_comp = 'US$' if _comp_total else 'US$/ha'
+
+                def _mult_campo(campo):
+                    return float(_ha_by_campo.get(campo, 0.0) or 0.0) if _comp_total else 1.0
+
                 # Bar apilado relativo: ingresos arriba, costos abajo
                 _bars = []
                 for campo in campos_comp:
                     df_c = df_todos[df_todos['campo'] == campo]
+                    _mult = _mult_campo(campo)
                     for _, row in df_c.iterrows():
                         signo = 1 if row['seccion'] == 'Ingresos' else -1
                         _bars.append({
                             'campo': campo,
                             'item':  row['item'],
                             'seccion': row['seccion'],
-                            'valor': (float(row['valor_real']) if pd.notna(row['valor_real']) else 0.0) * signo,
+                            'valor': (float(row['valor_real']) if pd.notna(row['valor_real']) else 0.0) * signo * _mult,
                         })
                 df_bars = pd.DataFrame(_bars)
 
@@ -1095,24 +1176,27 @@ elif _main_tab == "📊 Analíticos":
                     x='campo', y='valor', color='item',
                     barmode='relative',
                     title=f"Composición MB por campo — {sel_w_act} {sel_w_camp}",
-                    labels={'valor': 'US$/ha', 'campo': '', 'item': 'Ítem'},
+                    labels={'valor': _unid_comp, 'campo': '', 'item': 'Ítem'},
                     color_discrete_map=_color_map,
                 )
                 # Overlay MB como diamante
                 _mb_comp = df_mb[
                     (df_mb['actividad'] == sel_w_act) & (df_mb['campaña'] == sel_w_camp)
-                ]
+                ].copy()
+                _mb_comp['mb_disp'] = _mb_comp.apply(lambda r: r['mb'] * _mult_campo(r['campo']), axis=1)
                 fig_comp.add_trace(go.Scatter(
-                    x=_mb_comp['campo'], y=_mb_comp['mb'],
+                    x=_mb_comp['campo'], y=_mb_comp['mb_disp'],
                     mode='markers+text', name='MB',
                     marker=dict(size=18, symbol='diamond', color='#1565C0',
                                 line=dict(width=2, color='white')),
-                    text=_mb_comp['mb'].apply(lambda x: f'MB {x:+,.0f}'),
+                    text=_mb_comp['mb_disp'].apply(lambda x: f'MB {x:+,.0f}'),
                     textposition='top center',
                 ))
                 fig_comp.add_hline(y=0, line_color='#555', line_width=1.5)
                 fig_comp.update_layout(height=480)
                 st.plotly_chart(fig_comp, use_container_width=True)
+                if _comp_total and any(v == 0 for v in _ha_by_campo.values()):
+                    st.caption("⚠️ Algún campo tiene 0 ha cargadas — su valor total va a mostrar 0.")
 
                 # ── Diagnóstico cuantitativo (2 campos) ───────────────────
                 if len(campos_comp) == 2:
@@ -1121,28 +1205,30 @@ elif _main_tab == "📊 Analíticos":
                     _row_b = df_mb[(df_mb['campo']==c_b) & (df_mb['actividad']==sel_w_act) & (df_mb['campaña']==sel_w_camp)]
 
                     if not _row_a.empty and not _row_b.empty:
-                        _ing_a, _cos_a, _mb_a = _row_a.iloc[0][['ingresos','costos','mb']]
-                        _ing_b, _cos_b, _mb_b = _row_b.iloc[0][['ingresos','costos','mb']]
+                        _mult_a, _mult_b = _mult_campo(c_a), _mult_campo(c_b)
+                        _ing_a, _cos_a, _mb_a = (_row_a.iloc[0][['ingresos','costos','mb']] * _mult_a)
+                        _ing_b, _cos_b, _mb_b = (_row_b.iloc[0][['ingresos','costos','mb']] * _mult_b)
+                        _suf = '' if _comp_total else '/ha'
 
                         _rinde_a = df_todos[(df_todos['campo']==c_a) & (df_todos['item']=='Cosecha')]['cant_real'].mean()
                         _rinde_b = df_todos[(df_todos['campo']==c_b) & (df_todos['item']=='Cosecha')]['cant_real'].mean()
 
                         d1, d2, d3 = st.columns(3)
                         d1.metric(f"Diferencia MB ({c_b} vs {c_a})",
-                                  f"U$S {_mb_b - _mb_a:+,.0f}/ha")
+                                  f"U$S {_mb_b - _mb_a:+,.0f}{_suf}")
                         d2.metric("Δ Ingresos",
-                                  f"U$S {_ing_b - _ing_a:+,.0f}/ha",
+                                  f"U$S {_ing_b - _ing_a:+,.0f}{_suf}",
                                   f"Rinde: {_rinde_a:.2f} vs {_rinde_b:.2f} tn/ha"
                                   if pd.notna(_rinde_a) and pd.notna(_rinde_b) else None)
                         d3.metric("Δ Costos Directos",
-                                  f"U$S {_cos_b - _cos_a:+,.0f}/ha",
+                                  f"U$S {_cos_b - _cos_a:+,.0f}{_suf}",
                                   delta_color="inverse")
 
                         _driver = "rendimiento/precio" if abs(_ing_b-_ing_a) > abs(_cos_b-_cos_a) else "estructura de costos"
                         st.info(
                             f"**El principal driver de la diferencia es el {_driver}.** "
-                            f"Δ Ingresos: U$S {_ing_b-_ing_a:+,.0f}/ha · "
-                            f"Δ Costos: U$S {_cos_b-_cos_a:+,.0f}/ha."
+                            f"Δ Ingresos: U$S {_ing_b-_ing_a:+,.0f}{_suf} · "
+                            f"Δ Costos: U$S {_cos_b-_cos_a:+,.0f}{_suf}."
                         )
 
     # ════════════════════════════════════════════════════════════════════════
@@ -1180,22 +1266,29 @@ elif _main_tab == "📊 Analíticos":
             if _base_precio is None or _base_rinde is None:
                 st.warning("No se encontró precio/rendimiento para 'Cosecha'. Verificá los datos.")
             else:
+                _rango_sens = st.select_slider(
+                    "Rango de análisis (± %)", options=[50, 75, 100, 150, 200], value=50, key='sens_rango',
+                    help="Ampliá el rango para analizar caídas de rinde fuertes (sequía, helada, granizo) "
+                         "que superen un -50%.",
+                )
+
                 col_sl1, col_sl2 = st.columns(2)
                 with col_sl1:
                     delta_precio_pct = st.slider(
                         f"Δ precio grano (base: U$S {_base_precio:.0f}/tn)",
-                        min_value=-50, max_value=50, value=0, step=5, format="%d%%",
+                        min_value=-_rango_sens, max_value=_rango_sens, value=0, step=5, format="%d%%",
                         key='sens_precio_sl',
                     )
                 with col_sl2:
                     delta_rinde_pct = st.slider(
                         f"Δ rendimiento (base: {_base_rinde:.2f} tn/ha)",
-                        min_value=-50, max_value=50, value=0, step=5, format="%d%%",
+                        min_value=-_rango_sens, max_value=_rango_sens, value=0, step=5, format="%d%%",
                         key='sens_rinde_sl',
                     )
 
-                _new_precio  = _base_precio * (1 + delta_precio_pct / 100)
-                _new_rinde   = _base_rinde  * (1 + delta_rinde_pct / 100)
+                # Precio y rinde no pueden ser negativos (una caída de -100% o más = 0)
+                _new_precio  = max(0.0, _base_precio * (1 + delta_precio_pct / 100))
+                _new_rinde   = max(0.0, _base_rinde  * (1 + delta_rinde_pct / 100))
                 _new_cosecha = _new_precio * _new_rinde
                 _new_mb      = _new_cosecha + _otros_ing - _base_cos
 
@@ -1226,10 +1319,10 @@ elif _main_tab == "📊 Analíticos":
                 st.subheader("Mapa de calor: precio × rendimiento → MB")
                 st.caption("Verde = MB positivo · Rojo = negativo · La estrella ★ marca el escenario seleccionado arriba.")
 
-                _steps = list(range(-40, 45, 10))
+                _steps = [int(round(x)) for x in np.linspace(-_rango_sens, _rango_sens, 9)]
                 mb_matrix = np.array([
                     [
-                        _base_precio * (1 + pp/100) * _base_rinde * (1 + rp/100) + _otros_ing - _base_cos
+                        max(0.0, _base_precio * (1 + pp/100)) * max(0.0, _base_rinde * (1 + rp/100)) + _otros_ing - _base_cos
                         for pp in _steps
                     ]
                     for rp in _steps
@@ -1271,3 +1364,106 @@ elif _main_tab == "📊 Analíticos":
                     height=440,
                 )
                 st.plotly_chart(fig_hm, use_container_width=True)
+
+    # ════════════════════════════════════════════════════════════════════════
+    # HISTÓRICO POR LOTE
+    # ════════════════════════════════════════════════════════════════════════
+    with atab_hist:
+        st.subheader("Histórico de rendimiento por lote")
+        st.caption("Rinde de Cosecha y Margen Bruto a través de campañas, para un lote específico — tracking para mejora continua.")
+
+        _placeholders_lote = {'(campo entero)', '(campo)', '', None}
+        _lotes_con_historial = df_hdr[~df_hdr['lote_id'].isin(_placeholders_lote) & df_hdr['lote_id'].notna()]
+
+        if _lotes_con_historial.empty:
+            st.info(
+                "Sin Planteos Locales asociados a un lote específico todavía. "
+                "Los planteos creados a nivel '(campo entero)' no tienen tracking por lote — "
+                "derivá o cargá un planteo eligiendo uno o varios Lotes puntuales para empezar el historial."
+            )
+        else:
+            hc1, hc2 = st.columns(2)
+            _campos_hist = sorted(_lotes_con_historial['campo'].dropna().unique())
+            _sel_h_campo = hc1.selectbox("Campo", _campos_hist, key='hist_campo')
+
+            _lote_ids_campo = sorted(
+                _lotes_con_historial[_lotes_con_historial['campo'] == _sel_h_campo]['lote_id'].dropna().unique()
+            )
+
+            def _lote_nombre_de_id(lote_id):
+                _m = df_amb[(df_amb['campo'] == _sel_h_campo) & (df_amb['lote_id'] == lote_id)]
+                return _m['lote_nombre'].iloc[0] if not _m.empty else lote_id
+
+            _lote_labels = [f"{_lote_nombre_de_id(lid)} ({lid})" for lid in _lote_ids_campo]
+            _sel_h_lote_label = hc2.selectbox("Lote", _lote_labels, key='hist_lote') if _lote_labels else None
+
+            if _sel_h_lote_label:
+                _sel_h_lote_id = _lote_ids_campo[_lote_labels.index(_sel_h_lote_label)]
+
+                _df_h_hdr = df_hdr[(df_hdr['campo'] == _sel_h_campo) & (df_hdr['lote_id'] == _sel_h_lote_id)]
+                _ids_h = _df_h_hdr['planteo_id'].tolist()
+                _df_h_cosecha = df_lin[
+                    (df_lin['planteo_id'].isin(_ids_h)) & (df_lin['item'] == 'Cosecha')
+                ].merge(
+                    _df_h_hdr[['planteo_id', 'campaña', 'actividad', 'escenario', 'ambiente_id', 'ha']],
+                    on='planteo_id', how='left',
+                )
+
+                if _df_h_cosecha.empty:
+                    st.warning("Este lote no tiene líneas de Cosecha cargadas todavía.")
+                else:
+                    _df_h_cosecha = _df_h_cosecha.sort_values('campaña')
+                    _tabla_h = _df_h_cosecha[[
+                        'campaña', 'actividad', 'ambiente_id', 'cant_ppto', 'cant_real',
+                        'precio_real', 'valor_real', 'planteo_id',
+                    ]].rename(columns={
+                        'campaña': 'Campaña', 'actividad': 'Cultivo', 'ambiente_id': 'Ambiente',
+                        'cant_ppto': 'Rinde ppto (tn/ha)', 'cant_real': 'Rinde real (tn/ha)',
+                        'precio_real': 'Precio real (U$S/tn)', 'valor_real': 'Ingreso Cosecha (U$S/ha)',
+                        'planteo_id': 'Planteo',
+                    })
+                    st.dataframe(
+                        _tabla_h.style.format(
+                            {'Rinde ppto (tn/ha)': '{:.2f}', 'Rinde real (tn/ha)': '{:.2f}',
+                             'Precio real (U$S/tn)': '{:.1f}', 'Ingreso Cosecha (U$S/ha)': '{:,.1f}'},
+                            na_rep='—',
+                        ),
+                        use_container_width=True, hide_index=True,
+                    )
+
+                    _df_chart = _df_h_cosecha.copy()
+                    _df_chart['rinde_mostrar'] = _df_chart['cant_real'].fillna(_df_chart['cant_ppto'])
+                    _df_chart = _df_chart.dropna(subset=['rinde_mostrar'])
+                    if not _df_chart.empty:
+                        fig_hist = px.bar(
+                            _df_chart, x='campaña', y='rinde_mostrar', color='actividad',
+                            title=f"Rinde histórico — {_sel_h_lote_label}",
+                            labels={'rinde_mostrar': 'Rinde (tn/ha)', 'campaña': 'Campaña', 'actividad': 'Cultivo'},
+                            color_discrete_map=_COLORES,
+                            text='rinde_mostrar',
+                        )
+                        fig_hist.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+                        fig_hist.update_layout(height=420)
+                        st.plotly_chart(fig_hist, use_container_width=True)
+
+                    st.divider()
+                    st.markdown("**Evolución de Margen Bruto del lote**")
+                    _df_pln_lote = df_pln[df_pln['planteo_id'].isin(_ids_h)]
+                    if not _df_pln_lote.empty:
+                        _ing_h = _df_pln_lote[_df_pln_lote['seccion'] == 'Ingresos'].groupby('campaña')['valor_real'].sum()
+                        _cos_h = _df_pln_lote[_df_pln_lote['seccion'].str.startswith('Costos')].groupby('campaña')['valor_real'].sum()
+                        _mb_h_df = pd.concat([_ing_h.rename('ingresos'), _cos_h.rename('costos')], axis=1).fillna(0).reset_index()
+                        _mb_h_df['mb'] = _mb_h_df['ingresos'] - _mb_h_df['costos']
+                        fig_mb_h = go.Figure(go.Bar(
+                            x=_mb_h_df['campaña'], y=_mb_h_df['mb'],
+                            marker_color=_mb_h_df['mb'].apply(lambda x: '#43A047' if x > 0 else '#E53935'),
+                            text=_mb_h_df['mb'].apply(lambda x: f'{x:+,.0f}'),
+                            textposition='outside',
+                        ))
+                        fig_mb_h.add_hline(y=0, line_color='#555', line_width=1.2)
+                        fig_mb_h.update_layout(
+                            title=f"MB histórico (US$/ha) — {_sel_h_lote_label}",
+                            yaxis_title='US$/ha', xaxis_title='',
+                            height=350, showlegend=False,
+                        )
+                        st.plotly_chart(fig_mb_h, use_container_width=True)
