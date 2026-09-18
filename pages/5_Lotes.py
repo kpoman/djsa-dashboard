@@ -99,9 +99,13 @@ def _gs_update_lineas_real(sel_id, edited_df):
             continue
         _seccion = row[col_idx['seccion']]
         _orden = row[col_idx['orden']]
+        # Comparar 'orden' como número, no como texto: viene "2" desde el Sheet
+        # crudo pero "2.0" desde edited_df (que lo tipa float64) — como string
+        # nunca matchean y el guardado queda sin efecto para ninguna línea.
+        _orden_num = pd.to_numeric(_orden, errors='coerce')
         _match = edited_df[
             (edited_df['seccion'].astype(str) == str(_seccion)) &
-            (edited_df['orden'].astype(str) == str(_orden))
+            (pd.to_numeric(edited_df['orden'], errors='coerce') == _orden_num)
         ]
         if _match.empty:
             continue
@@ -833,22 +837,112 @@ elif _main_tab == "📋 Planteo":
 
         # KPIs
         st.divider()
-        _ing_r = _df_res[_df_res['seccion']=='Ingresos']['valor_real'].sum() * _mult
-        _cos_r = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_real'].sum() * _mult
+        # Simulación: una línea sin ejecución cargada todavía se asume igual al ppto,
+        # así se puede ver el impacto de editar solo algunas líneas (ej. Semilla) sin
+        # tener que cargar la ejecución completa.
+        _valor_real_sim = _df_res['valor_real'].fillna(_df_res['valor_ppto'])
+        _ing_r = _valor_real_sim[_df_res['seccion']=='Ingresos'].sum() * _mult
+        _cos_r = _valor_real_sim[_df_res['seccion'].str.startswith('Costos')].sum() * _mult
         _mb_r  = _ing_r - _cos_r
         _ing_p = _df_res[_df_res['seccion']=='Ingresos']['valor_ppto'].sum() * _mult
         _cos_p = _df_res[_df_res['seccion'].str.startswith('Costos')]['valor_ppto'].sum() * _mult
         _mb_p  = _ing_p - _cos_p
         _suf = "" if _es_total else "/ha"
 
-        k1, k2, k3, k4 = st.columns(4)
+        _tiene_real = _df_res['valor_real'].notna().any()
+
+        # Marca visual cuando "real" es (parcialmente) un valor heredado del ppto
+        # por no tener ejecución cargada para esa línea puntual.
+        def _nota_estim(mask_seccion):
+            _n_tot = int(mask_seccion.sum())
+            _n_real = int((mask_seccion & _df_res['valor_real'].notna()).sum())
+            if _n_tot == 0 or _n_real == _n_tot:
+                return None
+            if _n_real == 0:
+                return "● estimado = ppto (sin ejecución cargada)"
+            return f"● {_n_real}/{_n_tot} líneas cargadas · resto = ppto"
+
+        def _show_nota(col, mask_seccion):
+            _txt = _nota_estim(mask_seccion)
+            if _txt:
+                col.markdown(
+                    f"<span style='color:#E8A33D;font-size:0.75rem'>{_txt}</span>",
+                    unsafe_allow_html=True,
+                )
+
+        _mask_ing = _df_res['seccion'] == 'Ingresos'
+        _mask_cos = _df_res['seccion'].str.startswith('Costos')
+        _mask_tot = pd.Series(True, index=_df_res.index)
+
+        # Modelo base: valores originales del Planteo de Referencia (sin ajustes locales)
+        _ref_id_sel = _hdr_sel.get('referencia_id', '')
+        _tiene_ref = pd.notna(_ref_id_sel) and str(_ref_id_sel).strip() != ''
+        _mb_b = np.nan
+        if _tiene_ref:
+            _df_ref_lin_sel = _get_ref_lineas()
+            _df_ref_lin_sel = _df_ref_lin_sel[_df_ref_lin_sel['referencia_id'] == str(_ref_id_sel).strip()]
+            if not _df_ref_lin_sel.empty:
+                _ing_b = pd.to_numeric(
+                    _df_ref_lin_sel[_df_ref_lin_sel['seccion'] == 'Ingresos']['valor'], errors='coerce'
+                ).sum() * _mult
+                _cos_b = pd.to_numeric(
+                    _df_ref_lin_sel[_df_ref_lin_sel['seccion'].str.startswith('Costos')]['valor'], errors='coerce'
+                ).sum() * _mult
+                _mb_b = _ing_b - _cos_b
+
         if _tiene_ppto:
-            k1.metric("Ingresos ppto", f"U$S {_ing_p:,.0f}{_suf}")
-            k2.metric("Costos ppto",   f"U$S {_cos_p:,.0f}{_suf}")
-            k3.metric("MB ppto",       f"U$S {_mb_p:+,.0f}{_suf}")
-            k4.metric("MB real vs ppto", f"U$S {_mb_r - _mb_p:+,.0f}{_suf}",
-                      delta_color="normal" if _mb_r >= _mb_p else "inverse")
+            _con_base = _tiene_ref and pd.notna(_mb_b)
+            _nota_sim = (" · en naranja: valor heredado del ppto por no tener ejecución cargada"
+                         if not _tiene_real else "")
+            if _con_base:
+                st.caption(
+                    "Comparación: modelo base (Planteo de Referencia) · planteo local (ppto) · "
+                    f"ejecución (real){_nota_sim}"
+                )
+
+                st.markdown("**Ingresos**")
+                ki1, ki2, ki3 = st.columns(3)
+                ki1.metric("Base (modelo)", f"U$S {_ing_b:,.0f}{_suf}")
+                ki2.metric("Ppto (local)", f"U$S {_ing_p:,.0f}{_suf}")
+                ki3.metric("Real (ejecución)", f"U$S {_ing_r:,.0f}{_suf}")
+                _show_nota(ki3, _mask_ing)
+
+                st.markdown("**Costos**")
+                kc1, kc2, kc3 = st.columns(3)
+                kc1.metric("Base (modelo)", f"U$S {_cos_b:,.0f}{_suf}")
+                kc2.metric("Ppto (local)", f"U$S {_cos_p:,.0f}{_suf}")
+                kc3.metric("Real (ejecución)", f"U$S {_cos_r:,.0f}{_suf}")
+                _show_nota(kc3, _mask_cos)
+
+                st.markdown("**Margen Bruto**")
+                km1, km2, km3 = st.columns(3)
+                km1.metric("Base (modelo)", f"U$S {_mb_b:+,.0f}{_suf}")
+                km2.metric("Ppto (local)", f"U$S {_mb_p:+,.0f}{_suf}",
+                           delta=f"{_mb_p - _mb_b:+,.0f} vs base")
+                km3.metric("Real (ejecución)", f"U$S {_mb_r:+,.0f}{_suf}",
+                           delta=f"{_mb_r - _mb_p:+,.0f} vs ppto",
+                           delta_color="normal" if _mb_r >= _mb_p else "inverse")
+                _show_nota(km3, _mask_tot)
+            else:
+                if _nota_sim:
+                    st.caption(f"Ppto vs ejecución{_nota_sim}")
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Ingresos ppto", f"U$S {_ing_p:,.0f}{_suf}")
+                k2.metric("Ingresos real", f"U$S {_ing_r:,.0f}{_suf}")
+                _show_nota(k2, _mask_ing)
+                k3.metric("Costos ppto",   f"U$S {_cos_p:,.0f}{_suf}")
+                k4.metric("Costos real",   f"U$S {_cos_r:,.0f}{_suf}")
+                _show_nota(k4, _mask_cos)
+
+                k5, k6, k7 = st.columns(3)
+                k5.metric("MB ppto", f"U$S {_mb_p:+,.0f}{_suf}")
+                k6.metric("MB real (ejecución)", f"U$S {_mb_r:+,.0f}{_suf}",
+                          delta_color="normal" if _mb_r >= 0 else "inverse")
+                _show_nota(k6, _mask_tot)
+                k7.metric("Δ MB (real vs ppto)", f"U$S {_mb_r - _mb_p:+,.0f}{_suf}",
+                          delta_color="normal" if _mb_r >= _mb_p else "inverse")
         else:
+            k1, k2, k3, k4 = st.columns(4)
             k1.metric("Ingresos", f"U$S {_ing_r:,.0f}{_suf}")
             k2.metric("Costos Directos", f"U$S {_cos_r:,.0f}{_suf}")
             k3.metric("Margen Bruto", f"U$S {_mb_r:+,.0f}{_suf}",
