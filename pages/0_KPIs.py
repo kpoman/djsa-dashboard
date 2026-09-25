@@ -112,17 +112,30 @@ def _load_calidad():
     return df.dropna(subset=['fecha'])
 
 
+_PD_COLS = ['cat', 'tarde_vo', 'tarde_tanque', 'tarde_prod',
+            'maniana_vo', 'maniana_tanque', 'maniana_prod',
+            'diaria_total', 'diaria_ltvo', 'entregado']
+
+
+def _normalizar_hoja_parte_diario(t):
+    """Unifica el layout de una hoja del parte diario a 10 columnas.
+    Desde la hoja 09-26 se insertaron 2 columnas 'Calidad' (GB/PT) en las
+    posiciones 7-8, corriendo Diaria total / LT-VO / Entregado dos lugares a la derecha."""
+    t = t.copy()
+    t.columns = range(t.shape[1])
+    if 7 in t.columns and t[7].astype(str).str.strip().eq('Calidad').any():
+        t = t.drop(columns=[7, 8])
+        t.columns = range(t.shape[1])
+    t = t.reindex(columns=range(10))
+    t.columns = _PD_COLS
+    return t
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def _load_ltvo_partediario():
     """Devuelve df con columnas [date, diaria_ltvo] del parte diario."""
-    df_all = pd.read_excel(
-        URL_PARTE_DIARIO, header=None,
-        usecols=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-        names=['cat', 'tarde_vo', 'tarde_tanque', 'tarde_prod',
-               'maniana_vo', 'maniana_tanque', 'maniana_prod',
-               'diaria_total', 'diaria_ltvo', 'entregado'],
-        sheet_name=None,
-    )
+    df_all = pd.read_excel(URL_PARTE_DIARIO, header=None, sheet_name=None)
+    df_all = {k: _normalizar_hoja_parte_diario(v) for k, v in df_all.items()}
     keys = list(df_all.keys())
     tabs = []
     for i in range(len(keys)):
