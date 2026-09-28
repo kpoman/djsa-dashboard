@@ -458,7 +458,14 @@ if _main_tab == "🗺️ Mapa":
     else:
         _clat, _clon, _zoom = -37.0, -61.0, 8
 
-    m = folium.Map(location=[_clat, _clon], zoom_start=_zoom, tiles='CartoDB positron')
+    m = folium.Map(location=[_clat, _clon], zoom_start=_zoom, tiles='OpenStreetMap')
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri, Maxar, Earthstar Geographics',
+        name='Satélite (Esri)',
+        overlay=False,
+        show=False,
+    ).add_to(m)
 
     # Segunda pasada: agregar capas GeoJSON
     for campo_name, gj in _geojsons.items():
