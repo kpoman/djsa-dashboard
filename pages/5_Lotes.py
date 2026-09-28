@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import xml.etree.ElementTree as ET
 import os, re, math
 import gspread
+import requests
 from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Lotes — DJSA", page_icon="🗺️", layout="wide")
@@ -44,8 +45,22 @@ def _gs_client():
     return gspread.authorize(creds)
 
 
+def _gs_open_sheet():
+    # El cliente cacheado puede quedar con sockets muertos tras un sleep/corte de red:
+    # ante ConnectionError se recrea y se reintenta.
+    import time
+    for intento in range(3):
+        try:
+            return _gs_client().open_by_key(_SHEET_ID)
+        except requests.exceptions.ConnectionError:
+            if intento == 2:
+                raise
+            _gs_client.clear()
+            time.sleep(1.5 * (intento + 1))
+
+
 def _gs_worksheet(name, cols):
-    sh = _gs_client().open_by_key(_SHEET_ID)
+    sh = _gs_open_sheet()
     try:
         ws = sh.worksheet(name)
     except gspread.WorksheetNotFound:
