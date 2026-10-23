@@ -93,7 +93,7 @@ def _load_dairycomp():
     )
     df_ev['Evento'] = df_ev['Evento'].str.strip()
     df_ctrl = pd.read_csv(
-        os.path.join(BASE_DATA, 'control-202610.csv'),
+        os.path.join(BASE_DATA, 'control-202611.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['FechaCtr', 'FPART', 'FSECA'], date_format='%d/%m/%y', dayfirst=True,
     )
@@ -1291,7 +1291,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
         "promedio campo `305E` en controles DairyComp — últimos 12m",
         "🟢 ≥ 10.000 L · 🟡 8.500–10.000 L · 🔴 < 8.500 L",
         "Piccardi et al. (2019), CONICET / Editorial Brujas",
-        "`control-202610.csv` — exportación estática de DairyComp",
+        "`control-202611.csv` — exportación estática de DairyComp",
         chart_key='l305e',
     )
 
@@ -1534,7 +1534,7 @@ with st.expander("ℹ️ Definición, metodología y fuentes de cada KPI"):
 |---|---|---|---|
 | Parte Diario | Google Sheets (público) | hasta {ref_ctrl} | Manual, diaria |
 | DairyComp eventos | CSV estático `eventos-202610.csv` | hasta {ref_ev} | Manual, exportar DairyComp |
-| DairyComp controles | CSV estático `control-202610.csv` | hasta {ref_ctrl} | Manual, exportar DairyComp |
+| DairyComp controles | CSV estático `control-202611.csv` | hasta {ref_ctrl} | Manual, exportar DairyComp |
 | Calidad de leche | CSV estático `calidad_leche.csv` | hasta {ref_cal} | Manual, PDFs laboratorio |
 | Planilla CREA | Google Sheets (privado) | hasta {ref_crea} | Manual, mensual |
 | Tipo de cambio | CSV estático `usdars.csv` | histórico 2010–2026 | Periódica |

@@ -308,7 +308,7 @@ def _get_dairycomp():
         lambda x: 'salud' if x in salud else ('repro' if x in repro else 'noclasif')
     )
     df_ctrl = pd.read_csv(
-        os.path.join(base, 'control-202610.csv'),
+        os.path.join(base, 'control-202611.csv'),
         encoding='iso-8859-1', delimiter=';',
         parse_dates=['FechaCtr', 'FPART', 'FSECA'],
         date_format='%d/%m/%y', dayfirst=True,
