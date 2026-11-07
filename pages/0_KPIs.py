@@ -123,11 +123,15 @@ def _normalizar_hoja_parte_diario(t):
     posiciones 7-8, corriendo Diaria total / LT-VO / Entregado dos lugares a la derecha."""
     t = t.copy()
     t.columns = range(t.shape[1])
+    gb = pt = None
     if 7 in t.columns and t[7].astype(str).str.strip().eq('Calidad').any():
+        gb, pt = t[7].copy(), t[8].copy()
         t = t.drop(columns=[7, 8])
         t.columns = range(t.shape[1])
     t = t.reindex(columns=range(10))
     t.columns = _PD_COLS
+    t['gb'] = gb if gb is not None else np.nan
+    t['pt'] = pt if pt is not None else np.nan
     return t
 
 

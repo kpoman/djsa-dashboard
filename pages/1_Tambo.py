@@ -97,11 +97,15 @@ def _normalizar_hoja_parte_diario(t):
     posiciones 7-8, corriendo Diaria total / LT-VO / Entregado dos lugares a la derecha."""
     t = t.copy()
     t.columns = range(t.shape[1])
+    gb = pt = None
     if 7 in t.columns and t[7].astype(str).str.strip().eq('Calidad').any():
+        gb, pt = t[7].copy(), t[8].copy()
         t = t.drop(columns=[7, 8])
         t.columns = range(t.shape[1])
     t = t.reindex(columns=range(10))
     t.columns = _PD_COLS
+    t['gb'] = gb if gb is not None else np.nan
+    t['pt'] = pt if pt is not None else np.nan
     return t
 
 
@@ -179,6 +183,11 @@ def _get_partediario():
     df_total = df_total[df_total['diaria_total'] > 0]
     df_total['roll']      = df_total['diaria_total'].rolling(7).mean()
     df_total['ltvo_roll'] = df_total['diaria_ltvo'].rolling(7).mean()
+    # Calidad medida en el tambo (parte diario): la planilla carga % x100 (276 = 2,76 %)
+    for _c in ('gb', 'pt'):
+        _v = pd.to_numeric(df_total[_c], errors='coerce')
+        df_total[_c] = _v.where(_v < 10, _v / 100).where(_v > 0)
+        df_total[f'{_c}_roll'] = df_total[_c].rolling(7, min_periods=3).mean()
 
     # ── Leche no comercializable: merge a df_total para tener granularidad diaria ──
     def _build_df_aligned(rows, base_df):
@@ -812,6 +821,42 @@ with tab_prod:
             k4.metric("🦠 Recuento bacteriano (prom. 30d)", ufc_label, delta=None)
 
             st.divider()
+
+            # ── Calidad medida en el tambo (parte diario, columnas GB/PT) ───────
+            _pd_cal = _get_partediario()
+            if _pd_cal is not None and _pd_cal['total']['gb'].notna().any():
+                st.subheader("Grasa y proteína medidas en el tambo (parte diario)")
+                _dt = _pd_cal['total'][['date', 'gb', 'pt', 'gb_roll', 'pt_roll']].copy()
+                _dt['date'] = pd.to_datetime(_dt['date'], errors='coerce')
+                _dt = _dt.dropna(subset=['date'])
+                _ini = _dt.loc[_dt['gb'].notna(), 'date'].min()
+                _dt = _dt[_dt['date'] >= _ini]
+                _lab = df_dia[df_dia['fecha'] >= _ini]
+
+                _cg1, _cg2 = st.columns(2)
+                for _col, _v, _vr, _lv, _tit, _clr in [
+                    (_cg1, 'gb', 'gb_roll', 'grasa', 'Grasa butirosa (%)', '#E8A33D'),
+                    (_cg2, 'pt', 'pt_roll', 'proteina', 'Proteína (%)', '#4C9BE8'),
+                ]:
+                    _f = go.Figure()
+                    _f.add_trace(go.Scatter(x=_dt['date'], y=_dt[_v], mode='markers', name='Tambo (diario)',
+                                            marker=dict(size=6, color=_clr, opacity=0.45),
+                                            hovertemplate='%{x|%d/%m}: %{y:.2f}%<extra>Tambo</extra>'))
+                    _f.add_trace(go.Scatter(x=_dt['date'], y=_dt[_vr], mode='lines', name='Tambo (media 7d)',
+                                            line=dict(color=_clr, width=3), connectgaps=True,
+                                            hovertemplate='%{x|%d/%m}: %{y:.2f}%<extra>Media 7d</extra>'))
+                    _f.add_trace(go.Scatter(x=_lab['fecha'], y=_lab[_lv], mode='markers', name='Laboratorio (Barraza)',
+                                            marker=dict(size=7, color='#888', symbol='diamond'),
+                                            hovertemplate='%{x|%d/%m}: %{y:.2f}%<extra>Laboratorio</extra>'))
+                    _f.update_layout(title=_tit, height=340, margin=dict(l=10, r=10, t=40, b=10),
+                                     legend=dict(orientation='h', y=-0.15), yaxis=dict(title='%'))
+                    _col.plotly_chart(_f, use_container_width=True)
+                st.caption(
+                    f"Columnas GB/PT del parte diario (fila Total), desde {_ini:%d/%m/%Y}; "
+                    "la planilla las carga ×100 (276 = 2,76 %). Los días sin dato quedan vacíos. "
+                    "Es la medición del tambo, no la del laboratorio: puede diferir en nivel."
+                )
+                st.divider()
 
             # ── Composición diaria — stacked area + UFC overlay ──────────────
             _c_hdr, _c_chk = st.columns([6, 1])
