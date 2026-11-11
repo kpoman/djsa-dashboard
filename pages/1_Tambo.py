@@ -1221,8 +1221,13 @@ with tab_alim:
         # ── Filtros ─────────────────────────────────────────────────────
         col_rod, col_fecha = st.columns([2, 3])
         with col_rod:
-            rodeos_disp = sorted(df_costos['Rodeo'].unique())
-            sel_rodeos = st.multiselect("Rodeo(s)", rodeos_disp, default=rodeos_disp, key="alim_rodeos")
+            # Rodeos principales preseleccionados; el resto queda disponible pero destildado
+            _rod_principales = ['Rod. 1', 'Rod. 2', 'Rod. 3', 'Rod. 4']
+            _rod_all = sorted(df_costos['Rodeo'].unique())
+            rodeos_disp = [r for r in _rod_principales if r in _rod_all] + \
+                          [r for r in _rod_all if r not in _rod_principales]
+            _rod_default = [r for r in _rod_principales if r in _rod_all] or rodeos_disp
+            sel_rodeos = st.multiselect("Rodeo(s)", rodeos_disp, default=_rod_default, key="alim_rodeos")
         with col_fecha:
             fecha_min = df_costos['Fecha'].min().date()
             fecha_max = df_costos['Fecha'].max().date()
@@ -1301,7 +1306,9 @@ with tab_alim:
                 kg_cols = [f'kg_{a}' for a in alimentos if f'kg_{a}' in df_vis.columns]
                 costo_cols = [f'$_{a}' for a in alimentos if f'$_{a}' in df_vis.columns]
 
-                rod_comp = st.selectbox("Rodeo", sel_rodeos, key="comp_rodeo")
+                # Mismo orden que el filtro: principales primero, así R1 queda preseleccionado
+                _opts_comp = [r for r in rodeos_disp if r in sel_rodeos]
+                rod_comp = st.selectbox("Rodeo", _opts_comp, key="comp_rodeo")
                 df_rod = df_vis[df_vis['Rodeo'] == rod_comp]
 
                 st.subheader(f"Composición de la dieta — {rod_comp} (kg/vaca/día)")
