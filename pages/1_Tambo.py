@@ -1280,6 +1280,17 @@ with tab_alim:
                 fig_ll.update_layout(height=450)
                 st.plotly_chart(fig_ll, use_container_width=True)
 
+                st.subheader("Litros libres por rodeo (comparación en líneas)")
+                fig_ll_line = px.line(
+                    df_ll, x='Fecha', y='Litros_libres_plot', color='Rodeo',
+                    markers=True,
+                    title=titulo + ' — líneas',
+                    labels={'Litros_libres_plot': ylabel, 'Fecha': ''},
+                )
+                fig_ll_line.add_hline(y=0, line_dash='dot', line_color='gray')
+                fig_ll_line.update_layout(height=400)
+                st.plotly_chart(fig_ll_line, use_container_width=True)
+
                 st.subheader("% Litros libres sobre producción")
                 fig_pct = px.line(
                     df_vis, x='Fecha', y='Pct_litros_libres', color='Rodeo',
